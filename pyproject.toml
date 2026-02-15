@@ -1,0 +1,21 @@
+[project]
+name = "triage-automation"
+version = "0.1.0"
+description = "Triage automation services"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "mypy>=1.18.2,<2",
+  "pytest>=8.4.2,<9",
+  "ruff>=0.13.2,<1",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
