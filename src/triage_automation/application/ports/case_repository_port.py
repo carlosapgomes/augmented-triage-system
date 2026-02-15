@@ -50,6 +50,26 @@ class CaseRoom2WidgetSnapshot:
     suggested_action_json: dict[str, Any] | None
 
 
+@dataclass(frozen=True)
+class CaseDoctorDecisionSnapshot:
+    """Case fields required by doctor decision callback handling."""
+
+    case_id: UUID
+    status: CaseStatus
+    doctor_decided_at: datetime | None
+
+
+@dataclass(frozen=True)
+class DoctorDecisionUpdateInput:
+    """Doctor decision write payload used by compare-and-set persistence."""
+
+    case_id: UUID
+    doctor_user_id: str
+    decision: str
+    support_flag: str
+    reason: str | None
+
+
 class CaseRepositoryPort(Protocol):
     """Async case repository contract."""
 
@@ -65,6 +85,19 @@ class CaseRepositoryPort(Protocol):
         case_id: UUID,
     ) -> CaseRoom2WidgetSnapshot | None:
         """Load case artifacts used by Room-2 widget posting flow."""
+
+    async def get_case_doctor_decision_snapshot(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseDoctorDecisionSnapshot | None:
+        """Load case state used by doctor decision callback handling."""
+
+    async def apply_doctor_decision_if_waiting(
+        self,
+        payload: DoctorDecisionUpdateInput,
+    ) -> bool:
+        """CAS update from WAIT_DOCTOR to decision state; returns whether applied."""
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""

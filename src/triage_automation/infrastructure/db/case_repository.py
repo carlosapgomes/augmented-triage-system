@@ -7,15 +7,17 @@ from typing import Any, cast
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy.engine import RowMapping
+from sqlalchemy.engine import CursorResult, RowMapping
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from triage_automation.application.ports.case_repository_port import (
     CaseCreateInput,
+    CaseDoctorDecisionSnapshot,
     CaseRecord,
     CaseRepositoryPort,
     CaseRoom2WidgetSnapshot,
+    DoctorDecisionUpdateInput,
     DuplicateCaseOriginEventError,
 )
 from triage_automation.domain.case_status import CaseStatus
@@ -129,6 +131,63 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             summary_text=cast(str | None, row["summary_text"]),
             suggested_action_json=cast(dict[str, Any] | None, row["suggested_action_json"]),
         )
+
+    async def get_case_doctor_decision_snapshot(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseDoctorDecisionSnapshot | None:
+        statement = sa.select(
+            cases.c.case_id,
+            cases.c.status,
+            cases.c.doctor_decided_at,
+        ).where(cases.c.case_id == case_id)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        row = result.mappings().first()
+        if row is None:
+            return None
+
+        return CaseDoctorDecisionSnapshot(
+            case_id=cast("Any", row["case_id"]),
+            status=CaseStatus(cast(str, row["status"])),
+            doctor_decided_at=cast(datetime | None, row["doctor_decided_at"]),
+        )
+
+    async def apply_doctor_decision_if_waiting(
+        self,
+        payload: DoctorDecisionUpdateInput,
+    ) -> bool:
+        target_status = (
+            CaseStatus.DOCTOR_DENIED
+            if payload.decision == "deny"
+            else CaseStatus.DOCTOR_ACCEPTED
+        )
+        statement = (
+            sa.update(cases)
+            .where(
+                cases.c.case_id == payload.case_id,
+                cases.c.status == CaseStatus.WAIT_DOCTOR.value,
+                cases.c.doctor_decided_at.is_(None),
+            )
+            .values(
+                doctor_user_id=payload.doctor_user_id,
+                doctor_decision=payload.decision,
+                doctor_support_flag=payload.support_flag,
+                doctor_reason=payload.reason,
+                doctor_decided_at=sa.func.current_timestamp(),
+                status=target_status.value,
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            result = cast(CursorResult[Any], await session.execute(statement))
+            await session.commit()
+
+        return int(result.rowcount or 0) == 1
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         statement = (
