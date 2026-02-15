@@ -1,0 +1,39 @@
+# Implementation Tasks: implement-triage-automation
+
+Tracking rule: complete slices strictly in order. Each slice is independently testable and resumable.
+
+## Progress
+
+- [ ] 01. Project Bootstrap and Quality Gates (`tasks/01-bootstrap-quality-gates.md`)
+- [ ] 02. Runtime Config and Docker Compose Baseline (`tasks/02-config-compose.md`)
+- [ ] 03. Initial Postgres Schema and Migrations (`tasks/03-db-schema-migrations.md`)
+- [ ] 04. Domain Status and Transition Guards (`tasks/04-state-transitions.md`)
+- [ ] 05. Case/Audit/Message Repositories (`tasks/05-case-audit-message-repos.md`)
+- [ ] 06. Postgres Job Queue (SKIP LOCKED) (`tasks/06-job-queue-skip-locked.md`)
+- [ ] 07. Worker Runtime and Boot Reconciliation (`tasks/07-worker-runtime-reconciliation.md`)
+- [ ] 08. Room-1 PDF Intake Flow (`tasks/08-room1-intake.md`)
+- [ ] 09. PDF Download and Text Extraction (`tasks/09-process-pdf-download-extract.md`)
+- [ ] 10. Record Number Extraction and Stripping (`tasks/10-record-number-strip.md`)
+- [ ] 11. LLM1 Integration and Validation (`tasks/11-llm1-validation.md`)
+- [ ] 12. LLM2 Integration and EDA Policy Cross-Check (`tasks/12-llm2-policy-crosscheck.md`)
+- [ ] 13. Room-2 Widget Posting with 7-day Prior Lookup (`tasks/13-room2-widget-priors.md`)
+- [ ] 14. HMAC Webhook and Doctor Decision Handling (`tasks/14-webhook-doctor-decision.md`)
+- [ ] 15. Room-3 Request Posting (`tasks/15-room3-request.md`)
+- [ ] 16. Room-3 Reply Parsing and Strict Re-prompt (`tasks/16-room3-parser-reprompt.md`)
+- [ ] 17. Room-1 Final Replies + Cleanup CAS Trigger (`tasks/17-final-reply-reaction-cas.md`)
+- [ ] 18. Cleanup Execution + Retry Exhaustion + Recovery E2E (`tasks/18-cleanup-retry-recovery-e2e.md`)
+- [ ] 19. Prompt Templates Schema and Constraints (`tasks/19-prompt-templates-schema.md`)
+- [ ] 20. Prompt Template Repository and Active Version Service (`tasks/20-prompt-template-repository.md`)
+- [ ] 21. Worker Dynamic Prompt Loading + Audit Prompt Version (`tasks/21-worker-dynamic-prompt-loading.md`)
+- [ ] 22. Users/Roles/Auth Audit Schema and Repositories (`tasks/22-users-roles-auth-audit-schema.md`)
+- [ ] 23. Password Hashing Service and Auth Application Logic (`tasks/23-password-hashing-auth-service.md`)
+- [ ] 24. Role Guard Utilities (Admin vs Reader) (`tasks/24-role-guard-utilities.md`)
+- [ ] 25. Minimal Login Endpoint (No UI) (`tasks/25-login-endpoint-no-ui.md`)
+
+## Resume Protocol
+
+1. Read `PROJECT_CONTEXT.md`.
+2. Open `tasks.md` and pick the first unchecked slice.
+3. Execute only that slice file.
+4. Mark it complete in this file after verification (`pytest`, `ruff`, `mypy`).
+5. Stop before starting the next slice.
