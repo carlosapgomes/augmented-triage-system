@@ -60,3 +60,26 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
             result = await session.execute(statement)
 
         return result.scalar_one_or_none() is True
+
+    async def find_case_id_by_room_event_kind(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        kind: str,
+    ) -> UUID | None:
+        statement = sa.select(case_messages.c.case_id).where(
+            case_messages.c.room_id == room_id,
+            case_messages.c.event_id == event_id,
+            case_messages.c.kind == kind,
+        ).limit(1)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        case_id = result.scalar_one_or_none()
+        if case_id is None:
+            return None
+        if isinstance(case_id, UUID):
+            return case_id
+        return UUID(str(case_id))

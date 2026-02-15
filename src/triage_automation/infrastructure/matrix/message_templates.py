@@ -52,3 +52,22 @@ def build_room3_ack_message(*, case_id: UUID) -> str:
     """Build Room-3 ack body used as audit-only reaction target."""
 
     return f"Scheduling request recorded for case: {case_id}\nReact +1 to acknowledge."
+
+
+def build_room3_invalid_format_reprompt(*, case_id: UUID) -> str:
+    """Build strict Room-3 reformat prompt for invalid scheduler replies."""
+
+    return (
+        "I could not parse your response for this case.\n\n"
+        "Please reply using ONE of the formats below (one field per line) and include the "
+        "case line.\n\n"
+        "CONFIRMED:\n"
+        "DD-MM-YYYY HH:MM BRT\n"
+        "location: ...\n"
+        "instructions: ...\n"
+        f"case: {case_id}\n\n"
+        "DENIED:\n"
+        "denied\n"
+        "reason: ...\n"
+        f"case: {case_id}"
+    )

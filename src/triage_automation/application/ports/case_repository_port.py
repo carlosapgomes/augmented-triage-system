@@ -70,6 +70,19 @@ class DoctorDecisionUpdateInput:
     reason: str | None
 
 
+@dataclass(frozen=True)
+class SchedulerDecisionUpdateInput:
+    """Scheduler decision write payload for compare-and-set persistence."""
+
+    case_id: UUID
+    scheduler_user_id: str
+    appointment_status: str
+    appointment_at: datetime | None
+    appointment_location: str | None
+    appointment_instructions: str | None
+    appointment_reason: str | None
+
+
 class CaseRepositoryPort(Protocol):
     """Async case repository contract."""
 
@@ -98,6 +111,12 @@ class CaseRepositoryPort(Protocol):
         payload: DoctorDecisionUpdateInput,
     ) -> bool:
         """CAS update from WAIT_DOCTOR to decision state; returns whether applied."""
+
+    async def apply_scheduler_decision_if_waiting(
+        self,
+        payload: SchedulerDecisionUpdateInput,
+    ) -> bool:
+        """CAS update from WAIT_APPT to appointment decision state; returns whether applied."""
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""

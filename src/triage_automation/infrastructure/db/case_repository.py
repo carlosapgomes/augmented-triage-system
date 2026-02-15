@@ -19,6 +19,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseRoom2WidgetSnapshot,
     DoctorDecisionUpdateInput,
     DuplicateCaseOriginEventError,
+    SchedulerDecisionUpdateInput,
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.metadata import cases
@@ -178,6 +179,40 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 doctor_support_flag=payload.support_flag,
                 doctor_reason=payload.reason,
                 doctor_decided_at=sa.func.current_timestamp(),
+                status=target_status.value,
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            result = cast(CursorResult[Any], await session.execute(statement))
+            await session.commit()
+
+        return int(result.rowcount or 0) == 1
+
+    async def apply_scheduler_decision_if_waiting(
+        self,
+        payload: SchedulerDecisionUpdateInput,
+    ) -> bool:
+        target_status = (
+            CaseStatus.APPT_CONFIRMED
+            if payload.appointment_status == "confirmed"
+            else CaseStatus.APPT_DENIED
+        )
+        statement = (
+            sa.update(cases)
+            .where(
+                cases.c.case_id == payload.case_id,
+                cases.c.status == CaseStatus.WAIT_APPT.value,
+            )
+            .values(
+                scheduler_user_id=payload.scheduler_user_id,
+                appointment_status=payload.appointment_status,
+                appointment_at=payload.appointment_at,
+                appointment_location=payload.appointment_location,
+                appointment_instructions=payload.appointment_instructions,
+                appointment_reason=payload.appointment_reason,
+                appointment_decided_at=sa.func.current_timestamp(),
                 status=target_status.value,
                 updated_at=sa.func.current_timestamp(),
             )
