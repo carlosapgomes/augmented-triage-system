@@ -9,6 +9,9 @@ from apps.worker.main import build_runtime_llm_clients, build_worker_handlers
 from triage_automation.application.ports.job_queue_port import JobRecord
 from triage_automation.application.services.worker_runtime import WorkerRuntime
 from triage_automation.config.settings import Settings
+from triage_automation.infrastructure.llm.deterministic_client import (
+    DeterministicLlmClient,
+)
 from triage_automation.infrastructure.llm.openai_client import OpenAiChatCompletionsClient
 
 
@@ -161,3 +164,12 @@ def test_provider_mode_selects_openai_runtime_clients() -> None:
 
     assert isinstance(llm1_client, OpenAiChatCompletionsClient)
     assert isinstance(llm2_client, OpenAiChatCompletionsClient)
+
+
+def test_deterministic_mode_selects_deterministic_runtime_clients() -> None:
+    settings = _runtime_settings(mode="deterministic", openai_key=None)
+
+    llm1_client, llm2_client = build_runtime_llm_clients(settings=settings)
+
+    assert isinstance(llm1_client, DeterministicLlmClient)
+    assert isinstance(llm2_client, DeterministicLlmClient)

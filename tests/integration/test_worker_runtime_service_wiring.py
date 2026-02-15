@@ -492,3 +492,84 @@ async def test_runtime_worker_wiring_preserves_success_and_retry_transitions(
     assert retry_row["status"] == "queued"
     assert int(retry_row["attempts"]) == 1
     assert "not ready for Room-3 request post" in str(retry_row["last_error"])
+
+
+@pytest.mark.asyncio
+async def test_runtime_worker_deterministic_mode_processes_llm_path_without_injected_clients(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "worker_runtime_deterministic_llm.db")
+    settings = _set_required_env(monkeypatch)
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+    matrix_client = FakeMatrixRuntimeClient()
+
+    case_id = await _create_case(
+        case_repo,
+        status=CaseStatus.NEW,
+        origin_event_id="$origin-deterministic-llm",
+    )
+    process_job = await queue_repo.enqueue(
+        JobEnqueueInput(
+            case_id=case_id,
+            job_type="process_pdf_case",
+            payload={"pdf_mxc_url": "mxc://example.org/process.pdf"},
+        )
+    )
+
+    runtime = build_worker_runtime(
+        settings=settings,
+        session_factory=session_factory,
+        matrix_client=matrix_client,
+    )
+    claimed_count = await runtime.run_once()
+
+    assert claimed_count == 1
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        process_row = connection.execute(
+            sa.text("SELECT status, attempts, last_error FROM jobs WHERE job_id = :job_id"),
+            {"job_id": process_job.job_id},
+        ).mappings().one()
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, structured_data_json, suggested_action_json "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        room2_job_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room2_widget' AND status = 'queued'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+        llm1_event_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_events "
+                "WHERE case_id = :case_id AND event_type = 'LLM1_STRUCTURED_SUMMARY_OK'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+        llm2_event_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_events "
+                "WHERE case_id = :case_id AND event_type = 'LLM2_SUGGESTION_OK'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert process_row["status"] == "done"
+    assert int(process_row["attempts"]) == 0
+    assert process_row["last_error"] is None
+    assert case_row["status"] == "LLM_SUGGEST"
+    assert case_row["structured_data_json"] is not None
+    assert case_row["suggested_action_json"] is not None
+    assert int(room2_job_count) == 1
+    assert int(llm1_event_count) == 1
+    assert int(llm2_event_count) == 1

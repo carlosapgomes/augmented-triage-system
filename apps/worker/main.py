@@ -41,6 +41,7 @@ from triage_automation.infrastructure.db.prompt_template_repository import (
 )
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.worker_bootstrap import reconcile_running_jobs
+from triage_automation.infrastructure.llm.deterministic_client import DeterministicLlmClient
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
 from triage_automation.infrastructure.llm.openai_client import OpenAiChatCompletionsClient
 from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
@@ -62,17 +63,6 @@ class MatrixRuntimeClientPort(Protocol):
 
     async def download_mxc(self, mxc_url: str) -> bytes:
         """Download raw bytes for an MXC URI."""
-
-
-class _PlaceholderLlmClient:
-    """Fallback LLM client until runtime LLM adapter wiring is implemented."""
-
-    def __init__(self, *, stage: str) -> None:
-        self._stage = stage
-
-    async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
-        _ = system_prompt, user_prompt
-        raise NotImplementedError(f"runtime LLM adapter for {self._stage} is not configured yet")
 
 
 _OPENAI_MODEL_LLM1 = "gpt-4o-mini"
@@ -305,9 +295,9 @@ def build_runtime_llm_clients(
             )
     else:
         if runtime_llm1_client is None:
-            runtime_llm1_client = _PlaceholderLlmClient(stage="llm1")
+            runtime_llm1_client = DeterministicLlmClient(stage="llm1")
         if runtime_llm2_client is None:
-            runtime_llm2_client = _PlaceholderLlmClient(stage="llm2")
+            runtime_llm2_client = DeterministicLlmClient(stage="llm2")
 
     return runtime_llm1_client, runtime_llm2_client
 

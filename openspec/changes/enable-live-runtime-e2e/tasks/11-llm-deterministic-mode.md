@@ -30,11 +30,11 @@ Excluded: changes to core workflow semantics.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] deterministic mode is explicit and testable
-- [ ] workflow semantics remain unchanged
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] deterministic mode is explicit and testable
+- [x] workflow semantics remain unchanged
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
