@@ -15,6 +15,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseCreateInput,
     CaseRecord,
     CaseRepositoryPort,
+    CaseRoom2WidgetSnapshot,
     DuplicateCaseOriginEventError,
 )
 from triage_automation.domain.case_status import CaseStatus
@@ -98,6 +99,36 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         if row is None:
             return None
         return _to_case_record(row)
+
+    async def get_case_room2_widget_snapshot(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseRoom2WidgetSnapshot | None:
+        statement = sa.select(
+            cases.c.case_id,
+            cases.c.status,
+            cases.c.agency_record_number,
+            cases.c.structured_data_json,
+            cases.c.summary_text,
+            cases.c.suggested_action_json,
+        ).where(cases.c.case_id == case_id)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        row = result.mappings().first()
+        if row is None:
+            return None
+
+        return CaseRoom2WidgetSnapshot(
+            case_id=cast("Any", row["case_id"]),
+            status=CaseStatus(cast(str, row["status"])),
+            agency_record_number=cast(str | None, row["agency_record_number"]),
+            structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
+            summary_text=cast(str | None, row["summary_text"]),
+            suggested_action_json=cast(dict[str, Any] | None, row["suggested_action_json"]),
+        )
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         statement = (

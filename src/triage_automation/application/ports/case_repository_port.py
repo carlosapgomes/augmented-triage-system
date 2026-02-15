@@ -38,6 +38,18 @@ class CaseRecord:
     updated_at: datetime
 
 
+@dataclass(frozen=True)
+class CaseRoom2WidgetSnapshot:
+    """Case fields required to build and post the Room-2 widget payload."""
+
+    case_id: UUID
+    status: CaseStatus
+    agency_record_number: str | None
+    structured_data_json: dict[str, Any] | None
+    summary_text: str | None
+    suggested_action_json: dict[str, Any] | None
+
+
 class CaseRepositoryPort(Protocol):
     """Async case repository contract."""
 
@@ -46,6 +58,13 @@ class CaseRepositoryPort(Protocol):
 
     async def get_case_by_origin_event_id(self, origin_event_id: str) -> CaseRecord | None:
         """Retrieve case by Room-1 origin event id."""
+
+    async def get_case_room2_widget_snapshot(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseRoom2WidgetSnapshot | None:
+        """Load case artifacts used by Room-2 widget posting flow."""
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""

@@ -16,7 +16,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 10. Record Number Extraction and Stripping (`tasks/10-record-number-strip.md`)
 - [x] 11. LLM1 Integration and Validation (`tasks/11-llm1-validation.md`)
 - [x] 12. LLM2 Integration and EDA Policy Cross-Check (`tasks/12-llm2-policy-crosscheck.md`)
-- [ ] 13. Room-2 Widget Posting with 7-day Prior Lookup (`tasks/13-room2-widget-priors.md`)
+- [x] 13. Room-2 Widget Posting with 7-day Prior Lookup (`tasks/13-room2-widget-priors.md`)
 - [ ] 14. HMAC Webhook and Doctor Decision Handling (`tasks/14-webhook-doctor-decision.md`)
 - [ ] 15. Room-3 Request Posting (`tasks/15-room3-request.md`)
 - [ ] 16. Room-3 Reply Parsing and Strict Re-prompt (`tasks/16-room3-parser-reprompt.md`)
