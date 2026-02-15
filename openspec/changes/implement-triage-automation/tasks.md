@@ -27,7 +27,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 21. Worker Dynamic Prompt Loading + Audit Prompt Version (`tasks/21-worker-dynamic-prompt-loading.md`)
 - [x] 22. Users/Roles/Auth Audit Schema and Repositories (`tasks/22-users-roles-auth-audit-schema.md`)
 - [x] 23. Password Hashing Service and Auth Application Logic (`tasks/23-password-hashing-auth-service.md`)
-- [ ] 24. Role Guard Utilities (Admin vs Reader) (`tasks/24-role-guard-utilities.md`)
+- [x] 24. Role Guard Utilities (Admin vs Reader) (`tasks/24-role-guard-utilities.md`)
 - [ ] 25. Minimal Login Endpoint (No UI) (`tasks/25-login-endpoint-no-ui.md`)
 
 ## Resume Protocol
