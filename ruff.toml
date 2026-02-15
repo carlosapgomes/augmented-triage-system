@@ -1,3 +1,7 @@
+# Progressive docstring/type hardening baseline (task 1.1):
+# - Keep current active rules unchanged for now.
+# - Enable new enforcement incrementally per OpenSpec rollout slices.
+# - Scope expansion must happen via dedicated slice commits.
 line-length = 100
 target-version = "py312"
 

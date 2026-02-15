@@ -85,8 +85,38 @@ Implementation note: although the enum includes `R1_FINAL_REPLY_POSTED`, current
 - Commit after each completed slice with a meaningful message before moving to the next slice.
 - Stop after the slice completes. Do not pre-implement future slices.
 
+## Progressive Docstring/Type Ratchet Context
+Active hardening change: `openspec/changes/progressive-docstring-type-hardening/`.
+
+Baseline policy:
+- Public-surface-first enforcement: prioritize docstrings and type annotations on public modules/classes/functions.
+- Ratchet incrementally by package group; never enable broad strictness in one step.
+- Keep behavior unchanged: no workflow/state-machine/business logic changes as part of quality hardening.
+
+Temporary scope exclusions until dedicated slices:
+- Non-ratcheted package groups.
+- Test-policy finalization (handled in dedicated tests-policy slice).
+
+Ratchet rollout order (authoritative for this change):
+1. Baseline policy and scope
+2. Initial tooling ratchet config
+3. `src/triage_automation/application`
+4. `src/triage_automation/domain`
+5. `src/triage_automation/infrastructure`
+6. `apps/`
+7. Tests policy alignment
+8. CI/local gate enforcement
+9. Final repo verification
+10. Closeout and maintenance rules
+
+Acceptance criteria per hardening slice:
+- Scope boundaries respected for that slice only.
+- `uv run ruff check .` passes.
+- `uv run mypy src apps` passes.
+- Required scoped tests pass (unit/integration/full as defined by slice).
+
 ## Pre-Slice Read Sequence
 1. `PROJECT_CONTEXT.md`
-2. `openspec/changes/implement-triage-automation/tasks.md`
-3. current slice file under `openspec/changes/implement-triage-automation/tasks/`
+2. active change task index (`openspec/changes/<change>/tasks.md`)
+3. current slice/task file under `openspec/changes/<change>/tasks/`
 4. only then implement

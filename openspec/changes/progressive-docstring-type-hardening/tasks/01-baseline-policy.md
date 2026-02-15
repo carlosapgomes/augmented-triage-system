@@ -27,9 +27,9 @@ Excluded: broad code remediation.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] policy documented
-- [ ] rollout order explicit
-- [ ] validation commands pass
+- [x] policy documented
+- [x] rollout order explicit
+- [x] validation commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
