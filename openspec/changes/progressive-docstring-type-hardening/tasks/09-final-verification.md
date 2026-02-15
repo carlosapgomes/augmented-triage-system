@@ -26,9 +26,9 @@ Excluded: feature development.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] full suite green
-- [ ] no unresolved policy violations in scoped areas
-- [ ] no business behavior change
+- [x] full suite green
+- [x] no unresolved policy violations in scoped areas
+- [x] no business behavior change
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
