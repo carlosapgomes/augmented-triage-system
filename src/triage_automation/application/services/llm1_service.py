@@ -64,6 +64,8 @@ class Llm1Service:
         agency_record_number: str,
         clean_text: str,
     ) -> Llm1ServiceResult:
+        """Execute LLM1 and return validated structured extraction artifacts."""
+
         (
             system_prompt,
             user_prompt_template,

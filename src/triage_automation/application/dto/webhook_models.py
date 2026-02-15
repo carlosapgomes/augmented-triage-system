@@ -10,6 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrictModel(BaseModel):
+    """Base model with strict unknown-field rejection."""
+
     model_config = ConfigDict(extra="forbid")
 
 

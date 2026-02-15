@@ -10,6 +10,8 @@ from triage_automation.domain.auth.roles import Role
 
 
 class StrictModel(BaseModel):
+    """Base model with strict unknown-field rejection."""
+
     model_config = ConfigDict(extra="forbid")
 
 

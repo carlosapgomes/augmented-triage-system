@@ -72,6 +72,8 @@ class Llm2Service:
         llm1_structured_data: dict[str, object],
         prior_case_json: dict[str, object] | None = None,
     ) -> Llm2ServiceResult:
+        """Execute LLM2 and return policy-reconciled suggestion artifacts."""
+
         try:
             llm1_payload = Llm1Response.model_validate(llm1_structured_data)
         except ValidationError as error:

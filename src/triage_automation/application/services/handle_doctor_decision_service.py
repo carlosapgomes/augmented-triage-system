@@ -52,6 +52,8 @@ class HandleDoctorDecisionService:
         self,
         payload: TriageDecisionWebhookPayload,
     ) -> HandleDoctorDecisionResult:
+        """Apply a signed doctor decision payload when case is in WAIT_DOCTOR."""
+
         snapshot = await self._case_repository.get_case_doctor_decision_snapshot(
             case_id=payload.case_id
         )

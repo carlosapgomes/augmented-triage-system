@@ -8,16 +8,22 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class StrictModel(BaseModel):
+    """Base model with strict unknown-field rejection."""
+
     model_config = ConfigDict(extra="forbid")
 
 
 class Llm2Rationale(StrictModel):
+    """Narrative rationale block returned by LLM2."""
+
     short_reason: str = Field(max_length=280)
     details: list[str] = Field(min_length=2, max_length=6)
     missing_info_questions: list[str] = Field(max_length=6)
 
 
 class Llm2PolicyAlignment(StrictModel):
+    """LLM2 policy-alignment claims before deterministic reconciliation."""
+
     excluded_request: bool
     labs_ok: Literal["yes", "no", "unknown", "not_required"]
     ecg_ok: Literal["yes", "no", "unknown", "not_required"]
@@ -26,6 +32,8 @@ class Llm2PolicyAlignment(StrictModel):
 
 
 class Llm2Response(StrictModel):
+    """Top-level LLM2 response schema v1.1."""
+
     schema_version: Literal["1.1"]
     language: Literal["pt-BR"]
     case_id: str
