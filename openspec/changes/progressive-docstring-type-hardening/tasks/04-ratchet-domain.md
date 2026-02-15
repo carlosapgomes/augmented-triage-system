@@ -27,9 +27,9 @@ Excluded: application/infrastructure/apps.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] domain package clean under ratchet rules
-- [ ] unit tests pass
-- [ ] no behavior regressions
+- [x] domain package clean under ratchet rules
+- [x] unit tests pass
+- [x] no behavior regressions
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

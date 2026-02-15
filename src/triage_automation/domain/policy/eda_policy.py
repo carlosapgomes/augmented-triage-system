@@ -12,6 +12,8 @@ SuggestionValue = Literal["accept", "deny"]
 
 @dataclass(frozen=True)
 class EdaPolicyPrecheckInput:
+    """Normalized LLM1 precheck inputs used by deterministic policy rules."""
+
     excluded_from_eda_flow: bool
     indication_category: str
     labs_required: bool
@@ -23,6 +25,8 @@ class EdaPolicyPrecheckInput:
 
 @dataclass(frozen=True)
 class Llm2PolicyAlignmentInput:
+    """LLM2-provided policy alignment values prior to reconciliation."""
+
     excluded_request: bool
     labs_ok: PolicyAlignmentValue
     ecg_ok: PolicyAlignmentValue
@@ -32,12 +36,16 @@ class Llm2PolicyAlignmentInput:
 
 @dataclass(frozen=True)
 class Llm2SuggestionInput:
+    """Minimal LLM2 suggestion payload consumed by reconciliation."""
+
     suggestion: SuggestionValue
     policy_alignment: Llm2PolicyAlignmentInput
 
 
 @dataclass(frozen=True)
 class EdaPolicyContradiction:
+    """Recorded field override produced by a deterministic policy rule."""
+
     rule: str
     field: str
     previous_value: str | bool
@@ -46,6 +54,8 @@ class EdaPolicyContradiction:
 
 @dataclass(frozen=True)
 class EdaPolicyResult:
+    """Final reconciled policy output and contradiction audit entries."""
+
     suggestion: SuggestionValue
     policy_alignment: Llm2PolicyAlignmentInput
     contradictions: tuple[EdaPolicyContradiction, ...]
