@@ -13,7 +13,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 07. Worker Runtime and Boot Reconciliation (`tasks/07-worker-runtime-reconciliation.md`)
 - [x] 08. Room-1 PDF Intake Flow (`tasks/08-room1-intake.md`)
 - [x] 09. PDF Download and Text Extraction (`tasks/09-process-pdf-download-extract.md`)
-- [ ] 10. Record Number Extraction and Stripping (`tasks/10-record-number-strip.md`)
+- [x] 10. Record Number Extraction and Stripping (`tasks/10-record-number-strip.md`)
 - [ ] 11. LLM1 Integration and Validation (`tasks/11-llm1-validation.md`)
 - [ ] 12. LLM2 Integration and EDA Policy Cross-Check (`tasks/12-llm2-policy-crosscheck.md`)
 - [ ] 13. Room-2 Widget Posting with 7-day Prior Lookup (`tasks/13-room2-widget-priors.md`)

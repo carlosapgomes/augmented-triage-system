@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.record_number import (
+    RecordNumberExtractionError,
+    extract_and_strip_agency_record_number,
+)
 from triage_automation.infrastructure.matrix.mxc_downloader import (
     MatrixMxcDownloader,
     MxcDownloadError,
@@ -59,10 +64,20 @@ class ProcessPdfCaseService:
         except PdfTextExtractionError as error:
             raise ProcessPdfCaseRetriableError(cause="extract", details=str(error)) from error
 
+        try:
+            record_result = extract_and_strip_agency_record_number(extracted_text)
+        except RecordNumberExtractionError as error:
+            raise ProcessPdfCaseRetriableError(
+                cause="record_extract",
+                details=str(error),
+            ) from error
+
         await self._case_repository.store_pdf_extraction(
             case_id=case_id,
             pdf_mxc_url=pdf_mxc_url,
-            extracted_text=extracted_text,
+            extracted_text=record_result.cleaned_text,
+            agency_record_number=record_result.agency_record_number,
+            agency_record_extracted_at=datetime.now(tz=UTC),
         )
 
-        return extracted_text
+        return record_result.cleaned_text

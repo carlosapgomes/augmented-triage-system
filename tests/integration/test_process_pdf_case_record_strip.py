@@ -21,13 +21,10 @@ from triage_automation.infrastructure.pdf.text_extractor import PdfTextExtractor
 
 
 class FakeMatrixMediaClient:
-    def __init__(self, *, payload: bytes | None = None, should_fail: bool = False) -> None:
+    def __init__(self, *, payload: bytes | None = None) -> None:
         self._payload = payload
-        self._should_fail = should_fail
 
     async def download_mxc(self, mxc_url: str) -> bytes:
-        if self._should_fail:
-            raise RuntimeError(f"download failed for {mxc_url}")
         assert self._payload is not None
         return self._payload
 
@@ -79,8 +76,8 @@ def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
 
 
 @pytest.mark.asyncio
-async def test_download_extract_updates_case_status_and_text(tmp_path: Path) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "process_ok.db")
+async def test_record_number_persisted_and_stripped_from_text(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "record_strip_ok.db")
     session_factory = create_session_factory(async_url)
     case_repo = SqlAlchemyCaseRepository(session_factory)
 
@@ -89,7 +86,50 @@ async def test_download_extract_updates_case_status_and_text(tmp_path: Path) -> 
             case_id=uuid4(),
             status=CaseStatus.R1_ACK_PROCESSING,
             room1_origin_room_id="!room1:example.org",
-            room1_origin_event_id="$origin-1",
+            room1_origin_event_id="$origin-rs-1",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    text = "12345 patient data 12345 details 99999 12345"
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(payload=_build_simple_pdf(text))
+        ),
+        text_extractor=PdfTextExtractor(),
+    )
+
+    cleaned = await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    assert cleaned == "patient data details 99999"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text(
+                "SELECT agency_record_number, agency_record_extracted_at, extracted_text "
+                "FROM cases ORDER BY created_at DESC LIMIT 1"
+            )
+        ).mappings().one()
+
+    assert row["agency_record_number"] == "12345"
+    assert row["agency_record_extracted_at"] is not None
+    assert row["extracted_text"] == "patient data details 99999"
+
+
+@pytest.mark.asyncio
+async def test_missing_record_number_maps_to_retriable_record_extract_error(tmp_path: Path) -> None:
+    _, async_url = _upgrade_head(tmp_path, "record_strip_fail.db")
+    session_factory = create_session_factory(async_url)
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-rs-2",
             room1_sender_user_id="@human:example.org",
         )
     )
@@ -97,96 +137,12 @@ async def test_download_extract_updates_case_status_and_text(tmp_path: Path) -> 
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(payload=_build_simple_pdf("12345 Clinical text 12345"))
+            FakeMatrixMediaClient(payload=_build_simple_pdf("no token"))
         ),
         text_extractor=PdfTextExtractor(),
     )
 
-    extracted = await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
-
-    assert extracted == "Clinical text"
-
-    engine = sa.create_engine(sync_url)
-    with engine.begin() as connection:
-        row = connection.execute(
-            sa.text(
-                "SELECT status, extracted_text, pdf_mxc_url "
-                "FROM cases ORDER BY created_at DESC LIMIT 1"
-            )
-        ).mappings().one()
-
-    assert row["status"] == "EXTRACTING"
-    assert row["extracted_text"] == "Clinical text"
-    assert row["pdf_mxc_url"] == "mxc://example.org/pdf"
-
-
-@pytest.mark.asyncio
-async def test_download_failure_maps_to_retriable_download_error(tmp_path: Path) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "process_download_fail.db")
-    session_factory = create_session_factory(async_url)
-    case_repo = SqlAlchemyCaseRepository(session_factory)
-
-    case = await case_repo.create_case(
-        CaseCreateInput(
-            case_id=uuid4(),
-            status=CaseStatus.R1_ACK_PROCESSING,
-            room1_origin_room_id="!room1:example.org",
-            room1_origin_event_id="$origin-2",
-            room1_sender_user_id="@human:example.org",
-        )
-    )
-
-    service = ProcessPdfCaseService(
-        case_repository=case_repo,
-        mxc_downloader=MatrixMxcDownloader(FakeMatrixMediaClient(should_fail=True)),
-        text_extractor=PdfTextExtractor(),
-    )
-
     with pytest.raises(ProcessPdfCaseRetriableError) as exc_info:
         await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
 
-    assert exc_info.value.cause == "download"
-
-    engine = sa.create_engine(sync_url)
-    with engine.begin() as connection:
-        status = connection.execute(
-            sa.text("SELECT status FROM cases ORDER BY created_at DESC LIMIT 1"),
-        ).scalar_one()
-
-    assert status == "EXTRACTING"
-
-
-@pytest.mark.asyncio
-async def test_extraction_failure_maps_to_retriable_extract_error(tmp_path: Path) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "process_extract_fail.db")
-    session_factory = create_session_factory(async_url)
-    case_repo = SqlAlchemyCaseRepository(session_factory)
-
-    case = await case_repo.create_case(
-        CaseCreateInput(
-            case_id=uuid4(),
-            status=CaseStatus.R1_ACK_PROCESSING,
-            room1_origin_room_id="!room1:example.org",
-            room1_origin_event_id="$origin-3",
-            room1_sender_user_id="@human:example.org",
-        )
-    )
-
-    service = ProcessPdfCaseService(
-        case_repository=case_repo,
-        mxc_downloader=MatrixMxcDownloader(FakeMatrixMediaClient(payload=b"not a pdf")),
-        text_extractor=PdfTextExtractor(),
-    )
-
-    with pytest.raises(ProcessPdfCaseRetriableError) as exc_info:
-        await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
-
-    assert exc_info.value.cause == "extract"
-
-    engine = sa.create_engine(sync_url)
-    with engine.begin() as connection:
-        status = connection.execute(
-            sa.text("SELECT status FROM cases ORDER BY created_at DESC LIMIT 1"),
-        ).scalar_one()
-
-    assert status == "EXTRACTING"
+    assert exc_info.value.cause == "record_extract"

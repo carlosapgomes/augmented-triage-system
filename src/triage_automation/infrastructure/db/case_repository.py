@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
 
@@ -115,6 +116,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         case_id: UUID,
         pdf_mxc_url: str,
         extracted_text: str,
+        agency_record_number: str | None = None,
+        agency_record_extracted_at: datetime | None = None,
     ) -> None:
         statement = (
             sa.update(cases)
@@ -122,6 +125,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             .values(
                 pdf_mxc_url=pdf_mxc_url,
                 extracted_text=extracted_text,
+                agency_record_number=agency_record_number,
+                agency_record_extracted_at=agency_record_extracted_at,
                 updated_at=sa.func.current_timestamp(),
             )
         )

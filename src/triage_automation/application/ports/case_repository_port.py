@@ -56,5 +56,7 @@ class CaseRepositoryPort(Protocol):
         case_id: UUID,
         pdf_mxc_url: str,
         extracted_text: str,
+        agency_record_number: str | None = None,
+        agency_record_extracted_at: datetime | None = None,
     ) -> None:
-        """Persist PDF source and extracted text fields."""
+        """Persist PDF source, extracted/cleaned text, and optional record extraction fields."""
