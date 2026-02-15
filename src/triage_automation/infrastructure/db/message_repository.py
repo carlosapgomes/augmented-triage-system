@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -46,3 +48,15 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
 
         inserted_id = result.scalar_one()
         return int(inserted_id)
+
+    async def has_message_kind(self, *, case_id: UUID, room_id: str, kind: str) -> bool:
+        statement = sa.select(sa.literal(True)).where(
+            case_messages.c.case_id == case_id,
+            case_messages.c.room_id == room_id,
+            case_messages.c.kind == kind,
+        ).limit(1)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        return result.scalar_one_or_none() is True

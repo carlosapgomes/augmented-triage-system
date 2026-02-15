@@ -28,3 +28,27 @@ def build_room2_ack_message(*, case_id: UUID) -> str:
     """Build Room-2 ack body used as audit-only reaction target."""
 
     return f"Triage recorded for case: {case_id}\nReact +1 to acknowledge."
+
+
+def build_room3_request_message(*, case_id: UUID) -> str:
+    """Build Room-3 scheduling request body including strict reply instructions."""
+
+    return (
+        "Scheduling request\n"
+        "Reply using one of the strict formats below.\n\n"
+        "Confirmed:\n"
+        "DD-MM-YYYY HH:MM BRT\n"
+        "location: <free text>\n"
+        "instructions: <free text>\n"
+        f"case: {case_id}\n\n"
+        "Denied:\n"
+        "denied\n"
+        "reason: <optional free text>\n"
+        f"case: {case_id}"
+    )
+
+
+def build_room3_ack_message(*, case_id: UUID) -> str:
+    """Build Room-3 ack body used as audit-only reaction target."""
+
+    return f"Scheduling request recorded for case: {case_id}\nReact +1 to acknowledge."

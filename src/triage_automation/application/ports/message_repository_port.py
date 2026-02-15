@@ -27,3 +27,6 @@ class MessageRepositoryPort(Protocol):
 
     async def add_message(self, payload: CaseMessageCreateInput) -> int:
         """Insert a case message mapping and return its numeric id."""
+
+    async def has_message_kind(self, *, case_id: UUID, room_id: str, kind: str) -> bool:
+        """Return whether a message mapping exists for case/room/kind."""

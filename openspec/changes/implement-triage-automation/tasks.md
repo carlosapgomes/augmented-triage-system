@@ -18,7 +18,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 12. LLM2 Integration and EDA Policy Cross-Check (`tasks/12-llm2-policy-crosscheck.md`)
 - [x] 13. Room-2 Widget Posting with 7-day Prior Lookup (`tasks/13-room2-widget-priors.md`)
 - [x] 14. HMAC Webhook and Doctor Decision Handling (`tasks/14-webhook-doctor-decision.md`)
-- [ ] 15. Room-3 Request Posting (`tasks/15-room3-request.md`)
+- [x] 15. Room-3 Request Posting (`tasks/15-room3-request.md`)
 - [ ] 16. Room-3 Reply Parsing and Strict Re-prompt (`tasks/16-room3-parser-reprompt.md`)
 - [ ] 17. Room-1 Final Replies + Cleanup CAS Trigger (`tasks/17-final-reply-reaction-cas.md`)
 - [ ] 18. Cleanup Execution + Retry Exhaustion + Recovery E2E (`tasks/18-cleanup-retry-recovery-e2e.md`)
