@@ -146,6 +146,74 @@ jobs = sa.Table(
 sa.Index("ix_jobs_status_run_after", jobs.c.status, jobs.c.run_after)
 sa.Index("ix_jobs_case_id", jobs.c.case_id)
 
+users = sa.Table(
+    "users",
+    metadata,
+    sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
+    sa.Column("email", sa.Text(), nullable=False),
+    sa.Column("password_hash", sa.Text(), nullable=False),
+    sa.Column("role", sa.Text(), nullable=False),
+    sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+    sa.Column(
+        "created_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.Column(
+        "updated_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.UniqueConstraint("email", name="uq_users_email"),
+    sa.CheckConstraint("role IN ('admin', 'reader')", name="ck_users_role"),
+)
+sa.Index("ix_users_email", users.c.email)
+
+auth_events = sa.Table(
+    "auth_events",
+    metadata,
+    sa.Column("id", sqlite_bigint, primary_key=True, autoincrement=True),
+    sa.Column("user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=True),
+    sa.Column("event_type", sa.Text(), nullable=False),
+    sa.Column("ip_address", sa.Text(), nullable=True),
+    sa.Column("user_agent", sa.Text(), nullable=True),
+    sa.Column("payload", sa.JSON(), nullable=False, server_default=sa.text("'{}'")),
+    sa.Column(
+        "occurred_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+)
+sa.Index("ix_auth_events_user_id_occurred_at", auth_events.c.user_id, auth_events.c.occurred_at)
+sa.Index(
+    "ix_auth_events_event_type_occurred_at",
+    auth_events.c.event_type,
+    auth_events.c.occurred_at,
+)
+
+auth_tokens = sa.Table(
+    "auth_tokens",
+    metadata,
+    sa.Column("id", sqlite_bigint, primary_key=True, autoincrement=True),
+    sa.Column("user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False),
+    sa.Column("token_hash", sa.Text(), nullable=False),
+    sa.Column(
+        "issued_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
+    sa.UniqueConstraint("token_hash", name="uq_auth_tokens_token_hash"),
+)
+sa.Index("ix_auth_tokens_user_id", auth_tokens.c.user_id)
+sa.Index("ix_auth_tokens_expires_at", auth_tokens.c.expires_at)
+
 prompt_templates = sa.Table(
     "prompt_templates",
     metadata,
@@ -166,7 +234,7 @@ prompt_templates = sa.Table(
         nullable=False,
         server_default=sa.text("CURRENT_TIMESTAMP"),
     ),
-    sa.Column("updated_by_user_id", sa.Uuid(), nullable=True),
+    sa.Column("updated_by_user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=True),
     sa.UniqueConstraint("name", "version", name="uq_prompt_templates_name_version"),
     sa.CheckConstraint("version > 0", name="ck_prompt_templates_version_positive"),
 )

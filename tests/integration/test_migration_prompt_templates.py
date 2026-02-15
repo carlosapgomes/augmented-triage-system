@@ -10,13 +10,13 @@ from alembic.config import Config
 from alembic import command
 
 
-def _upgrade_head(tmp_path: Path) -> str:
+def _upgrade_head(tmp_path: Path, revision: str = "head") -> str:
     db_path = tmp_path / "slice19_prompt_templates.db"
     database_url = f"sqlite+pysqlite:///{db_path}"
 
     alembic_config = Config("alembic.ini")
     alembic_config.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_config, "head")
+    command.upgrade(alembic_config, revision)
 
     return database_url
 
@@ -161,7 +161,7 @@ def test_prompt_templates_indexes_and_constraints_are_enforced(tmp_path: Path) -
 
 
 def test_prompt_templates_updated_by_user_id_has_no_foreign_key_yet(tmp_path: Path) -> None:
-    database_url = _upgrade_head(tmp_path)
+    database_url = _upgrade_head(tmp_path, revision="0002_prompt_templates")
     engine = sa.create_engine(database_url)
     inspector = sa.inspect(engine)
 
