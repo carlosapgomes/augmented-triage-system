@@ -9,7 +9,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 
 ## 2. Worker Live Handler Wiring
 
-- [ ] 2.1 Build worker dependency composition and non-empty handler map for existing job types (`tasks/03-worker-handler-map.md`)
+- [x] 2.1 Build worker dependency composition and non-empty handler map for existing job types (`tasks/03-worker-handler-map.md`)
 - [ ] 2.2 Wire runtime handlers to existing services without changing job semantics (`tasks/04-worker-runtime-service-wiring.md`)
 - [ ] 2.3 Add worker runtime integration coverage for handler dispatch, retry/dead-letter, and recovery startup sequence (`tasks/05-worker-runtime-integration-tests.md`)
 

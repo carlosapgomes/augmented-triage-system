@@ -30,11 +30,11 @@ Excluded: changing job semantics or adding new job types.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] required job types are wired explicitly
-- [ ] no retry/dead-letter behavior change
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] required job types are wired explicitly
+- [x] no retry/dead-letter behavior change
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
