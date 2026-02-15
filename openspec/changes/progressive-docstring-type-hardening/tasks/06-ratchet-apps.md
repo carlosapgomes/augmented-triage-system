@@ -26,9 +26,9 @@ Excluded: broad refactors across core packages.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] apps scope clean under ratchet rules
-- [ ] integration tests pass
-- [ ] no runtime behavior changes
+- [x] apps scope clean under ratchet rules
+- [x] integration tests pass
+- [x] no runtime behavior changes
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
