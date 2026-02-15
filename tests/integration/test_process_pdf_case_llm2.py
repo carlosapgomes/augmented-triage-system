@@ -13,12 +13,19 @@ from alembic import command
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
 from triage_automation.application.services.llm1_service import Llm1Service
 from triage_automation.application.services.llm2_service import Llm2Service
-from triage_automation.application.services.process_pdf_case_service import ProcessPdfCaseService
+from triage_automation.application.services.process_pdf_case_service import (
+    ProcessPdfCaseRetriableError,
+    ProcessPdfCaseService,
+)
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.llm.openai_client import (
+    OpenAiChatCompletionsClient,
+    OpenAiHttpResponse,
+)
 from triage_automation.infrastructure.matrix.mxc_downloader import MatrixMxcDownloader
 from triage_automation.infrastructure.pdf.text_extractor import PdfTextExtractor
 
@@ -37,6 +44,27 @@ class FakeLlmClient:
 
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
         return self._response_text
+
+
+class FakeOpenAiTransport:
+    def __init__(self, payloads: list[dict[str, object]]) -> None:
+        self._payloads = payloads
+
+    async def request(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: bytes | None,
+        timeout_seconds: float,
+    ) -> OpenAiHttpResponse:
+        _ = method, url, headers, body, timeout_seconds
+        payload = self._payloads.pop(0)
+        return OpenAiHttpResponse(
+            status_code=200,
+            body_bytes=json.dumps(payload).encode("utf-8"),
+        )
 
 
 def _build_simple_pdf(text: str) -> bytes:
@@ -293,3 +321,59 @@ async def test_llm2_contradiction_emits_audit_event_and_forces_deny(tmp_path: Pa
     assert suggested_action["suggestion"] == "deny"
     assert suggested_action["policy_alignment"]["excluded_request"] is True
     assert contradiction_events == 1
+
+
+@pytest.mark.asyncio
+async def test_runtime_provider_adapter_preserves_llm2_retriable_mapping(
+    tmp_path: Path,
+) -> None:
+    _, async_url = _upgrade_head(tmp_path, "llm2_provider_non_json.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-provider-1",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_payload = {"choices": [{"message": {"content": json.dumps(_valid_llm1_payload("12345"))}}]}
+    llm2_payload = {"choices": [{"message": {"content": "not-json"}}]}
+
+    llm1_service = Llm1Service(
+        llm_client=OpenAiChatCompletionsClient(
+            api_key="sk-test",
+            model="gpt-4o-mini",
+            transport=FakeOpenAiTransport([llm1_payload]),
+        )
+    )
+    llm2_service = Llm2Service(
+        llm_client=OpenAiChatCompletionsClient(
+            api_key="sk-test",
+            model="gpt-4o-mini",
+            transport=FakeOpenAiTransport([llm2_payload]),
+        )
+    )
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=llm1_service,
+        llm2_service=llm2_service,
+        job_queue=queue_repo,
+    )
+
+    with pytest.raises(ProcessPdfCaseRetriableError) as error_info:
+        await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    assert error_info.value.cause == "llm2"
+    assert "LLM2 returned non-JSON payload" in error_info.value.details

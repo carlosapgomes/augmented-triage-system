@@ -30,11 +30,11 @@ Excluded: LLM schema changes or policy behavior changes.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] runtime LLM adapter path is wired and typed
-- [ ] no LLM schema/policy behavior change
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] runtime LLM adapter path is wired and typed
+- [x] no LLM schema/policy behavior change
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

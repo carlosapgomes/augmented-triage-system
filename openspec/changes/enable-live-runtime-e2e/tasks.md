@@ -22,7 +22,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 
 ## 4. LLM Runtime Readiness
 
-- [ ] 4.1 Add runtime LLM adapter wiring with provider-configured execution path (`tasks/10-llm-runtime-adapter.md`)
+- [x] 4.1 Add runtime LLM adapter wiring with provider-configured execution path (`tasks/10-llm-runtime-adapter.md`)
 - [ ] 4.2 Add deterministic manual-test LLM mode and runtime smoke coverage (`tasks/11-llm-deterministic-mode.md`)
 
 ## 5. Manual E2E Readiness and Closeout

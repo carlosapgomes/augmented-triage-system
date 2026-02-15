@@ -42,6 +42,7 @@ from triage_automation.infrastructure.db.prompt_template_repository import (
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.worker_bootstrap import reconcile_running_jobs
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
+from triage_automation.infrastructure.llm.openai_client import OpenAiChatCompletionsClient
 from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
 from triage_automation.infrastructure.matrix.mxc_downloader import MatrixMxcDownloader
 from triage_automation.infrastructure.pdf.text_extractor import PdfTextExtractor
@@ -72,6 +73,10 @@ class _PlaceholderLlmClient:
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
         _ = system_prompt, user_prompt
         raise NotImplementedError(f"runtime LLM adapter for {self._stage} is not configured yet")
+
+
+_OPENAI_MODEL_LLM1 = "gpt-4o-mini"
+_OPENAI_MODEL_LLM2 = "gpt-4o-mini"
 
 
 @dataclass(frozen=True)
@@ -244,8 +249,11 @@ def build_worker_runtime(
         access_token=settings.matrix_access_token,
         timeout_seconds=settings.matrix_sync_timeout_ms / 1000,
     )
-    runtime_llm1_client = llm1_client or _PlaceholderLlmClient(stage="llm1")
-    runtime_llm2_client = llm2_client or _PlaceholderLlmClient(stage="llm2")
+    runtime_llm1_client, runtime_llm2_client = build_runtime_llm_clients(
+        settings=settings,
+        llm1_client=llm1_client,
+        llm2_client=llm2_client,
+    )
 
     services = build_runtime_services(
         settings=settings,
@@ -268,6 +276,40 @@ def build_worker_runtime(
         job_failure_service=failure_service,
         poll_interval_seconds=settings.worker_poll_interval_seconds,
     )
+
+
+def build_runtime_llm_clients(
+    *,
+    settings: Settings,
+    llm1_client: LlmClientPort | None = None,
+    llm2_client: LlmClientPort | None = None,
+) -> tuple[LlmClientPort, LlmClientPort]:
+    """Build runtime LLM clients from mode settings while preserving service contracts."""
+
+    runtime_llm1_client = llm1_client
+    runtime_llm2_client = llm2_client
+
+    if settings.llm_runtime_mode == "provider":
+        api_key = settings.openai_api_key
+        if api_key is None or not api_key.strip():
+            raise ValueError("OPENAI_API_KEY is required when LLM_RUNTIME_MODE=provider")
+        if runtime_llm1_client is None:
+            runtime_llm1_client = OpenAiChatCompletionsClient(
+                api_key=api_key,
+                model=_OPENAI_MODEL_LLM1,
+            )
+        if runtime_llm2_client is None:
+            runtime_llm2_client = OpenAiChatCompletionsClient(
+                api_key=api_key,
+                model=_OPENAI_MODEL_LLM2,
+            )
+    else:
+        if runtime_llm1_client is None:
+            runtime_llm1_client = _PlaceholderLlmClient(stage="llm1")
+        if runtime_llm2_client is None:
+            runtime_llm2_client = _PlaceholderLlmClient(stage="llm2")
+
+    return runtime_llm1_client, runtime_llm2_client
 
 
 def _require_case_id(job: JobRecord) -> UUID:

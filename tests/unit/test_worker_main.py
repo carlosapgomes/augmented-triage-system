@@ -5,9 +5,11 @@ from uuid import uuid4
 
 import pytest
 
-from apps.worker.main import build_worker_handlers
+from apps.worker.main import build_runtime_llm_clients, build_worker_handlers
 from triage_automation.application.ports.job_queue_port import JobRecord
 from triage_automation.application.services.worker_runtime import WorkerRuntime
+from triage_automation.config.settings import Settings
+from triage_automation.infrastructure.llm.openai_client import OpenAiChatCompletionsClient
 
 
 class _QueueForUnknownType:
@@ -130,3 +132,32 @@ async def test_unknown_job_type_behavior_remains_unchanged() -> None:
     assert queue.schedule_retry_calls == [
         (42, "Unknown job type: unknown-type"),
     ]
+
+
+def _runtime_settings(*, mode: str, openai_key: str | None) -> Settings:
+    return Settings.model_construct(
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        matrix_homeserver_url="https://matrix.example.org",
+        matrix_bot_user_id="@bot:example.org",
+        matrix_access_token="matrix-token",
+        matrix_sync_timeout_ms=30_000,
+        matrix_poll_interval_seconds=0.0,
+        worker_poll_interval_seconds=0.0,
+        webhook_public_url="https://webhook.example.org",
+        database_url="sqlite+aiosqlite:///tmp.db",
+        webhook_hmac_secret="secret",
+        llm_runtime_mode=mode,
+        openai_api_key=openai_key,
+        log_level="INFO",
+    )
+
+
+def test_provider_mode_selects_openai_runtime_clients() -> None:
+    settings = _runtime_settings(mode="provider", openai_key="sk-test")
+
+    llm1_client, llm2_client = build_runtime_llm_clients(settings=settings)
+
+    assert isinstance(llm1_client, OpenAiChatCompletionsClient)
+    assert isinstance(llm2_client, OpenAiChatCompletionsClient)
