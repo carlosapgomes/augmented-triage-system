@@ -62,3 +62,6 @@ class JobQueuePort(Protocol):
 
     async def mark_dead(self, *, job_id: int, last_error: str) -> JobRecord:
         """Mark a job as dead after retries are exhausted."""
+
+    async def has_active_job(self, *, case_id: UUID, job_type: str) -> bool:
+        """Return whether a queued/running job exists for case and type."""

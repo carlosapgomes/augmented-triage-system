@@ -108,6 +108,17 @@ class Room1FinalReplyReactionSnapshot:
     cleanup_triggered_at: datetime | None
 
 
+@dataclass(frozen=True)
+class CaseRecoverySnapshot:
+    """Case fields required for restart recovery scans."""
+
+    case_id: UUID
+    status: CaseStatus
+    room1_final_reply_event_id: str | None
+    cleanup_triggered_at: datetime | None
+    cleanup_completed_at: datetime | None
+
+
 class CaseRepositoryPort(Protocol):
     """Async case repository contract."""
 
@@ -172,6 +183,12 @@ class CaseRepositoryPort(Protocol):
         reactor_user_id: str,
     ) -> bool:
         """CAS claim of cleanup trigger (first thumbs only) and move status to CLEANUP_RUNNING."""
+
+    async def mark_cleanup_completed(self, *, case_id: UUID) -> None:
+        """Set cleanup_completed_at and transition case status to CLEANED."""
+
+    async def list_non_terminal_cases_for_recovery(self) -> list[CaseRecoverySnapshot]:
+        """List non-terminal cases used by restart recovery scans."""
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""

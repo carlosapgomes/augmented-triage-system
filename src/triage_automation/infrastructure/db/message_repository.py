@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     CaseMessageLookup,
+    CaseMessageRef,
     DuplicateCaseMessageError,
     MessageRepositoryPort,
 )
@@ -112,3 +113,22 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
             case_id=case_id,
             kind=str(row["kind"]),
         )
+
+    async def list_message_refs_for_case(self, *, case_id: UUID) -> list[CaseMessageRef]:
+        statement = sa.select(
+            case_messages.c.room_id,
+            case_messages.c.event_id,
+        ).where(case_messages.c.case_id == case_id)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        refs: list[CaseMessageRef] = []
+        for row in result.mappings().all():
+            refs.append(
+                CaseMessageRef(
+                    room_id=str(row["room_id"]),
+                    event_id=str(row["event_id"]),
+                )
+            )
+        return refs

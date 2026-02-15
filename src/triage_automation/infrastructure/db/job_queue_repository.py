@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any, cast
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.engine import RowMapping
@@ -146,6 +148,7 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
             .where(jobs.c.job_id == job_id)
             .values(
                 status="dead",
+                attempts=jobs.c.attempts + 1,
                 last_error=last_error,
                 updated_at=sa.func.current_timestamp(),
             )
@@ -158,13 +161,33 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
 
         return _to_job_record(result.mappings().one())
 
+    async def has_active_job(self, *, case_id: UUID, job_type: str) -> bool:
+        statement = sa.select(sa.literal(True)).where(
+            jobs.c.case_id == case_id,
+            jobs.c.job_type == job_type,
+            jobs.c.status.in_(("queued", "running")),
+        ).limit(1)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        return result.scalar_one_or_none() is True
+
 
 def _to_job_record(row: RowMapping) -> JobRecord:
-    payload_value = cast(dict[str, Any], row["payload"])
+    raw_payload = row["payload"]
+    if isinstance(raw_payload, str):
+        payload_value = cast(dict[str, Any], json.loads(raw_payload))
+    else:
+        payload_value = cast(dict[str, Any], raw_payload)
+    raw_case_id = row["case_id"]
+    case_id = None
+    if raw_case_id is not None:
+        case_id = raw_case_id if isinstance(raw_case_id, UUID) else UUID(str(raw_case_id))
 
     return JobRecord(
         job_id=cast(int, row["job_id"]),
-        case_id=cast("Any", row["case_id"]),
+        case_id=case_id,
         job_type=cast(str, row["job_type"]),
         status=cast(str, row["status"]),
         run_after=cast(datetime, row["run_after"]),

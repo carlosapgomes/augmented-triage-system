@@ -16,6 +16,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseDoctorDecisionSnapshot,
     CaseFinalReplySnapshot,
     CaseRecord,
+    CaseRecoverySnapshot,
     CaseRepositoryPort,
     CaseRoom2WidgetSnapshot,
     DoctorDecisionUpdateInput,
@@ -340,6 +341,46 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             await session.commit()
 
         return int(result.rowcount or 0) == 1
+
+    async def mark_cleanup_completed(self, *, case_id: UUID) -> None:
+        statement = (
+            sa.update(cases)
+            .where(cases.c.case_id == case_id)
+            .values(
+                cleanup_completed_at=sa.func.current_timestamp(),
+                status=CaseStatus.CLEANED.value,
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            await session.execute(statement)
+            await session.commit()
+
+    async def list_non_terminal_cases_for_recovery(self) -> list[CaseRecoverySnapshot]:
+        statement = sa.select(
+            cases.c.case_id,
+            cases.c.status,
+            cases.c.room1_final_reply_event_id,
+            cases.c.cleanup_triggered_at,
+            cases.c.cleanup_completed_at,
+        ).where(cases.c.status != CaseStatus.CLEANED.value)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        snapshots: list[CaseRecoverySnapshot] = []
+        for row in result.mappings().all():
+            snapshots.append(
+                CaseRecoverySnapshot(
+                    case_id=cast("Any", row["case_id"]),
+                    status=CaseStatus(cast(str, row["status"])),
+                    room1_final_reply_event_id=cast(str | None, row["room1_final_reply_event_id"]),
+                    cleanup_triggered_at=cast(datetime | None, row["cleanup_triggered_at"]),
+                    cleanup_completed_at=cast(datetime | None, row["cleanup_completed_at"]),
+                )
+            )
+        return snapshots
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         statement = (

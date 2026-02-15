@@ -30,6 +30,14 @@ class CaseMessageLookup:
     kind: str
 
 
+@dataclass(frozen=True)
+class CaseMessageRef:
+    """Room/event pair used by cleanup redaction execution."""
+
+    room_id: str
+    event_id: str
+
+
 class MessageRepositoryPort(Protocol):
     """Async case message repository contract."""
 
@@ -55,3 +63,6 @@ class MessageRepositoryPort(Protocol):
         event_id: str,
     ) -> CaseMessageLookup | None:
         """Resolve case_id and kind for a room/event mapping."""
+
+    async def list_message_refs_for_case(self, *, case_id: UUID) -> list[CaseMessageRef]:
+        """List room/event mappings for case cleanup redaction."""
