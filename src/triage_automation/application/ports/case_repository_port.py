@@ -69,3 +69,11 @@ class CaseRepositoryPort(Protocol):
         summary_text: str,
     ) -> None:
         """Persist validated LLM1 structured payload and summary text."""
+
+    async def store_llm2_artifacts(
+        self,
+        *,
+        case_id: UUID,
+        suggested_action_json: dict[str, Any],
+    ) -> None:
+        """Persist validated and policy-reconciled LLM2 suggestion payload."""

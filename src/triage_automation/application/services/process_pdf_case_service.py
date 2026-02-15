@@ -6,10 +6,19 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
+from triage_automation.application.ports.audit_repository_port import (
+    AuditEventCreateInput,
+    AuditRepositoryPort,
+)
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
+from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
 from triage_automation.application.services.llm1_service import (
     Llm1RetriableError,
     Llm1Service,
+)
+from triage_automation.application.services.llm2_service import (
+    Llm2RetriableError,
+    Llm2Service,
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.record_number import (
@@ -47,11 +56,20 @@ class ProcessPdfCaseService:
         mxc_downloader: MatrixMxcDownloader,
         text_extractor: PdfTextExtractor,
         llm1_service: Llm1Service | None = None,
+        llm2_service: Llm2Service | None = None,
+        audit_repository: AuditRepositoryPort | None = None,
+        job_queue: JobQueuePort | None = None,
     ) -> None:
+        if llm2_service is not None and job_queue is None:
+            raise ValueError("job_queue is required when llm2_service is enabled")
+
         self._case_repository = case_repository
         self._mxc_downloader = mxc_downloader
         self._text_extractor = text_extractor
         self._llm1_service = llm1_service
+        self._llm2_service = llm2_service
+        self._audit_repository = audit_repository
+        self._job_queue = job_queue
 
     async def process_case(self, *, case_id: UUID, pdf_mxc_url: str) -> str:
         """Download and extract case PDF content with retriable failure mapping."""
@@ -102,5 +120,43 @@ class ProcessPdfCaseService:
                 structured_data_json=llm1_result.structured_data_json,
                 summary_text=llm1_result.summary_text,
             )
+
+            if self._llm2_service is not None:
+                await self._case_repository.update_status(
+                    case_id=case_id,
+                    status=CaseStatus.LLM_SUGGEST,
+                )
+                try:
+                    llm2_result = await self._llm2_service.run(
+                        case_id=case_id,
+                        agency_record_number=record_result.agency_record_number,
+                        llm1_structured_data=llm1_result.structured_data_json,
+                    )
+                except Llm2RetriableError as error:
+                    raise ProcessPdfCaseRetriableError(cause="llm2", details=str(error)) from error
+
+                await self._case_repository.store_llm2_artifacts(
+                    case_id=case_id,
+                    suggested_action_json=llm2_result.suggested_action_json,
+                )
+
+                if llm2_result.contradictions and self._audit_repository is not None:
+                    await self._audit_repository.append_event(
+                        AuditEventCreateInput(
+                            case_id=case_id,
+                            actor_type="system",
+                            event_type="LLM_CONTRADICTION_DETECTED",
+                            payload={"contradictions": llm2_result.contradictions},
+                        )
+                    )
+
+                assert self._job_queue is not None  # ensured by __init__
+                await self._job_queue.enqueue(
+                    JobEnqueueInput(
+                        job_type="post_room2_widget",
+                        case_id=case_id,
+                        payload={},
+                    )
+                )
 
         return record_result.cleaned_text
