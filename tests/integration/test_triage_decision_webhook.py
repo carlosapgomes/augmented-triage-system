@@ -12,15 +12,20 @@ from fastapi.testclient import TestClient
 from alembic import command
 from apps.bot_api.main import create_app
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
+from triage_automation.application.services.auth_service import AuthService
 from triage_automation.application.services.handle_doctor_decision_service import (
     HandleDoctorDecisionService,
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
+from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
+from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
 from triage_automation.infrastructure.http.hmac_auth import compute_hmac_sha256
+from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 
 SECRET = "webhook-secret"
 
@@ -55,12 +60,23 @@ async def _create_wait_doctor_case(async_url: str, *, event_id: str) -> UUID:
 
 def _build_client(async_url: str) -> TestClient:
     session_factory = create_session_factory(async_url)
-    service = HandleDoctorDecisionService(
+    decision_service = HandleDoctorDecisionService(
         case_repository=SqlAlchemyCaseRepository(session_factory),
         audit_repository=SqlAlchemyAuditRepository(session_factory),
         job_queue=SqlAlchemyJobQueueRepository(session_factory),
     )
-    app = create_app(webhook_hmac_secret=SECRET, decision_service=service)
+    auth_service = AuthService(
+        users=SqlAlchemyUserRepository(session_factory),
+        auth_events=SqlAlchemyAuthEventRepository(session_factory),
+        password_hasher=BcryptPasswordHasher(),
+    )
+    app = create_app(
+        webhook_hmac_secret=SECRET,
+        decision_service=decision_service,
+        auth_service=auth_service,
+        auth_token_repository=SqlAlchemyAuthTokenRepository(session_factory),
+        database_url=async_url,
+    )
     return TestClient(app)
 
 

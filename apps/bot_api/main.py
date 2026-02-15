@@ -1,4 +1,4 @@
-"""bot-api entrypoint and webhook callback endpoint wiring."""
+"""bot-api entrypoint and HTTP route wiring."""
 
 from __future__ import annotations
 
@@ -9,16 +9,26 @@ from triage_automation.application.dto.webhook_models import (
     TriageDecisionWebhookPayload,
     TriageDecisionWebhookResponse,
 )
+from triage_automation.application.ports.auth_token_repository_port import (
+    AuthTokenRepositoryPort,
+)
+from triage_automation.application.services.auth_service import AuthService
 from triage_automation.application.services.handle_doctor_decision_service import (
     HandleDoctorDecisionOutcome,
     HandleDoctorDecisionService,
 )
 from triage_automation.config.settings import load_settings
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
+from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
+from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
+from triage_automation.infrastructure.http.auth_router import build_auth_router
 from triage_automation.infrastructure.http.hmac_auth import verify_hmac_signature
+from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
+from triage_automation.infrastructure.security.token_service import OpaqueTokenService
 
 
 def build_decision_service(database_url: str) -> HandleDoctorDecisionService:
@@ -32,24 +42,70 @@ def build_decision_service(database_url: str) -> HandleDoctorDecisionService:
     )
 
 
+def build_auth_service(database_url: str) -> AuthService:
+    """Build authentication service with SQLAlchemy-backed dependencies."""
+
+    session_factory = create_session_factory(database_url)
+    return AuthService(
+        users=SqlAlchemyUserRepository(session_factory),
+        auth_events=SqlAlchemyAuthEventRepository(session_factory),
+        password_hasher=BcryptPasswordHasher(),
+    )
+
+
+def build_auth_token_repository(database_url: str) -> AuthTokenRepositoryPort:
+    """Build opaque auth token repository with SQLAlchemy session factory."""
+
+    session_factory = create_session_factory(database_url)
+    return SqlAlchemyAuthTokenRepository(session_factory)
+
+
 def create_app(
     *,
     webhook_hmac_secret: str | None = None,
     decision_service: HandleDoctorDecisionService | None = None,
+    auth_service: AuthService | None = None,
+    auth_token_repository: AuthTokenRepositoryPort | None = None,
+    token_service: OpaqueTokenService | None = None,
+    database_url: str | None = None,
 ) -> FastAPI:
-    """Create FastAPI app for authenticated doctor triage webhook callbacks."""
+    """Create FastAPI app for webhook callbacks and login foundation routes."""
 
-    if webhook_hmac_secret is None or decision_service is None:
+    should_load_settings = webhook_hmac_secret is None or decision_service is None
+    if should_load_settings or (
+        database_url is None and (auth_service is None or auth_token_repository is None)
+    ):
         settings = load_settings()
         if webhook_hmac_secret is None:
             webhook_hmac_secret = settings.webhook_hmac_secret
+        if database_url is None:
+            database_url = settings.database_url
         if decision_service is None:
-            decision_service = build_decision_service(settings.database_url)
+            decision_service = build_decision_service(database_url)
+
+    if auth_service is None:
+        assert database_url is not None
+        auth_service = build_auth_service(database_url)
+    if auth_token_repository is None:
+        assert database_url is not None
+        auth_token_repository = build_auth_token_repository(database_url)
+    if token_service is None:
+        token_service = OpaqueTokenService()
 
     assert decision_service is not None
     assert webhook_hmac_secret is not None
+    assert auth_service is not None
+    assert auth_token_repository is not None
+    assert token_service is not None
 
     app = FastAPI()
+    app.include_router(
+        build_auth_router(
+            auth_service=auth_service,
+            auth_token_repository=auth_token_repository,
+            token_service=token_service,
+        )
+    )
 
     @app.post(
         "/callbacks/triage-decision",
