@@ -3,6 +3,7 @@ name = "triage-automation"
 version = "0.1.0"
 description = "Triage automation services"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "aiosqlite>=0.21.0,<1",
