@@ -18,4 +18,4 @@
 ## 4. Final Hardening Verification
 
 - [x] 4.1 Run full repo validation (`pytest`, `ruff`, `mypy`) and fix remaining violations within defined policy scope (`tasks/09-final-verification.md`)
-- [ ] 4.2 Document completion status, residual exceptions, and maintenance rules for future slices (`tasks/10-closeout.md`)
+- [x] 4.2 Document completion status, residual exceptions, and maintenance rules for future slices (`tasks/10-closeout.md`)

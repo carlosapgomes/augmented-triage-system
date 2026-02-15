@@ -93,9 +93,19 @@ Baseline policy:
 - Ratchet incrementally by package group; never enable broad strictness in one step.
 - Keep behavior unchanged: no workflow/state-machine/business logic changes as part of quality hardening.
 
-Temporary scope exclusions until dedicated slices:
-- Non-ratcheted package groups.
-- Test-policy finalization (handled in dedicated tests-policy slice).
+Closeout status (2026-02-15):
+- Ratchet rollout is complete for `src/triage_automation/application`, `src/triage_automation/domain`, `src/triage_automation/infrastructure`, and `apps/`.
+- CI/local gates are active (`ruff`, `mypy`, `pytest`) and required for every slice.
+
+Residual exceptions with rationale:
+- `tests/**/*.py`: docstring/type lint rules are intentionally excluded to preserve readability and avoid low-value boilerplate; correctness remains enforced by pytest plus core lint rules.
+- `alembic/**/*.py`: docstring/type lint rules are intentionally excluded for migration scripts.
+- `src/triage_automation/config/**/*.py`: docstring/type lint rules remain excluded in this phase and require a dedicated follow-up slice to ratchet.
+
+Maintenance rules for future slices:
+- New or modified public modules/classes/functions in ratcheted areas must keep docstring and public-signature typing compliance.
+- Do not broaden existing lint/type exclusions without an explicit OpenSpec slice and rationale.
+- Keep `uv run ruff check .`, `uv run mypy src apps`, and `uv run pytest -q` green before each slice commit.
 
 Ratchet rollout order (authoritative for this change):
 1. Baseline policy and scope

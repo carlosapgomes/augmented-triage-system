@@ -27,9 +27,9 @@ Excluded: further remediation beyond agreed scope.
 - `uv run pytest -q`
 
 ## Mandatory checklist
-- [ ] closeout notes complete
-- [ ] exceptions documented with rationale
-- [ ] quality suite remains green
+- [x] closeout notes complete
+- [x] exceptions documented with rationale
+- [x] quality suite remains green
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
