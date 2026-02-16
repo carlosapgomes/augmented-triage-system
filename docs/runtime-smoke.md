@@ -135,6 +135,11 @@ In this mode, worker runtime uses deterministic LLM adapters and still executes
 the LLM-dependent stages (`LLM1`/`LLM2`) and enqueue transitions without changing
 triage semantics.
 
+For provider mode, set:
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL_LLM1`
+- `OPENAI_MODEL_LLM2`
+
 ## UV and Compose Parity
 
 Use the same entrypoint commands from `docker-compose.yml`:

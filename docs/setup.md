@@ -27,10 +27,16 @@ Required variables (from `.env.example`):
 - `WEBHOOK_PUBLIC_URL`
 - `DATABASE_URL`
 - `WEBHOOK_HMAC_SECRET`
+- `LLM_RUNTIME_MODE`
 - `LOG_LEVEL`
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
+
+Provider mode optional variables:
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL_LLM1`
+- `OPENAI_MODEL_LLM2`
 
 ## 3. Run database migrations
 

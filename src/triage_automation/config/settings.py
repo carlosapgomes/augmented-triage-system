@@ -42,6 +42,14 @@ class Settings(BaseSettings):
         validation_alias="LLM_RUNTIME_MODE",
     )
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    openai_model_llm1: NonEmptyStr = Field(
+        default="gpt-4o-mini",
+        validation_alias="OPENAI_MODEL_LLM1",
+    )
+    openai_model_llm2: NonEmptyStr = Field(
+        default="gpt-4o-mini",
+        validation_alias="OPENAI_MODEL_LLM2",
+    )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
 

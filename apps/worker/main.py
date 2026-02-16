@@ -65,10 +65,6 @@ class MatrixRuntimeClientPort(Protocol):
         """Download raw bytes for an MXC URI."""
 
 
-_OPENAI_MODEL_LLM1 = "gpt-4o-mini"
-_OPENAI_MODEL_LLM2 = "gpt-4o-mini"
-
-
 @dataclass(frozen=True)
 class WorkerRuntimeServices:
     """Composed runtime services and shared repositories for worker handlers."""
@@ -286,12 +282,12 @@ def build_runtime_llm_clients(
         if runtime_llm1_client is None:
             runtime_llm1_client = OpenAiChatCompletionsClient(
                 api_key=api_key,
-                model=_OPENAI_MODEL_LLM1,
+                model=settings.openai_model_llm1,
             )
         if runtime_llm2_client is None:
             runtime_llm2_client = OpenAiChatCompletionsClient(
                 api_key=api_key,
-                model=_OPENAI_MODEL_LLM2,
+                model=settings.openai_model_llm2,
             )
     else:
         if runtime_llm1_client is None:

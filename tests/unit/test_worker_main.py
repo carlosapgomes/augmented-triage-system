@@ -153,6 +153,8 @@ def _runtime_settings(*, mode: str, openai_key: str | None) -> Settings:
         webhook_hmac_secret="secret",
         llm_runtime_mode=mode,
         openai_api_key=openai_key,
+        openai_model_llm1="gpt-4o-mini",
+        openai_model_llm2="gpt-4o-mini",
         log_level="INFO",
     )
 
@@ -164,6 +166,22 @@ def test_provider_mode_selects_openai_runtime_clients() -> None:
 
     assert isinstance(llm1_client, OpenAiChatCompletionsClient)
     assert isinstance(llm2_client, OpenAiChatCompletionsClient)
+
+
+def test_provider_mode_uses_configured_openai_models() -> None:
+    settings = _runtime_settings(mode="provider", openai_key="sk-test").model_copy(
+        update={
+            "openai_model_llm1": "gpt-4.1-mini",
+            "openai_model_llm2": "gpt-4.1",
+        }
+    )
+
+    llm1_client, llm2_client = build_runtime_llm_clients(settings=settings)
+
+    assert isinstance(llm1_client, OpenAiChatCompletionsClient)
+    assert isinstance(llm2_client, OpenAiChatCompletionsClient)
+    assert llm1_client.model_name == "gpt-4.1-mini"
+    assert llm2_client.model_name == "gpt-4.1"
 
 
 def test_deterministic_mode_selects_deterministic_runtime_clients() -> None:

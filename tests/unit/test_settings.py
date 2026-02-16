@@ -42,6 +42,8 @@ def test_defaults_are_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.worker_poll_interval_seconds == 1.0
     assert settings.llm_runtime_mode == "deterministic"
     assert settings.openai_api_key is None
+    assert settings.openai_model_llm1 == "gpt-4o-mini"
+    assert settings.openai_model_llm2 == "gpt-4o-mini"
 
 
 def test_room_ids_and_urls_are_non_empty(monkeypatch: pytest.MonkeyPatch) -> None:

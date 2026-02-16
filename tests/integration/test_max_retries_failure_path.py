@@ -68,6 +68,8 @@ def _runtime_settings(*, database_url: str) -> Settings:
         webhook_hmac_secret="secret",
         llm_runtime_mode="deterministic",
         openai_api_key=None,
+        openai_model_llm1="gpt-4o-mini",
+        openai_model_llm2="gpt-4o-mini",
         log_level="INFO",
     )
 

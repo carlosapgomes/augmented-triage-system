@@ -127,6 +127,12 @@ class OpenAiChatCompletionsClient:
         )
         return _extract_assistant_content(response=response)
 
+    @property
+    def model_name(self) -> str:
+        """Return configured OpenAI model name for this client instance."""
+
+        return self._model
+
     async def _request_json(
         self,
         *,
