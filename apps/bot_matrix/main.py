@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -19,12 +20,16 @@ from triage_automation.infrastructure.db.message_repository import SqlAlchemyMes
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.matrix.event_parser import parse_room1_pdf_intake_event
 from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
+from triage_automation.infrastructure.matrix.http_client import MatrixTransportError
 from triage_automation.infrastructure.matrix.reaction_parser import parse_matrix_reaction_event
 from triage_automation.infrastructure.matrix.room3_reply_parser import parse_room3_reply_event
 from triage_automation.infrastructure.matrix.sync_events import (
     extract_next_batch_token,
     iter_joined_room_timeline_events,
 )
+
+_SYNC_HTTP_TIMEOUT_BUFFER_SECONDS = 10.0
+logger = logging.getLogger(__name__)
 
 
 class MatrixRoom1ListenerClientPort(Protocol):
@@ -85,7 +90,10 @@ def build_bot_matrix_runtime(
     runtime_matrix_client = matrix_client or MatrixHttpClient(
         homeserver_url=str(runtime_settings.matrix_homeserver_url),
         access_token=runtime_settings.matrix_access_token,
-        timeout_seconds=runtime_settings.matrix_sync_timeout_ms / 1000,
+        timeout_seconds=(
+            runtime_settings.matrix_sync_timeout_ms / 1000
+            + _SYNC_HTTP_TIMEOUT_BUFFER_SECONDS
+        ),
     )
     runtime_room1_intake_service = room1_intake_service or build_room1_intake_service(
         settings=runtime_settings,
@@ -278,18 +286,21 @@ async def run_room1_intake_listener(
 
     since_token = initial_since_token
     while not stop_event.is_set():
-        since_token, _, _, _ = await poll_room1_reactions_and_room3_once(
-            matrix_client=matrix_client,
-            intake_service=intake_service,
-            reaction_service=reaction_service,
-            room3_reply_service=room3_reply_service,
-            room1_id=room1_id,
-            room2_id=room2_id,
-            room3_id=room3_id,
-            bot_user_id=bot_user_id,
-            since_token=since_token,
-            sync_timeout_ms=sync_timeout_ms,
-        )
+        try:
+            since_token, _, _, _ = await poll_room1_reactions_and_room3_once(
+                matrix_client=matrix_client,
+                intake_service=intake_service,
+                reaction_service=reaction_service,
+                room3_reply_service=room3_reply_service,
+                room1_id=room1_id,
+                room2_id=room2_id,
+                room3_id=room3_id,
+                bot_user_id=bot_user_id,
+                since_token=since_token,
+                sync_timeout_ms=sync_timeout_ms,
+            )
+        except MatrixTransportError:
+            logger.warning("Matrix sync transport failure; retrying on next poll cycle.")
         if poll_interval_seconds > 0:
             await asyncio.sleep(poll_interval_seconds)
 

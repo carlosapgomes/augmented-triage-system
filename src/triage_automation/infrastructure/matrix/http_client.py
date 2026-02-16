@@ -39,6 +39,14 @@ class MatrixAdapterError(RuntimeError):
     """Raised for normalized Matrix adapter failures."""
 
 
+class MatrixTransportError(MatrixAdapterError):
+    """Raised when Matrix transport layer fails before receiving an HTTP response."""
+
+
+class MatrixRequestError(MatrixAdapterError):
+    """Raised when Matrix responds with a non-success HTTP status code."""
+
+
 class UrllibMatrixHttpTransport:
     """urllib-based async transport implementation for Matrix HTTP calls."""
 
@@ -235,11 +243,11 @@ class MatrixHttpClient:
                 timeout_seconds=self._timeout_seconds,
             )
         except Exception as error:  # noqa: BLE001
-            raise MatrixAdapterError(f"{operation} transport failure") from error
+            raise MatrixTransportError(f"{operation} transport failure") from error
 
         if response.status_code < 200 or response.status_code >= 300:
             details = _decode_error_payload(response.body_bytes)
-            raise MatrixAdapterError(
+            raise MatrixRequestError(
                 f"{operation} failed with status {response.status_code}: {details}"
             )
 

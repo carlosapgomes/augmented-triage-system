@@ -7,7 +7,7 @@ import os
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from dotenv import load_dotenv
@@ -17,10 +17,14 @@ from triage_automation.infrastructure.db.metadata import metadata
 
 config = context.config
 
-# Ensure Alembic picks DATABASE_URL from local .env during development.
+_DEFAULT_ALEMBIC_URL = "sqlite:///./triage.db"
+
+# Ensure Alembic picks DATABASE_URL from local .env during development,
+# but do not override explicit URLs set by callers (tests/programmatic config).
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 database_url = os.getenv("DATABASE_URL")
-if database_url:
+configured_url = config.get_main_option("sqlalchemy.url")
+if database_url and configured_url == _DEFAULT_ALEMBIC_URL:
     config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
@@ -47,7 +51,24 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in online mode."""
 
-    asyncio.run(run_async_migrations())
+    configured_url = config.get_main_option("sqlalchemy.url")
+    if _is_async_driver_url(configured_url):
+        asyncio.run(run_async_migrations())
+        return
+    run_sync_migrations()
+
+
+def run_sync_migrations() -> None:
+    """Run migrations with SQLAlchemy sync engine for sync DB drivers."""
+
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    with connectable.connect() as connection:
+        do_run_migrations(connection)
 
 
 def do_run_migrations(connection: Connection) -> None:
@@ -71,6 +92,12 @@ async def run_async_migrations() -> None:
         await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()
+
+
+def _is_async_driver_url(url: str) -> bool:
+    """Return whether a SQLAlchemy URL uses an async driver."""
+
+    return "+asyncpg" in url or "+aiosqlite" in url
 
 
 if context.is_offline_mode():
