@@ -23,7 +23,6 @@ from triage_automation.application.services.llm2_service import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.record_number import (
-    RecordNumberExtractionError,
     extract_and_strip_agency_record_number,
 )
 from triage_automation.infrastructure.matrix.mxc_downloader import (
@@ -100,18 +99,7 @@ class ProcessPdfCaseService:
             len(extracted_text),
         )
 
-        try:
-            record_result = extract_and_strip_agency_record_number(extracted_text)
-        except RecordNumberExtractionError as error:
-            logger.warning(
-                "process_pdf_case_record_extract_failed case_id=%s error=%s",
-                case_id,
-                error,
-            )
-            raise ProcessPdfCaseRetriableError(
-                cause="record_extract",
-                details=str(error),
-            ) from error
+        record_result = extract_and_strip_agency_record_number(extracted_text)
         logger.info(
             "process_pdf_case_record_extract_ok case_id=%s agency_record_number=%s",
             case_id,

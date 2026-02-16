@@ -117,7 +117,7 @@ class Llm1Response(StrictModel):
 
     schema_version: Literal["1.1"]
     language: Literal["pt-BR"]
-    agency_record_number: str = Field(pattern=r"^[0-9]{5}$")
+    agency_record_number: str = Field(pattern=r"^[0-9]{5,}$")
     patient: Llm1Patient
     eda: Llm1Eda
     policy_precheck: Llm1PolicyPrecheck

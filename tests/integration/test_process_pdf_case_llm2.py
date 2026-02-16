@@ -216,7 +216,11 @@ async def test_llm2_persists_suggestion_and_enqueues_room2_widget_job(tmp_path: 
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=llm1_service,
@@ -293,7 +297,11 @@ async def test_llm2_contradiction_emits_audit_event_and_forces_deny(tmp_path: Pa
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=llm1_service,
@@ -364,7 +372,11 @@ async def test_runtime_provider_adapter_preserves_llm2_retriable_mapping(
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=llm1_service,

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 _CASE_ID_PATTERN = re.compile(r"case_id:\s*([0-9a-fA-F-]{36})")
-_AGENCY_RECORD_PATTERN = re.compile(r"agency_record_number:\s*([0-9]{5})")
+_AGENCY_RECORD_PATTERN = re.compile(r"agency_record_number:\s*([0-9]{5,})")
 
 
 @dataclass(frozen=True)

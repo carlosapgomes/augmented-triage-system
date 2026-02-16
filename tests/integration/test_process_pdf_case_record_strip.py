@@ -9,10 +9,7 @@ from alembic.config import Config
 
 from alembic import command
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
-from triage_automation.application.services.process_pdf_case_service import (
-    ProcessPdfCaseRetriableError,
-    ProcessPdfCaseService,
-)
+from triage_automation.application.services.process_pdf_case_service import ProcessPdfCaseService
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.session import create_session_factory
@@ -91,7 +88,7 @@ async def test_record_number_persisted_and_stripped_from_text(tmp_path: Path) ->
         )
     )
 
-    text = "12345 patient data 12345 details 99999 12345"
+    text = "RELATORIO DE OCORRENCIAS 12345 patient data 12345 details 99999 12345"
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
@@ -102,7 +99,7 @@ async def test_record_number_persisted_and_stripped_from_text(tmp_path: Path) ->
 
     cleaned = await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
 
-    assert cleaned == "patient data details 99999"
+    assert cleaned == "RELATORIO DE OCORRENCIAS patient data details 99999"
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -115,12 +112,12 @@ async def test_record_number_persisted_and_stripped_from_text(tmp_path: Path) ->
 
     assert row["agency_record_number"] == "12345"
     assert row["agency_record_extracted_at"] is not None
-    assert row["extracted_text"] == "patient data details 99999"
+    assert row["extracted_text"] == "RELATORIO DE OCORRENCIAS patient data details 99999"
 
 
 @pytest.mark.asyncio
-async def test_missing_record_number_maps_to_retriable_record_extract_error(tmp_path: Path) -> None:
-    _, async_url = _upgrade_head(tmp_path, "record_strip_fail.db")
+async def test_missing_record_number_falls_back_to_epoch_millis(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "record_strip_fallback.db")
     session_factory = create_session_factory(async_url)
     case_repo = SqlAlchemyCaseRepository(session_factory)
 
@@ -142,7 +139,21 @@ async def test_missing_record_number_maps_to_retriable_record_extract_error(tmp_
         text_extractor=PdfTextExtractor(),
     )
 
-    with pytest.raises(ProcessPdfCaseRetriableError) as exc_info:
-        await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+    cleaned = await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
 
-    assert exc_info.value.cause == "record_extract"
+    assert cleaned == "no token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text(
+                "SELECT agency_record_number, agency_record_extracted_at, extracted_text "
+                "FROM cases ORDER BY created_at DESC LIMIT 1"
+            )
+        ).mappings().one()
+
+    assert row["agency_record_extracted_at"] is not None
+    assert isinstance(row["agency_record_number"], str)
+    assert row["agency_record_number"].isdigit()
+    assert len(row["agency_record_number"]) >= 13
+    assert row["extracted_text"] == "no token"

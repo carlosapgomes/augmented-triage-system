@@ -156,7 +156,10 @@ class FakeMatrixRuntimeClient:
         self.send_calls: list[tuple[str, str]] = []
         self.reply_calls: list[tuple[str, str, str]] = []
         self.redaction_calls: list[tuple[str, str]] = []
-        self._pdf_bytes = _build_simple_pdf("laudo 12345 com watermark 12345 e fim")
+        self._pdf_bytes = _build_simple_pdf(
+            "RELATORIO DE OCORRENCIAS 12345 "
+            "laudo 12345 com watermark 12345 e fim"
+        )
 
     def _next_event_id(self) -> str:
         self._counter += 1
@@ -188,7 +191,7 @@ class FakeLlm2Client:
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
         _ = system_prompt
         case_match = re.search(r"case_id:\s*([0-9a-fA-F-]{36})", user_prompt)
-        record_match = re.search(r"agency_record_number:\s*([0-9]{5})", user_prompt)
+        record_match = re.search(r"agency_record_number:\s*([0-9]{5,})", user_prompt)
         assert case_match is not None
         assert record_match is not None
         return json.dumps(

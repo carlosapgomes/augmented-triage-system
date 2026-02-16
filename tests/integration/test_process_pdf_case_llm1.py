@@ -144,7 +144,11 @@ async def test_valid_llm1_response_persists_structured_data_and_summary(tmp_path
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=llm1_service,
@@ -152,7 +156,7 @@ async def test_valid_llm1_response_persists_structured_data_and_summary(tmp_path
 
     cleaned = await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
 
-    assert cleaned == "clinical text"
+    assert cleaned == "RELATORIO DE OCORRENCIAS clinical text"
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -188,7 +192,11 @@ async def test_invalid_llm1_schema_maps_to_retriable_llm1_error(tmp_path: Path) 
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=llm1_service,

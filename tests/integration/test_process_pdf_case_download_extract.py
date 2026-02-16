@@ -97,14 +97,18 @@ async def test_download_extract_updates_case_status_and_text(tmp_path: Path) -> 
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(payload=_build_simple_pdf("12345 Clinical text 12345"))
+            FakeMatrixMediaClient(
+                payload=_build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "Clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
     )
 
     extracted = await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
 
-    assert extracted == "Clinical text"
+    assert extracted == "RELATORIO DE OCORRENCIAS Clinical text"
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -116,7 +120,7 @@ async def test_download_extract_updates_case_status_and_text(tmp_path: Path) -> 
         ).mappings().one()
 
     assert row["status"] == "EXTRACTING"
-    assert row["extracted_text"] == "Clinical text"
+    assert row["extracted_text"] == "RELATORIO DE OCORRENCIAS Clinical text"
     assert row["pdf_mxc_url"] == "mxc://example.org/pdf"
 
 

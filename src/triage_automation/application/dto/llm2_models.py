@@ -37,7 +37,7 @@ class Llm2Response(StrictModel):
     schema_version: Literal["1.1"]
     language: Literal["pt-BR"]
     case_id: str
-    agency_record_number: str = Field(pattern=r"^[0-9]{5}$")
+    agency_record_number: str = Field(pattern=r"^[0-9]{5,}$")
     suggestion: Literal["accept", "deny"]
     support_recommendation: Literal["none", "anesthesist", "anesthesist_icu", "unknown"]
     rationale: Llm2Rationale

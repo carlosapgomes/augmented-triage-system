@@ -254,7 +254,11 @@ async def test_llm1_and_llm2_load_active_prompts_and_audit_prompt_versions(
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=Llm1Service(
@@ -375,7 +379,11 @@ async def test_missing_active_prompt_is_explicit_and_retriable_for_job_path(tmp_
     service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 clinical text 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=Llm1Service(

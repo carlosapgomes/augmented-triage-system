@@ -87,7 +87,7 @@ class FakeLlm1Client:
 class FakeLlm2Client:
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
         case_match = re.search(r"case_id:\s*([0-9a-fA-F-]{36})", user_prompt)
-        record_match = re.search(r"agency_record_number:\s*([0-9]{5})", user_prompt)
+        record_match = re.search(r"agency_record_number:\s*([0-9]{5,})", user_prompt)
         assert case_match is not None
         assert record_match is not None
         payload = _valid_llm2_payload(
@@ -358,7 +358,11 @@ async def test_happy_path_reaches_cleaned_with_cleanup_redactions(tmp_path: Path
     process_service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 Texto clinico 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "Texto clinico 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=Llm1Service(llm_client=FakeLlm1Client()),
@@ -540,7 +544,11 @@ async def test_doctor_deny_path_posts_room1_final_without_room3_request(tmp_path
     process_service = ProcessPdfCaseService(
         case_repository=case_repo,
         mxc_downloader=MatrixMxcDownloader(
-            FakeMatrixMediaClient(_build_simple_pdf("12345 Texto clinico 12345"))
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "Texto clinico 12345"
+                )
+            )
         ),
         text_extractor=PdfTextExtractor(),
         llm1_service=Llm1Service(llm_client=FakeLlm1Client()),
