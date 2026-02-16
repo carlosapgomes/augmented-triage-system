@@ -272,6 +272,7 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
     service = _build_service(async_url, matrix_poster)
 
     body = (
+        "Confirmed:\n"
         "16-02-2026 14:30 BRT\n"
         "location: Sala 2\n"
         "instructions: Jejum 8h\n"
@@ -320,6 +321,7 @@ async def test_runtime_listener_routes_valid_room3_reply_to_service(tmp_path: Pa
     service = _build_service(async_url, matrix_poster)
 
     body = (
+        "Confirmed:\n"
         "16-02-2026 14:30 BRT\n"
         "location: Sala 2\n"
         "instructions: Jejum 8h\n"

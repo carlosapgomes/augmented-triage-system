@@ -78,7 +78,7 @@ async def test_valid_pdf_creates_case_and_enqueues_job(tmp_path: Path) -> None:
 
     assert result.processed is True
     assert result.case_id is not None
-    assert matrix_poster.calls == [("!room1:example.org", "$origin-1", "processing...")]
+    assert matrix_poster.calls == [("!room1:example.org", "$origin-1", "processando...")]
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:

@@ -142,32 +142,32 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
     assert matrix_poster.calls[0] == (
         "!room1:example.org",
         "$origin-final-deny-triage",
-        f"❌ denied (triage)\nreason: critério clínico\ncase: {denied_triage_id}",
+        f"❌ negado (triagem)\nmotivo: critério clínico\ncaso: {denied_triage_id}",
     )
     assert matrix_poster.calls[1] == (
         "!room1:example.org",
         "$origin-final-appt-ok",
         (
-            "✅ accepted\n"
-            "appointment: 16-02-2026 14:30 BRT\n"
-            "location: Sala 2\n"
-            "instructions: Jejum 8h\n"
-            f"case: {appt_confirmed_id}"
+            "✅ aceito\n"
+            "agendamento: 16-02-2026 14:30 BRT\n"
+            "local: Sala 2\n"
+            "instrucoes: Jejum 8h\n"
+            f"caso: {appt_confirmed_id}"
         ),
     )
     assert matrix_poster.calls[2] == (
         "!room1:example.org",
         "$origin-final-appt-deny",
-        f"❌ denied (appointment)\nreason: sem agenda\ncase: {appt_denied_id}",
+        f"❌ negado (agendamento)\nmotivo: sem agenda\ncaso: {appt_denied_id}",
     )
     assert matrix_poster.calls[3] == (
         "!room1:example.org",
         "$origin-final-failed",
         (
-            "⚠️ processing failed\n"
-            "cause: llm\n"
-            "details: schema mismatch\n"
-            f"case: {failed_id}"
+            "⚠️ falha no processamento\n"
+            "causa: llm\n"
+            "detalhes: schema mismatch\n"
+            f"caso: {failed_id}"
         ),
     )
 

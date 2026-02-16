@@ -8,6 +8,12 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 _BRT = ZoneInfo("America/Bahia")
+_KEY_ALIASES: dict[str, tuple[str, ...]] = {
+    "case": ("case", "caso"),
+    "location": ("location", "local"),
+    "instructions": ("instructions", "instrucoes", "instruções"),
+    "reason": ("reason", "motivo"),
+}
 
 
 @dataclass(frozen=True)
@@ -43,9 +49,13 @@ def parse_scheduler_reply(*, body: str, expected_case_id: UUID) -> SchedulerRepl
     if case_id != expected_case_id:
         raise SchedulerParseError("case_id_mismatch")
 
-    first_line = lines[0].strip().lower()
-    if first_line == "denied":
-        reason = _extract_value(lines=lines, key="reason")
+    parsed_lines = _strip_section_headers(lines)
+    if not parsed_lines:
+        raise SchedulerParseError("empty_message")
+
+    first_line = parsed_lines[0].strip().lower()
+    if first_line in {"denied", "negado"}:
+        reason = _extract_value(lines=parsed_lines, key="reason")
         return SchedulerReplyParsed(
             case_id=case_id,
             appointment_status="denied",
@@ -55,9 +65,9 @@ def parse_scheduler_reply(*, body: str, expected_case_id: UUID) -> SchedulerRepl
             reason=reason,
         )
 
-    appointment_at = _parse_brt_datetime(lines[0])
-    location = _extract_required_value(lines=lines, key="location")
-    instructions = _extract_required_value(lines=lines, key="instructions")
+    appointment_at = _parse_brt_datetime(parsed_lines[0])
+    location = _extract_required_value(lines=parsed_lines, key="location")
+    instructions = _extract_required_value(lines=parsed_lines, key="instructions")
 
     return SchedulerReplyParsed(
         case_id=case_id,
@@ -77,6 +87,23 @@ def _extract_case_id(*, lines: list[str]) -> UUID:
         raise SchedulerParseError("invalid_case_line") from error
 
 
+def _strip_section_headers(lines: list[str]) -> list[str]:
+    """Normalize optional section header lines used in Room-3 templates."""
+
+    if not lines:
+        return lines
+
+    first_line = lines[0].strip().lower()
+    if first_line in {"confirmed", "confirmed:", "confirmado", "confirmado:"}:
+        return lines[1:]
+    if first_line in {"denied:", "negado:"}:
+        if len(lines) >= 2 and lines[1].strip().lower() in {"denied", "negado"}:
+            return lines[1:]
+        return ["denied", *lines[1:]]
+
+    return lines
+
+
 def _extract_required_value(*, lines: list[str], key: str) -> str:
     value = _extract_value(lines=lines, key=key)
     if value is None or not value:
@@ -87,11 +114,13 @@ def _extract_required_value(*, lines: list[str], key: str) -> str:
 
 
 def _extract_value(*, lines: list[str], key: str) -> str | None:
-    prefix = f"{key.lower()}:"
+    aliases = _KEY_ALIASES.get(key, (key,))
+    prefixes = tuple(f"{alias.lower()}:" for alias in aliases)
     for line in lines:
         normalized = line.lower()
-        if normalized.startswith(prefix):
-            return line[len(prefix) :].strip()
+        for prefix in prefixes:
+            if normalized.startswith(prefix):
+                return line[len(prefix) :].strip()
     return None
 
 

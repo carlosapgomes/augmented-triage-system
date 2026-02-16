@@ -117,7 +117,7 @@ async def test_valid_room1_pdf_event_routes_through_runtime_listener(tmp_path: P
 
     assert next_since == "s1"
     assert routed_count == 1
-    assert matrix_client.reply_calls == [("!room1:example.org", "$origin-1", "processing...")]
+    assert matrix_client.reply_calls == [("!room1:example.org", "$origin-1", "processando...")]
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:

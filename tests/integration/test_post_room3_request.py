@@ -77,7 +77,7 @@ async def test_room3_request_posts_request_and_ack_and_moves_wait_appt(tmp_path:
 
     request_room_id, request_body = matrix_poster.calls[0]
     assert request_room_id == "!room3:example.org"
-    assert f"case: {case.case_id}" in request_body
+    assert f"caso: {case.case_id}" in request_body
 
     ack_room_id, ack_body = matrix_poster.calls[1]
     assert ack_room_id == "!room3:example.org"

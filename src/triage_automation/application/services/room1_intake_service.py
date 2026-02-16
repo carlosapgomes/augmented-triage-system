@@ -104,7 +104,7 @@ class Room1IntakeService:
         processing_event_id = await self._matrix_poster.reply_text(
             room_id=parsed.room_id,
             event_id=parsed.event_id,
-            body="processing...",
+            body="processando...",
         )
 
         await self._message_repository.add_message(
