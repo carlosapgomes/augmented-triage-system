@@ -31,10 +31,13 @@ The project SHALL prevent quality regressions in completed ratcheted areas throu
 - **WHEN** a contributor runs validation for a slice or pull request
 - **THEN** `ruff check` and `mypy` MUST enforce the configured ratchet rules for already-completed scopes
 
+#### Scenario: Runtime-readiness slice touches production modules
+- **WHEN** runtime-readiness work modifies production entrypoints or infrastructure adapters
+- **THEN** public docstring and typed-signature requirements in ratcheted scopes MUST remain enforced by the active quality gates
+
 ### Requirement: Slice-Level Verification
 Each hardening slice SHALL include deterministic verification commands and a completion checklist.
 
 #### Scenario: Slice marked complete
 - **WHEN** a slice is completed
 - **THEN** its scoped tests, lint checks, and type checks MUST pass before commit
-
