@@ -36,7 +36,7 @@ async def test_repository_returns_seeded_active_prompt(tmp_path: Path) -> None:
 
     assert prompt is not None
     assert prompt.name == "llm1_system"
-    assert prompt.version == 1
+    assert prompt.version == 2
     assert prompt.content.strip() != ""
 
 
@@ -67,7 +67,7 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
             {
                 "id": uuid4().hex,
                 "name": "llm1_system",
-                "version": 2,
+                "version": 3,
                 "content": "inactive version",
                 "is_active": False,
             },
@@ -75,7 +75,7 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
         connection.execute(
             sa.text(
                 "UPDATE prompt_templates SET is_active = 0 "
-                "WHERE name = :name AND version = 1"
+                "WHERE name = :name AND version = 2"
             ),
             {"name": "llm1_system"},
         )
@@ -87,8 +87,8 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
             {
                 "id": uuid4().hex,
                 "name": "llm1_system",
-                "version": 3,
-                "content": "active version 3",
+                "version": 4,
+                "content": "active version 4",
                 "is_active": True,
             },
         )
@@ -96,5 +96,5 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
     prompt = await repo.get_active_by_name(name="llm1_system")
 
     assert prompt is not None
-    assert prompt.version == 3
-    assert prompt.content == "active version 3"
+    assert prompt.version == 4
+    assert prompt.content == "active version 4"

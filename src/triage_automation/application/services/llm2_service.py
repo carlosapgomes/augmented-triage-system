@@ -10,6 +10,10 @@ from pydantic import ValidationError
 
 from triage_automation.application.dto.llm1_models import Llm1Response
 from triage_automation.application.dto.llm2_models import Llm2Response
+from triage_automation.application.services.llm_json_parser import (
+    LlmJsonParseError,
+    decode_llm_json_object,
+)
 from triage_automation.application.services.prompt_template_service import (
     PROMPT_NAME_LLM2_SYSTEM,
     PROMPT_NAME_LLM2_USER,
@@ -104,8 +108,8 @@ class Llm2Service:
         )
 
         try:
-            decoded = json.loads(raw_response)
-        except json.JSONDecodeError as error:
+            decoded = decode_llm_json_object(raw_response)
+        except LlmJsonParseError as error:
             raise Llm2RetriableError(
                 cause="llm2",
                 details="LLM2 returned non-JSON payload",
@@ -213,14 +217,19 @@ class Llm2Service:
 
 def _default_system_prompt() -> str:
     return (
-        "Voce e um assistente de apoio a triagem de Endoscopia Digestiva Alta (EDA). "
-        "Responda apenas com JSON valido no schema v1.1, em pt-BR. "
-        "Sugira accept ou deny e suporte (none, anesthesist, anesthesist_icu, unknown)."
+        "You are a clinical decision-support assistant for Upper GI Endoscopy (EDA) triage. "
+        "Return ONLY valid JSON that strictly matches schema_version 1.1. "
+        "Write every natural-language field in Brazilian Portuguese (pt-BR). "
+        "Use only allowed enum values for suggestion and support_recommendation. "
+        "Do not include markdown, code fences, or extra keys."
     )
 
 
 def _default_user_prompt_template() -> str:
-    return "Tarefa: sugerir accept/deny e recomendacao de suporte para triagem de EDA."
+    return (
+        "Task: suggest accept/deny and support recommendation for EDA triage "
+        "using LLM1 structured data and prior-case context."
+    )
 
 
 def _render_user_prompt(
@@ -240,7 +249,8 @@ def _render_user_prompt(
         f"{template}\n\n"
         f"case_id: {case_id}\n"
         f"agency_record_number: {agency_record_number}\n\n"
-        f"Dados extraidos (JSON do LLM1):\n{llm1_json}\n\n"
-        f"Prior decision (se existir):\n{prior_case}\n\n"
-        "Retorne JSON schema_version 1.1 com policy_alignment e confidence."
+        f"Extracted data (LLM1 JSON):\n{llm1_json}\n\n"
+        f"Prior decision (if any):\n{prior_case}\n\n"
+        "Return JSON schema_version 1.1 with policy_alignment and confidence.\n"
+        "All narrative/text outputs must be in Brazilian Portuguese (pt-BR)."
     )

@@ -19,6 +19,12 @@ REQUIRED_ENV = {
 def _set_required_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key, value in REQUIRED_ENV.items():
         monkeypatch.setenv(key, value)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL_LLM1", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL_LLM2", raising=False)
+    monkeypatch.delenv("OPENAI_TEMPERATURE", raising=False)
+    monkeypatch.delenv("LLM_RUNTIME_MODE", raising=False)
+    monkeypatch.delenv("LOG_LEVEL", raising=False)
 
 
 def test_required_env_var_missing_raises_validation_error(
@@ -28,13 +34,13 @@ def test_required_env_var_missing_raises_validation_error(
     monkeypatch.delenv("ROOM1_ID", raising=False)
 
     with pytest.raises(ValidationError):
-        Settings()
+        Settings(_env_file=None)
 
 
 def test_defaults_are_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_required_env(monkeypatch)
 
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.log_level == "INFO"
     assert settings.matrix_sync_timeout_ms == 30_000
@@ -44,12 +50,13 @@ def test_defaults_are_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.openai_api_key is None
     assert settings.openai_model_llm1 == "gpt-4o-mini"
     assert settings.openai_model_llm2 == "gpt-4o-mini"
+    assert settings.openai_temperature is None
 
 
 def test_room_ids_and_urls_are_non_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_required_env(monkeypatch)
 
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.room1_id
     assert settings.room2_id
@@ -65,4 +72,4 @@ def test_matrix_auth_env_var_missing_raises_validation_error(
     monkeypatch.delenv("MATRIX_ACCESS_TOKEN", raising=False)
 
     with pytest.raises(ValidationError):
-        Settings()
+        Settings(_env_file=None)

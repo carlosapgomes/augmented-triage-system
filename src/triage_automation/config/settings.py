@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 PositiveInt = Annotated[int, Field(gt=0)]
+TemperatureFloat = Annotated[float, Field(ge=0.0, le=2.0)]
 
 
 class Settings(BaseSettings):
@@ -49,6 +50,10 @@ class Settings(BaseSettings):
     openai_model_llm2: NonEmptyStr = Field(
         default="gpt-4o-mini",
         validation_alias="OPENAI_MODEL_LLM2",
+    )
+    openai_temperature: TemperatureFloat | None = Field(
+        default=None,
+        validation_alias="OPENAI_TEMPERATURE",
     )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 

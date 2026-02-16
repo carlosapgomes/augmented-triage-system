@@ -125,6 +125,22 @@ async def test_non_json_response_is_rejected() -> None:
 
 
 @pytest.mark.asyncio
+async def test_fenced_json_response_is_accepted() -> None:
+    agency_record = "54321"
+    payload = _valid_llm1_payload(agency_record)
+    client = FakeLlmClient(f"```json\n{json.dumps(payload)}\n```")
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="texto limpo",
+    )
+
+    assert result.structured_data_json["agency_record_number"] == agency_record
+
+
+@pytest.mark.asyncio
 async def test_agency_record_number_is_injected_exactly_into_prompt() -> None:
     agency_record = "54321"
     client = FakeLlmClient(json.dumps(_valid_llm1_payload(agency_record)))

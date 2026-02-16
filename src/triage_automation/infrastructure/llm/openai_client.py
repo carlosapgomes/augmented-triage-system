@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -91,6 +92,9 @@ class OpenAiChatCompletionsClient:
         *,
         api_key: str,
         model: str,
+        temperature: float | None = None,
+        response_schema_name: str | None = None,
+        response_schema: dict[str, object] | None = None,
         transport: OpenAiHttpTransportPort | None = None,
         timeout_seconds: float = 30.0,
         base_url: str = "https://api.openai.com",
@@ -101,9 +105,20 @@ class OpenAiChatCompletionsClient:
             raise ValueError("api_key must be a non-empty string")
         if not model_value:
             raise ValueError("model must be a non-empty string")
+        if temperature is not None and not (0.0 <= temperature <= 2.0):
+            raise ValueError("temperature must be between 0.0 and 2.0")
+        if (response_schema_name is None) != (response_schema is None):
+            raise ValueError(
+                "response_schema_name and response_schema must be provided together"
+            )
+        if response_schema_name is not None and not response_schema_name.strip():
+            raise ValueError("response_schema_name must be a non-empty string")
 
         self._api_key = api_key_value
         self._model = model_value
+        self._temperature = temperature
+        self._response_schema_name = response_schema_name
+        self._response_schema = response_schema
         self._transport = transport or UrllibOpenAiHttpTransport()
         self._timeout_seconds = timeout_seconds
         self._base_url = base_url.rstrip("/")
@@ -117,8 +132,21 @@ class OpenAiChatCompletionsClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 0,
         }
+        if self._response_schema_name is None or self._response_schema is None:
+            payload["response_format"] = {"type": "json_object"}
+        else:
+            normalized_schema = _normalize_openai_strict_schema(self._response_schema)
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": self._response_schema_name,
+                    "schema": normalized_schema,
+                    "strict": True,
+                },
+            }
+        if self._temperature is not None and self._supports_custom_temperature():
+            payload["temperature"] = self._temperature
         response = await self._request_json(
             operation="chat_completions",
             method="POST",
@@ -132,6 +160,11 @@ class OpenAiChatCompletionsClient:
         """Return configured OpenAI model name for this client instance."""
 
         return self._model
+
+    def _supports_custom_temperature(self) -> bool:
+        """Return whether this model accepts explicit non-default temperature values."""
+
+        return not self._model.lower().startswith("gpt-5")
 
     async def _request_json(
         self,
@@ -233,3 +266,29 @@ def _decode_error_payload(payload: bytes) -> str:
     except UnicodeDecodeError:
         return "<binary>"
     return decoded[:200]
+
+
+def _normalize_openai_strict_schema(schema: dict[str, object]) -> dict[str, object]:
+    """Normalize JSON Schema so OpenAI strict mode accepts all object nodes."""
+
+    normalized = cast("dict[str, object]", copy.deepcopy(schema))
+    _normalize_schema_node(normalized)
+    return normalized
+
+
+def _normalize_schema_node(node: object) -> None:
+    if isinstance(node, dict):
+        node_type = node.get("type")
+        properties = node.get("properties")
+        if node_type == "object" and isinstance(properties, dict):
+            property_names = [str(name) for name in properties.keys()]
+            node["required"] = property_names
+            node.setdefault("additionalProperties", False)
+
+        for value in node.values():
+            _normalize_schema_node(value)
+        return
+
+    if isinstance(node, list):
+        for value in node:
+            _normalize_schema_node(value)

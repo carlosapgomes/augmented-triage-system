@@ -343,16 +343,22 @@ async def test_default_prompt_names_resolve_seeded_rows(tmp_path: Path) -> None:
     )
 
     llm1_system_prompt, llm1_user_prompt = llm1_client.calls[0]
-    assert llm1_system_prompt == "DEFAULT LLM1 SYSTEM PROMPT v1"
-    assert "DEFAULT LLM1 USER PROMPT v1" in llm1_user_prompt
+    assert "Return ONLY valid JSON" in llm1_system_prompt
+    assert "Brazilian Portuguese (pt-BR)" in llm1_system_prompt
+    assert "Task: extract structured data" in llm1_user_prompt
     assert llm1_result.prompt_system_name == "llm1_system"
     assert llm1_result.prompt_user_name == "llm1_user"
+    assert llm1_result.prompt_system_version == 2
+    assert llm1_result.prompt_user_version == 2
 
     llm2_system_prompt, llm2_user_prompt = llm2_client.calls[0]
-    assert llm2_system_prompt == "DEFAULT LLM2 SYSTEM PROMPT v1"
-    assert "DEFAULT LLM2 USER PROMPT v1" in llm2_user_prompt
+    assert "Return ONLY valid JSON" in llm2_system_prompt
+    assert "Brazilian Portuguese (pt-BR)" in llm2_system_prompt
+    assert "Task: suggest accept/deny" in llm2_user_prompt
     assert llm2_result.prompt_system_name == "llm2_system"
     assert llm2_result.prompt_user_name == "llm2_user"
+    assert llm2_result.prompt_system_version == 2
+    assert llm2_result.prompt_user_version == 2
 
 
 @pytest.mark.asyncio

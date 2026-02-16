@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from uuid import UUID
 
 from pydantic import ValidationError
 
 from triage_automation.application.dto.llm1_models import Llm1Response
+from triage_automation.application.services.llm_json_parser import (
+    LlmJsonParseError,
+    decode_llm_json_object,
+)
 from triage_automation.application.services.prompt_template_service import (
     PROMPT_NAME_LLM1_SYSTEM,
     PROMPT_NAME_LLM1_USER,
@@ -87,8 +90,8 @@ class Llm1Service:
         )
 
         try:
-            decoded = json.loads(raw_response)
-        except json.JSONDecodeError as error:
+            decoded = decode_llm_json_object(raw_response)
+        except LlmJsonParseError as error:
             raise Llm1RetriableError(
                 cause="llm1",
                 details="LLM1 returned non-JSON payload",
@@ -149,16 +152,18 @@ class Llm1Service:
 
 def _default_system_prompt() -> str:
     return (
-        "Voce e um assistente clinico para triagem de Endoscopia Digestiva Alta (EDA). "
-        "Responda apenas com JSON valido no schema v1.1, em pt-BR. "
-        "Nao invente fatos; use null/unknown quando faltar informacao."
+        "You are a clinical assistant for Upper GI Endoscopy (EDA) triage. "
+        "Return ONLY valid JSON that strictly matches schema_version 1.1. "
+        "Write every natural-language field in Brazilian Portuguese (pt-BR). "
+        "Do not include markdown, code fences, or extra keys. "
+        "Do not invent facts; use null/unknown when information is missing."
     )
 
 
 def _default_user_prompt_template() -> str:
     return (
-        "Tarefa: extrair dados estruturados e resumo de um relatorio clinico "
-        "para triagem de EDA."
+        "Task: extract structured data and generate a concise triage summary from a "
+        "clinical report for EDA triage."
     )
 
 
@@ -173,6 +178,7 @@ def _render_user_prompt(
         f"{template}\n\n"
         f"case_id: {case_id}\n"
         f"agency_record_number: {agency_record_number}\n\n"
-        "Retorne JSON schema_version 1.1 e preserve agency_record_number exatamente.\n\n"
-        f"Texto do relatorio:\n{clean_text}"
+        "Return JSON schema_version 1.1 and preserve agency_record_number exactly.\n"
+        "All narrative/text outputs must be in Brazilian Portuguese (pt-BR).\n\n"
+        f"Clinical report text:\n{clean_text}"
     )

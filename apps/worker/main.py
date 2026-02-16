@@ -10,6 +10,8 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from triage_automation.application.dto.llm1_models import Llm1Response
+from triage_automation.application.dto.llm2_models import Llm2Response
 from triage_automation.application.ports.job_queue_port import JobRecord
 from triage_automation.application.services.execute_cleanup_service import ExecuteCleanupService
 from triage_automation.application.services.job_failure_service import JobFailureService
@@ -44,8 +46,8 @@ from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.worker_bootstrap import reconcile_running_jobs
 from triage_automation.infrastructure.llm.deterministic_client import DeterministicLlmClient
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
-from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.llm.openai_client import OpenAiChatCompletionsClient
+from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
 from triage_automation.infrastructure.matrix.mxc_downloader import MatrixMxcDownloader
 from triage_automation.infrastructure.pdf.text_extractor import PdfTextExtractor
@@ -287,11 +289,17 @@ def build_runtime_llm_clients(
             runtime_llm1_client = OpenAiChatCompletionsClient(
                 api_key=api_key,
                 model=settings.openai_model_llm1,
+                temperature=settings.openai_temperature,
+                response_schema_name="llm1_response",
+                response_schema=Llm1Response.model_json_schema(),
             )
         if runtime_llm2_client is None:
             runtime_llm2_client = OpenAiChatCompletionsClient(
                 api_key=api_key,
                 model=settings.openai_model_llm2,
+                temperature=settings.openai_temperature,
+                response_schema_name="llm2_response",
+                response_schema=Llm2Response.model_json_schema(),
             )
     else:
         if runtime_llm1_client is None:
