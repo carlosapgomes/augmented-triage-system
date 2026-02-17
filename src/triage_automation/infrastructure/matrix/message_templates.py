@@ -489,16 +489,12 @@ def build_room3_invalid_format_reprompt(*, case_id: UUID) -> str:
 
     return (
         "Nao consegui interpretar sua resposta para este caso.\n\n"
-        "Responda usando UM dos formatos abaixo (um campo por linha) e inclua a linha "
-        "do caso.\n\n"
-        "CONFIRMADO:\n"
-        "DD-MM-YYYY HH:MM BRT\n"
-        "local: ...\n"
-        "instrucoes: ...\n"
-        f"caso: {case_id}\n\n"
-        "NEGADO:\n"
-        "negado\n"
-        "motivo: ...\n"
+        "Copie o modelo abaixo, preencha os campos e responda nesta mensagem.\n\n"
+        "status: confirmado|negado\n"
+        "data_hora: DD-MM-YYYY HH:MM BRT\n"
+        "local:\n"
+        "instrucoes:\n"
+        "motivo: (opcional; usado quando status=negado)\n"
         f"caso: {case_id}"
     )
 

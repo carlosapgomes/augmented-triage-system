@@ -167,3 +167,43 @@ def test_status_template_with_invalid_status_raises_error() -> None:
 
     with pytest.raises(SchedulerParseError, match="invalid_status_value"):
         parse_scheduler_reply(body=body, expected_case_id=case_id)
+
+
+def test_status_template_ignores_non_required_lines_and_reply_quotes() -> None:
+    case_id = uuid4()
+    body = (
+        "> <@bot:example.org> status: confirmado\n"
+        "> <@bot:example.org> data_hora: DD-MM-YYYY HH:MM BRT\n"
+        "observacao: resposta enviada via celular\n"
+        "STATUS: confirmado\n"
+        "data_hora : 17-02-2026 09:15 brt\n"
+        "local: Sala 2\n"
+        "instrucoes: Jejum 8h\n"
+        f"caso: {case_id}\n"
+    )
+
+    parsed = parse_scheduler_reply(body=body, expected_case_id=case_id)
+
+    assert parsed.appointment_status == "confirmed"
+    assert parsed.case_id == case_id
+    assert parsed.location == "Sala 2"
+    assert parsed.instructions == "Jejum 8h"
+    assert parsed.appointment_at is not None
+
+
+def test_status_template_accepts_full_width_colon_and_slash_date() -> None:
+    case_id = uuid4()
+    body = (
+        "status： confirmado\n"
+        "data_hora： 17/02/2026 09:15\n"
+        "local：Sala 3\n"
+        "instrucoes：Jejum 8h\n"
+        f"caso：{case_id}\n"
+    )
+
+    parsed = parse_scheduler_reply(body=body, expected_case_id=case_id)
+
+    assert parsed.appointment_status == "confirmed"
+    assert parsed.case_id == case_id
+    assert parsed.location == "Sala 3"
+    assert parsed.instructions == "Jejum 8h"

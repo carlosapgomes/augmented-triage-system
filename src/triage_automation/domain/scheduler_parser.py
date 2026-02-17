@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -10,8 +12,15 @@ from zoneinfo import ZoneInfo
 _BRT = ZoneInfo("America/Bahia")
 _KEY_ALIASES: dict[str, tuple[str, ...]] = {
     "case": ("case", "caso"),
-    "status": ("status", "situacao", "situação"),
-    "date_time": ("data_hora", "datahora", "datetime", "data_hora_brt"),
+    "status": ("status", "situacao", "situação", "estado"),
+    "date_time": (
+        "data_hora",
+        "datahora",
+        "datetime",
+        "data_hora_brt",
+        "data_hora_local",
+        "data/hora",
+    ),
     "location": ("location", "local"),
     "instructions": ("instructions", "instrucoes", "instruções"),
     "reason": ("reason", "motivo"),
@@ -26,6 +35,9 @@ _EMPTY_REASON_MARKERS = {
     "n/a",
     "na",
 }
+_UUID_PATTERN = re.compile(
+    r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
+)
 
 
 @dataclass(frozen=True)
@@ -135,6 +147,9 @@ def _parse_status_template(
 
 def _extract_case_id(*, lines: list[str]) -> UUID:
     value = _extract_required_value(lines=lines, key="case")
+    match = _UUID_PATTERN.search(value)
+    if match is not None:
+        value = match.group(1)
     try:
         return UUID(value)
     except ValueError as error:
@@ -168,14 +183,31 @@ def _extract_required_value(*, lines: list[str], key: str) -> str:
 
 
 def _extract_value(*, lines: list[str], key: str) -> str | None:
-    aliases = _KEY_ALIASES.get(key, (key,))
-    prefixes = tuple(f"{alias.lower()}:" for alias in aliases)
-    for line in lines:
-        normalized = line.lower()
-        for prefix in prefixes:
-            if normalized.startswith(prefix):
-                return line[len(prefix) :].strip()
-    return None
+    aliases = {_normalize_key(alias) for alias in _KEY_ALIASES.get(key, (key,))}
+    value: str | None = None
+    for line_key, line_value in _iter_labeled_values(lines=lines):
+        if line_key not in aliases:
+            continue
+        if line_value:
+            value = line_value
+            continue
+        if value is None:
+            value = ""
+    return value
+
+
+def _iter_labeled_values(*, lines: list[str]) -> list[tuple[str, str]]:
+    labeled: list[tuple[str, str]] = []
+    for raw_line in lines:
+        normalized_line = raw_line.replace("：", ":")
+        if ":" not in normalized_line:
+            continue
+        raw_key, raw_value = normalized_line.split(":", 1)
+        key = _normalize_key(raw_key)
+        if not key:
+            continue
+        labeled.append((key, raw_value.strip()))
+    return labeled
 
 
 def _normalized_message_lines(*, body: str) -> list[str]:
@@ -185,6 +217,8 @@ def _normalized_message_lines(*, body: str) -> list[str]:
         if not line:
             continue
         if line.startswith("```"):
+            continue
+        if line.startswith(">"):
             continue
         lines.append(line)
     return lines
@@ -200,14 +234,31 @@ def _normalize_reason(reason: str | None) -> str | None:
 
 
 def _parse_brt_datetime(line: str) -> datetime:
-    expected_suffix = " BRT"
-    if not line.endswith(expected_suffix):
-        raise SchedulerParseError("invalid_confirmed_datetime")
+    value = line.strip().replace("：", ":")
+    value = re.sub(r"\s+", " ", value).strip("`")
+    value = re.sub(r"\s*brt\.?\s*$", "", value, flags=re.IGNORECASE)
 
-    raw = line[: -len(expected_suffix)]
-    try:
-        naive = datetime.strptime(raw, "%d-%m-%Y %H:%M")
-    except ValueError as error:
-        raise SchedulerParseError("invalid_confirmed_datetime") from error
+    formats = ("%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M")
+    for date_format in formats:
+        try:
+            naive = datetime.strptime(value, date_format)
+            return naive.replace(tzinfo=_BRT)
+        except ValueError:
+            continue
 
-    return naive.replace(tzinfo=_BRT)
+    raise SchedulerParseError("invalid_confirmed_datetime")
+
+
+def _normalize_key(raw_key: str) -> str:
+    key = raw_key.strip().lower()
+    key = key.strip("`*_ ")
+    key = re.sub(r"^[>\-–—*•\d\.\)\( ]+", "", key)
+    key = key.replace("-", "_").replace("/", "_").replace(" ", "_")
+    key = _strip_diacritics(key)
+    key = re.sub(r"_+", "_", key)
+    return key.strip("_")
+
+
+def _strip_diacritics(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value)
+    return "".join(character for character in decomposed if not unicodedata.combining(character))
