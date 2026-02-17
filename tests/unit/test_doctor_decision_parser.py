@@ -118,3 +118,16 @@ def test_parse_accept_allows_anesthesist_icu_support_flag() -> None:
 
     assert parsed.decision == "accept"
     assert parsed.support_flag == "anesthesist_icu"
+
+
+def test_parse_rejects_typed_doctor_user_id_field() -> None:
+    body = (
+        "decision: accept\n"
+        "support_flag: none\n"
+        "reason: ok\n"
+        "doctor_user_id: @doctor:example.org\n"
+        "case_id: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    with pytest.raises(DoctorDecisionParseError, match="unknown_field"):
+        parse_doctor_decision_reply(body=body)

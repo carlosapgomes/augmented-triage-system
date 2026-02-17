@@ -59,9 +59,11 @@ class Room2ReplyService:
         if event.room_id != self._room2_id:
             return Room2ReplyResult(processed=False, reason="wrong_room")
 
+        # Matrix sender identity is authoritative for doctor attribution in Room-2.
+        doctor_user_id = event.sender_user_id
         payload = TriageDecisionWebhookPayload(
             case_id=event.case_id,
-            doctor_user_id=event.sender_user_id,
+            doctor_user_id=doctor_user_id,
             decision=event.decision,
             support_flag=event.support_flag,
             reason=event.reason,
@@ -72,7 +74,7 @@ class Room2ReplyService:
             logger.info(
                 "room2_reply_applied case_id=%s doctor_user_id=%s",
                 event.case_id,
-                event.sender_user_id,
+                doctor_user_id,
             )
             return Room2ReplyResult(processed=True)
 

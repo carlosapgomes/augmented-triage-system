@@ -214,3 +214,85 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     assert case_row["doctor_support_flag"] == "none"
     assert case_row["doctor_user_id"] == "@doctor:example.org"
     assert jobs == "post_room3_request"
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_rejects_reply_with_typed_doctor_identity_field(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room2_reply_listener_typed_identity.db")
+    case_id, root_event_id = await _setup_wait_doctor_case(
+        async_url,
+        origin_event_id="$origin-room2-listener-typed-identity",
+    )
+    body = (
+        "decision: accept\n"
+        "support_flag: none\n"
+        "reason: criterios atendidos\n"
+        "doctor_user_id: @spoofed:example.org\n"
+        f"case_id: {case_id}"
+    )
+    sync_client = FakeMatrixRuntimeClient(
+        _sync_payload(
+            next_batch="s-room2-typed-identity",
+            room_id="!room2:example.org",
+            events=[
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-typed-identity",
+                    sender="@doctor:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                )
+            ],
+        )
+    )
+
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=message_repository,
+        matrix_poster=sync_client,
+        room2_id="!room2:example.org",
+    )
+    room2_reply_service = Room2ReplyService(
+        room2_id="!room2:example.org",
+        decision_service=decision_service,
+    )
+
+    next_since, routed_count = await poll_room2_reply_events_once(
+        matrix_client=sync_client,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id="!room2:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room2-typed-identity"
+    assert routed_count == 0
+    assert sync_client.reply_calls == []
+    assert sync_client.send_calls == []
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, doctor_decision, doctor_support_flag, doctor_user_id "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        jobs_count = connection.execute(
+            sa.text("SELECT COUNT(*) FROM jobs WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert case_row["status"] == "WAIT_DOCTOR"
+    assert case_row["doctor_decision"] is None
+    assert case_row["doctor_support_flag"] is None
+    assert case_row["doctor_user_id"] is None
+    assert int(jobs_count) == 0
