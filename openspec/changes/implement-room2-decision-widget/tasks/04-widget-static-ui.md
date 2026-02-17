@@ -32,9 +32,9 @@ Implement a minimal pt-BR widget UI for login, context display, and decision sub
 - `uv run mypy src apps`
 
 ## Mandatory Checklist
-- [ ] UI text is pt-BR
-- [ ] No secret (HMAC) exposed to frontend
-- [ ] Payload matches backend DTO contract
+- [x] UI text is pt-BR
+- [x] No secret (HMAC) exposed to frontend
+- [x] Payload matches backend DTO contract
 
 ## STOP RULE
 Stop after static widget can perform one successful submit in tests.

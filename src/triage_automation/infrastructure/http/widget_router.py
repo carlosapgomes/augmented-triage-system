@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 
 from triage_automation.application.dto.webhook_models import TriageDecisionWebhookPayload
 from triage_automation.application.dto.widget_models import (
@@ -26,6 +28,10 @@ from triage_automation.infrastructure.http.auth_guard import (
     WidgetAuthGuard,
 )
 
+_WIDGET_STATIC_DIR = (
+    Path(__file__).resolve().parents[4] / "apps" / "bot_api" / "static" / "widget" / "room2"
+)
+
 
 def build_widget_router(
     *,
@@ -36,6 +42,18 @@ def build_widget_router(
     """Build router exposing widget bootstrap and submit endpoints."""
 
     router = APIRouter(tags=["widget"])
+
+    @router.get("/widget/room2", response_class=HTMLResponse)
+    async def widget_index() -> FileResponse:
+        return _serve_widget_asset(filename="index.html", media_type="text/html; charset=utf-8")
+
+    @router.get("/widget/room2/app.js")
+    async def widget_app_js() -> FileResponse:
+        return _serve_widget_asset(filename="app.js", media_type="application/javascript")
+
+    @router.get("/widget/room2/styles.css")
+    async def widget_styles_css() -> FileResponse:
+        return _serve_widget_asset(filename="styles.css", media_type="text/css")
 
     @router.post(
         "/widget/room2/bootstrap",
@@ -99,3 +117,12 @@ async def _require_admin_user(
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     except AuthorizationError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+def _serve_widget_asset(*, filename: str, media_type: str) -> FileResponse:
+    """Serve a static widget asset by filename from the bot-api static directory."""
+
+    asset_path = _WIDGET_STATIC_DIR / filename
+    if not asset_path.exists():
+        raise HTTPException(status_code=500, detail=f"missing widget asset: {filename}")
+    return FileResponse(path=asset_path, media_type=media_type)

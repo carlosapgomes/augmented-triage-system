@@ -18,9 +18,9 @@
 
 ## 4. Widget Static UI (Minimal)
 
-- [ ] 4.1 Add failing tests for widget static page contract (required fields, submit payload shape, pt-BR text) (`tasks/04-widget-static-ui.md`)
-- [ ] 4.2 Implement minimal static widget page + JS client for login, context load, submit accept/deny (`tasks/04-widget-static-ui.md`)
-- [ ] 4.3 Add explicit error states (auth failure, wrong state, duplicate/race) and deterministic retry UX (`tasks/04-widget-static-ui.md`)
+- [x] 4.1 Add failing tests for widget static page contract (required fields, submit payload shape, pt-BR text) (`tasks/04-widget-static-ui.md`)
+- [x] 4.2 Implement minimal static widget page + JS client for login, context load, submit accept/deny (`tasks/04-widget-static-ui.md`)
+- [x] 4.3 Add explicit error states (auth failure, wrong state, duplicate/race) and deterministic retry UX (`tasks/04-widget-static-ui.md`)
 
 ## 5. End-to-End Integration Coverage
 

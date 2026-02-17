@@ -65,6 +65,9 @@ def test_build_runtime_app_exposes_existing_route_paths() -> None:
     assert paths == {
         "/auth/login",
         "/callbacks/triage-decision",
+        "/widget/room2",
+        "/widget/room2/app.js",
         "/widget/room2/bootstrap",
+        "/widget/room2/styles.css",
         "/widget/room2/submit",
     }

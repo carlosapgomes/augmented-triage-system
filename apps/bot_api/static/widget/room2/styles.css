@@ -1,0 +1,117 @@
+:root {
+  --bg: #f2f4f7;
+  --card: #ffffff;
+  --text: #18212f;
+  --muted: #4c5a6a;
+  --accent: #0456d2;
+  --border: #d6dce5;
+  --ok: #0d7a38;
+  --err: #b3261e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background: radial-gradient(circle at 10% 0%, #ffffff 0%, var(--bg) 55%);
+  color: var(--text);
+}
+
+.widget-shell {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.25rem;
+}
+
+h2 {
+  font-size: 1rem;
+}
+
+input,
+select,
+textarea,
+button {
+  width: 100%;
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  background: #fff;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.58rem 0.8rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+button[hidden] {
+  display: none;
+}
+
+.action-row {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.context-box {
+  min-height: 100px;
+  margin: 0;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 0.55rem;
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+  background: #fafbfc;
+}
+
+#status-message {
+  color: var(--muted);
+}
+
+#status-message[data-tone="success"] {
+  color: var(--ok);
+}
+
+#status-message[data-tone="error"] {
+  color: var(--err);
+}
+
+@media (min-width: 700px) {
+  .action-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

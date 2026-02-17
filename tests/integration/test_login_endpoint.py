@@ -236,6 +236,9 @@ async def test_route_paths_only_add_login_endpoint(tmp_path: Path) -> None:
     assert paths == {
         "/auth/login",
         "/callbacks/triage-decision",
+        "/widget/room2",
+        "/widget/room2/app.js",
         "/widget/room2/bootstrap",
+        "/widget/room2/styles.css",
         "/widget/room2/submit",
     }
