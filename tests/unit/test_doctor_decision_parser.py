@@ -92,3 +92,29 @@ def test_parse_rejects_case_id_mismatch() -> None:
             body=body,
             expected_case_id=UUID("22222222-2222-2222-2222-222222222222"),
         )
+
+
+def test_parse_rejects_deny_with_non_none_support_flag() -> None:
+    body = (
+        "decision: deny\n"
+        "support_flag: anesthesist\n"
+        "reason: risco alto\n"
+        "case_id: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    with pytest.raises(DoctorDecisionParseError, match="invalid_support_flag_for_decision"):
+        parse_doctor_decision_reply(body=body)
+
+
+def test_parse_accept_allows_anesthesist_icu_support_flag() -> None:
+    body = (
+        "decision: accept\n"
+        "support_flag: anesthesist_icu\n"
+        "reason: suporte adicional recomendado\n"
+        "case_id: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "anesthesist_icu"

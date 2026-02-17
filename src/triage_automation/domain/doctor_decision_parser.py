@@ -65,6 +65,7 @@ def parse_doctor_decision_reply(
     support_flag = parsed_fields["support_flag"].lower()
     if support_flag not in _ALLOWED_SUPPORT_FLAGS:
         raise DoctorDecisionParseError("invalid_support_flag_value")
+    _validate_decision_support_flag(decision=decision, support_flag=support_flag)
 
     case_raw = parsed_fields["case_id"]
     try:
@@ -83,3 +84,10 @@ def parse_doctor_decision_reply(
         support_flag=support_flag,
         reason=reason,
     )
+
+
+def _validate_decision_support_flag(*, decision: str, support_flag: str) -> None:
+    """Enforce decision/support_flag invariants used by doctor decision contract."""
+
+    if decision == "deny" and support_flag != "none":
+        raise DoctorDecisionParseError("invalid_support_flag_for_decision")
