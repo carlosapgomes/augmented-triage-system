@@ -314,10 +314,18 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
             ),
             {"case_id": case_id.hex},
         ).scalar_one()
+        scheduler_reply_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_messages WHERE case_id = :case_id "
+                "AND kind = 'room3_reply'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
 
     assert status == "APPT_CONFIRMED"
     assert job_type == "post_room1_final_appt"
     assert int(ack_count) == 1
+    assert int(scheduler_reply_count) == 1
 
 
 @pytest.mark.asyncio

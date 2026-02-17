@@ -11,7 +11,10 @@ from alembic.config import Config
 from alembic import command
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
 from triage_automation.application.ports.message_repository_port import CaseMessageCreateInput
-from triage_automation.application.services.execute_cleanup_service import ExecuteCleanupService
+from triage_automation.application.services.execute_cleanup_service import (
+    ExecuteCleanupRetriableError,
+    ExecuteCleanupService,
+)
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
@@ -134,10 +137,11 @@ async def test_cleanup_redacts_messages_audits_results_and_marks_case_cleaned(
         matrix_redactor=redactor,
     )
 
-    result = await service.execute(case_id=created_case.case_id)
+    with pytest.raises(ExecuteCleanupRetriableError) as exc_info:
+        await service.execute(case_id=created_case.case_id)
 
-    assert result.redacted_success == 2
-    assert result.redacted_failed == 1
+    assert exc_info.value.redacted_success == 2
+    assert exc_info.value.redacted_failed == 1
     assert set(redactor.calls) == {
         ("!room1:example.org", "$origin-cleanup-1"),
         ("!room2:example.org", "$room2-widget-1"),
@@ -161,15 +165,18 @@ async def test_cleanup_redacts_messages_audits_results_and_marks_case_cleaned(
             {"case_id": created_case.case_id.hex},
         ).mappings().all()
 
-    assert case_row["status"] == "CLEANED"
-    assert case_row["cleanup_completed_at"] is not None
+    assert case_row["status"] == "CLEANUP_RUNNING"
+    assert case_row["cleanup_completed_at"] is None
 
     event_types = [str(row["event_type"]) for row in event_rows]
     assert event_types.count("MATRIX_EVENT_REDACTED") == 2
     assert event_types.count("MATRIX_EVENT_REDACTION_FAILED") == 1
-    assert event_types.count("CLEANUP_COMPLETED") == 1
+    assert event_types.count("CLEANUP_COMPLETED") == 0
+    assert event_types.count("CLEANUP_INCOMPLETE_RETRY_REQUIRED") == 1
 
-    cleanup_event = next(row for row in event_rows if row["event_type"] == "CLEANUP_COMPLETED")
+    cleanup_event = next(
+        row for row in event_rows if row["event_type"] == "CLEANUP_INCOMPLETE_RETRY_REQUIRED"
+    )
     payload = _decode_json(cleanup_event["payload"])
     assert payload["count_redacted_success"] == 2
     assert payload["count_redacted_failed"] == 1

@@ -38,6 +38,23 @@ class ExecuteCleanupResult:
     redacted_failed: int
 
 
+@dataclass(frozen=True)
+class ExecuteCleanupRetriableError(RuntimeError):
+    """Retriable cleanup error raised when redactions remain pending."""
+
+    case_id: UUID
+    redacted_success: int
+    redacted_failed: int
+
+    def __str__(self) -> str:
+        return (
+            "cleanup_incomplete "
+            f"case_id={self.case_id} "
+            f"redacted_success={self.redacted_success} "
+            f"redacted_failed={self.redacted_failed}"
+        )
+
+
 class ExecuteCleanupService:
     """Redact all case messages and finalize cleanup state."""
 
@@ -112,6 +129,30 @@ class ExecuteCleanupService:
                     event_type="MATRIX_EVENT_REDACTED",
                     payload={},
                 )
+            )
+
+        if failed_count > 0:
+            await self._audit_repository.append_event(
+                AuditEventCreateInput(
+                    case_id=case_id,
+                    actor_type="system",
+                    event_type="CLEANUP_INCOMPLETE_RETRY_REQUIRED",
+                    payload={
+                        "count_redacted_success": success_count,
+                        "count_redacted_failed": failed_count,
+                    },
+                )
+            )
+            logger.warning(
+                "cleanup_incomplete case_id=%s redacted_success=%s redacted_failed=%s",
+                case_id,
+                success_count,
+                failed_count,
+            )
+            raise ExecuteCleanupRetriableError(
+                case_id=case_id,
+                redacted_success=success_count,
+                redacted_failed=failed_count,
             )
 
         await self._case_repository.mark_cleanup_completed(case_id=case_id)
