@@ -131,3 +131,39 @@ def test_parse_rejects_typed_doctor_user_id_field() -> None:
 
     with pytest.raises(DoctorDecisionParseError, match="unknown_field"):
         parse_doctor_decision_reply(body=body)
+
+
+def test_parse_rejects_malformed_line_without_colon() -> None:
+    body = (
+        "decision accept\n"
+        "support_flag: none\n"
+        "reason: ok\n"
+        "case_id: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    with pytest.raises(DoctorDecisionParseError, match="invalid_line_format"):
+        parse_doctor_decision_reply(body=body)
+
+
+def test_parse_rejects_invalid_decision_enum_value() -> None:
+    body = (
+        "decision: maybe\n"
+        "support_flag: none\n"
+        "reason: ok\n"
+        "case_id: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    with pytest.raises(DoctorDecisionParseError, match="invalid_decision_value"):
+        parse_doctor_decision_reply(body=body)
+
+
+def test_parse_rejects_invalid_support_flag_enum_value() -> None:
+    body = (
+        "decision: accept\n"
+        "support_flag: surgeon\n"
+        "reason: ok\n"
+        "case_id: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    with pytest.raises(DoctorDecisionParseError, match="invalid_support_flag_value"):
+        parse_doctor_decision_reply(body=body)

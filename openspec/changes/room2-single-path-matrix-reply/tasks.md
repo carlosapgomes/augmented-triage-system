@@ -26,7 +26,7 @@
 
 ## 5. Automated Test Coverage
 
-- [ ] 5.1 Add/adjust unit tests for strict Room-2 template parsing and validation (valid accept/deny, malformed template, invalid rule combinations).
+- [x] 5.1 Add/adjust unit tests for strict Room-2 template parsing and validation (valid accept/deny, malformed template, invalid rule combinations).
 - [ ] 5.2 Add/adjust adapter/runtime tests for reply-parent enforcement, sender-based actor attribution, and safe ignore/reject behavior for unsupported events.
 - [ ] 5.3 Add/adjust application/integration tests for idempotency/state-race behavior and downstream job parity on structured Room-2 decisions.
 - [ ] 5.4 Add/adjust compatibility tests for emergency callback endpoint parity while marked for deprecation.
