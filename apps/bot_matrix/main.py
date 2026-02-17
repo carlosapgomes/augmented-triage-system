@@ -16,6 +16,7 @@ from triage_automation.application.services.handle_doctor_decision_service impor
 from triage_automation.application.services.reaction_service import ReactionService
 from triage_automation.application.services.room1_intake_service import Room1IntakeService
 from triage_automation.application.services.room2_reply_service import (
+    Room2MembershipAuthorizerPort,
     Room2ReplyEvent,
     Room2ReplyService,
 )
@@ -464,9 +465,14 @@ def build_room2_reply_service(
         matrix_poster=matrix_client,
         room2_id=settings.room2_id,
     )
+    membership_authorizer: Room2MembershipAuthorizerPort | None = None
+    if hasattr(matrix_client, "is_user_joined"):
+        membership_authorizer = cast(Room2MembershipAuthorizerPort, matrix_client)
+
     return Room2ReplyService(
         room2_id=settings.room2_id,
         decision_service=decision_service,
+        membership_authorizer=membership_authorizer,
     )
 
 
@@ -577,7 +583,7 @@ async def _route_room2_replies_from_sync(
         if parsed is None:
             continue
 
-        await room2_reply_service.handle_reply(
+        result = await room2_reply_service.handle_reply(
             Room2ReplyEvent(
                 room_id=parsed.room_id,
                 event_id=parsed.event_id,
@@ -589,7 +595,8 @@ async def _route_room2_replies_from_sync(
                 reason=parsed.reason,
             )
         )
-        routed_count += 1
+        if result.processed:
+            routed_count += 1
 
     return routed_count
 

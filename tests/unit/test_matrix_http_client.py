@@ -209,3 +209,50 @@ async def test_transport_exception_raises_normalized_matrix_adapter_error() -> N
         await client.download_mxc("mxc://example.org/media-id")
 
     assert "download_mxc transport failure" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_is_user_joined_returns_true_for_join_membership() -> None:
+    transport = _QueuedTransport(
+        responses=[MatrixHttpResponse(status_code=200, body_bytes=b'{"membership":"join"}')]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    result = await client.is_user_joined(
+        room_id="!room:example.org",
+        user_id="@doctor:example.org",
+    )
+
+    assert result is True
+    assert len(transport.calls) == 1
+    assert transport.calls[0]["method"] == "GET"
+    assert (
+        str(transport.calls[0]["url"])
+        == (
+            "https://matrix.example.org/_matrix/client/v3/rooms/%21room%3Aexample.org/"
+            "state/m.room.member/%40doctor%3Aexample.org"
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_is_user_joined_returns_false_when_membership_event_not_found() -> None:
+    transport = _QueuedTransport(
+        responses=[MatrixHttpResponse(status_code=404, body_bytes=b'{"errcode":"M_NOT_FOUND"}')]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    result = await client.is_user_joined(
+        room_id="!room:example.org",
+        user_id="@intruder:example.org",
+    )
+
+    assert result is False

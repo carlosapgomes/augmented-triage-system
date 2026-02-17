@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Protocol
 from uuid import UUID
 
 from triage_automation.application.dto.webhook_models import (
@@ -41,6 +42,13 @@ class Room2ReplyResult:
     reason: str | None = None
 
 
+class Room2MembershipAuthorizerPort(Protocol):
+    """Authorization port for validating Room-2 membership before decision handling."""
+
+    async def is_user_joined(self, *, room_id: str, user_id: str) -> bool:
+        """Return whether user currently has joined membership in the room."""
+
+
 class Room2ReplyService:
     """Route parsed Room-2 reply payloads into existing doctor decision service."""
 
@@ -49,15 +57,40 @@ class Room2ReplyService:
         *,
         room2_id: str,
         decision_service: HandleDoctorDecisionService,
+        membership_authorizer: Room2MembershipAuthorizerPort | None = None,
     ) -> None:
         self._room2_id = room2_id
         self._decision_service = decision_service
+        self._membership_authorizer = membership_authorizer
 
     async def handle_reply(self, event: Room2ReplyEvent) -> Room2ReplyResult:
         """Handle Room-2 parsed decision reply through existing decision path."""
 
         if event.room_id != self._room2_id:
             return Room2ReplyResult(processed=False, reason="wrong_room")
+
+        if self._membership_authorizer is not None:
+            try:
+                is_joined = await self._membership_authorizer.is_user_joined(
+                    room_id=event.room_id,
+                    user_id=event.sender_user_id,
+                )
+            except Exception as exc:  # pragma: no cover - defensive resilience path
+                logger.warning(
+                    "room2_reply_authorization_check_failed room_id=%s sender_user_id=%s error=%s",
+                    event.room_id,
+                    event.sender_user_id,
+                    exc,
+                )
+                return Room2ReplyResult(processed=False, reason="authorization_check_failed")
+
+            if not is_joined:
+                logger.info(
+                    "room2_reply_ignored_unauthorized_sender room_id=%s sender_user_id=%s",
+                    event.room_id,
+                    event.sender_user_id,
+                )
+                return Room2ReplyResult(processed=False, reason="unauthorized_sender")
 
         # Matrix sender identity is authoritative for doctor attribution in Room-2.
         doctor_user_id = event.sender_user_id

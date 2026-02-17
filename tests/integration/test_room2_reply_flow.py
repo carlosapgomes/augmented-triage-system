@@ -24,8 +24,14 @@ from triage_automation.infrastructure.db.session import create_session_factory
 
 
 class FakeMatrixRuntimeClient:
-    def __init__(self, sync_payload: dict[str, object]) -> None:
+    def __init__(
+        self,
+        sync_payload: dict[str, object],
+        *,
+        joined_members: dict[str, set[str]] | None = None,
+    ) -> None:
         self._sync_payload = sync_payload
+        self._joined_members = joined_members
         self.sync_calls: list[tuple[str | None, int]] = []
         self.reply_calls: list[tuple[str, str, str]] = []
         self.send_calls: list[tuple[str, str]] = []
@@ -44,6 +50,11 @@ class FakeMatrixRuntimeClient:
         self.send_calls.append((room_id, body))
         self._counter += 1
         return f"$room2-send-{self._counter}"
+
+    async def is_user_joined(self, *, room_id: str, user_id: str) -> bool:
+        if self._joined_members is None:
+            return True
+        return user_id in self._joined_members.get(room_id, set())
 
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
@@ -176,6 +187,7 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     room2_reply_service = Room2ReplyService(
         room2_id="!room2:example.org",
         decision_service=decision_service,
+        membership_authorizer=sync_client,
     )
 
     next_since, routed_count = await poll_room2_reply_events_once(
@@ -260,6 +272,7 @@ async def test_runtime_listener_rejects_reply_with_typed_doctor_identity_field(
     room2_reply_service = Room2ReplyService(
         room2_id="!room2:example.org",
         decision_service=decision_service,
+        membership_authorizer=sync_client,
     )
 
     next_since, routed_count = await poll_room2_reply_events_once(
@@ -273,6 +286,89 @@ async def test_runtime_listener_rejects_reply_with_typed_doctor_identity_field(
     )
 
     assert next_since == "s-room2-typed-identity"
+    assert routed_count == 0
+    assert sync_client.reply_calls == []
+    assert sync_client.send_calls == []
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, doctor_decision, doctor_support_flag, doctor_user_id "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        jobs_count = connection.execute(
+            sa.text("SELECT COUNT(*) FROM jobs WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert case_row["status"] == "WAIT_DOCTOR"
+    assert case_row["doctor_decision"] is None
+    assert case_row["doctor_support_flag"] is None
+    assert case_row["doctor_user_id"] is None
+    assert int(jobs_count) == 0
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_rejects_reply_from_room2_unauthorized_sender(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room2_reply_listener_unauthorized.db")
+    case_id, root_event_id = await _setup_wait_doctor_case(
+        async_url,
+        origin_event_id="$origin-room2-listener-unauthorized",
+    )
+    body = (
+        "decision: accept\n"
+        "support_flag: none\n"
+        "reason: criterios atendidos\n"
+        f"case_id: {case_id}"
+    )
+    sync_client = FakeMatrixRuntimeClient(
+        _sync_payload(
+            next_batch="s-room2-unauthorized",
+            room_id="!room2:example.org",
+            events=[
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-unauthorized",
+                    sender="@intruder:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                )
+            ],
+        ),
+        joined_members={"!room2:example.org": {"@doctor:example.org"}},
+    )
+
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=message_repository,
+        matrix_poster=sync_client,
+        room2_id="!room2:example.org",
+    )
+    room2_reply_service = Room2ReplyService(
+        room2_id="!room2:example.org",
+        decision_service=decision_service,
+        membership_authorizer=sync_client,
+    )
+
+    next_since, routed_count = await poll_room2_reply_events_once(
+        matrix_client=sync_client,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id="!room2:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room2-unauthorized"
     assert routed_count == 0
     assert sync_client.reply_calls == []
     assert sync_client.send_calls == []

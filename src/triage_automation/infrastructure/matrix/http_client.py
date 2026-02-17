@@ -217,6 +217,28 @@ class MatrixHttpClient:
             payload={},
         )
 
+    async def is_user_joined(self, *, room_id: str, user_id: str) -> bool:
+        """Return whether user currently has `join` membership in the room."""
+
+        path = (
+            "/_matrix/client/v3/rooms/"
+            f"{quote(room_id, safe='')}/state/m.room.member/{quote(user_id, safe='')}"
+        )
+        try:
+            response = await self._request_json(
+                operation="is_user_joined",
+                method="GET",
+                path=path,
+                payload={},
+            )
+        except MatrixRequestError as error:
+            if error.status_code == 404:
+                return False
+            raise
+
+        membership = response.get("membership")
+        return isinstance(membership, str) and membership == "join"
+
     async def _request_json(
         self,
         *,
