@@ -95,6 +95,8 @@ class CaseFinalReplySnapshot:
     status: CaseStatus
     room1_origin_room_id: str
     room1_origin_event_id: str
+    agency_record_number: str | None
+    structured_data_json: dict[str, Any] | None
     room1_final_reply_event_id: str | None
     doctor_reason: str | None
     appointment_at: datetime | None

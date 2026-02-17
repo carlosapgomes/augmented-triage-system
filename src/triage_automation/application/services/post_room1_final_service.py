@@ -19,6 +19,7 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
+from triage_automation.application.services.patient_context import extract_patient_name_age
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_accepted_message,
@@ -167,10 +168,18 @@ def _render_final_message(
     job_type: str,
     payload: dict[str, object],
 ) -> str:
+    patient_name, patient_age = extract_patient_name_age(case.structured_data_json)
+
     if job_type == "post_room1_final_denial_triage":
         _require_status(case=case, expected=CaseStatus.DOCTOR_DENIED, job_type=job_type)
         reason = case.doctor_reason or "not provided"
-        return build_room1_final_denied_triage_message(case_id=case.case_id, reason=reason)
+        return build_room1_final_denied_triage_message(
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
+            reason=reason,
+        )
 
     if job_type == "post_room1_final_appt":
         _require_status(case=case, expected=CaseStatus.APPT_CONFIRMED, job_type=job_type)
@@ -185,6 +194,9 @@ def _render_final_message(
             )
         return build_room1_final_accepted_message(
             case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
             appointment_at=case.appointment_at,
             location=case.appointment_location,
             instructions=case.appointment_instructions,
@@ -193,7 +205,13 @@ def _render_final_message(
     if job_type == "post_room1_final_appt_denied":
         _require_status(case=case, expected=CaseStatus.APPT_DENIED, job_type=job_type)
         reason = case.appointment_reason or "not provided"
-        return build_room1_final_denied_appointment_message(case_id=case.case_id, reason=reason)
+        return build_room1_final_denied_appointment_message(
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
+            reason=reason,
+        )
 
     if job_type == "post_room1_final_failure":
         _require_status(case=case, expected=CaseStatus.FAILED, job_type=job_type)
@@ -201,6 +219,9 @@ def _render_final_message(
         details = _payload_string(payload=payload, key="details", default="not provided")
         return build_room1_final_failure_message(
             case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
             cause=cause,
             details=details,
         )

@@ -583,11 +583,24 @@ def build_room3_reply_template_message(*, case_id: UUID) -> str:
     )
 
 
-def build_room3_ack_message(*, case_id: UUID) -> str:
+def build_room3_ack_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+) -> str:
     """Build Room-3 ack body used as audit-only reaction target."""
 
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+    )
     return (
-        f"Solicitacao de agendamento registrada para o caso: {case_id}\n"
+        "Solicitacao de agendamento registrada\n"
+        f"{context_block}\n"
         "Reaja com +1 para confirmar."
     )
 
@@ -610,39 +623,111 @@ def build_room3_invalid_format_reprompt(*, case_id: UUID) -> str:
 def build_room1_final_accepted_message(
     *,
     case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
     appointment_at: datetime,
     location: str,
     instructions: str,
 ) -> str:
     """Build Room-1 accepted final reply template."""
 
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+    )
     return (
         "✅ aceito\n"
+        f"{context_block}\n"
         f"agendamento: {appointment_at.strftime('%d-%m-%Y %H:%M')} BRT\n"
         f"local: {location}\n"
         f"instrucoes: {instructions}\n"
-        f"caso: {case_id}"
     )
 
 
-def build_room1_final_denied_triage_message(*, case_id: UUID, reason: str) -> str:
+def build_room1_final_denied_triage_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+    reason: str,
+) -> str:
     """Build Room-1 triage denied final reply template."""
 
-    return f"❌ negado (triagem)\nmotivo: {reason}\ncaso: {case_id}"
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+    )
+    return (
+        "❌ negado (triagem)\n"
+        f"{context_block}\n"
+        f"motivo: {reason}"
+    )
 
 
-def build_room1_final_denied_appointment_message(*, case_id: UUID, reason: str) -> str:
+def build_room1_final_denied_appointment_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+    reason: str,
+) -> str:
     """Build Room-1 appointment denied final reply template."""
 
-    return f"❌ negado (agendamento)\nmotivo: {reason}\ncaso: {case_id}"
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+    )
+    return (
+        "❌ negado (agendamento)\n"
+        f"{context_block}\n"
+        f"motivo: {reason}"
+    )
 
 
-def build_room1_final_failure_message(*, case_id: UUID, cause: str, details: str) -> str:
+def build_room1_final_failure_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+    cause: str,
+    details: str,
+) -> str:
     """Build Room-1 processing failed final reply template."""
 
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+    )
     return (
         "⚠️ falha no processamento\n"
+        f"{context_block}\n"
         f"causa: {cause}\n"
-        f"detalhes: {details}\n"
-        f"caso: {case_id}"
+        f"detalhes: {details}"
+    )
+
+
+def _build_case_context_block(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+) -> str:
+    return (
+        f"caso: {case_id}\n"
+        f"registro: {_format_room3_context_value(agency_record_number)}\n"
+        f"paciente: {_format_room3_context_value(patient_name)}\n"
+        f"idade: {_format_room3_context_value(patient_age)}"
     )

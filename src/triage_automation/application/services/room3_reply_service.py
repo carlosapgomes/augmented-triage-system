@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from triage_automation.application.ports.audit_repository_port import (
@@ -20,6 +20,7 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
+from triage_automation.application.services.patient_context import extract_patient_name_age
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.scheduler_parser import SchedulerParseError, parse_scheduler_reply
 from triage_automation.infrastructure.matrix.message_templates import (
@@ -225,6 +226,8 @@ class Room3ReplyService:
             case_id=case_id,
             room_id=event.room_id,
             related_event_id=event.event_id,
+            agency_record_number=snapshot.agency_record_number,
+            structured_data_json=snapshot.structured_data_json,
         )
 
         await self._job_queue.enqueue(
@@ -249,10 +252,18 @@ class Room3ReplyService:
         case_id: UUID,
         room_id: str,
         related_event_id: str,
+        agency_record_number: str | None,
+        structured_data_json: dict[str, Any] | None,
     ) -> None:
         """Post Room-3 ack after valid scheduler reply; failures are audit-only."""
 
-        body = build_room3_ack_message(case_id=case_id)
+        patient_name, patient_age = extract_patient_name_age(structured_data_json)
+        body = build_room3_ack_message(
+            case_id=case_id,
+            agency_record_number=agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
+        )
         try:
             ack_event_id = await self._matrix_poster.reply_text(
                 room_id=room_id,

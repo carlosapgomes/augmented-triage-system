@@ -61,6 +61,27 @@ async def _create_case(
     return case.case_id
 
 
+async def _store_case_context(
+    case_repo: SqlAlchemyCaseRepository,
+    *,
+    case_id: UUID,
+    record_number: str,
+    patient_name: str,
+    patient_age: int,
+) -> None:
+    await case_repo.store_pdf_extraction(
+        case_id=case_id,
+        pdf_mxc_url=f"mxc://example.org/{case_id}",
+        extracted_text="texto extraido",
+        agency_record_number=record_number,
+    )
+    await case_repo.store_llm1_artifacts(
+        case_id=case_id,
+        structured_data_json={"patient": {"name": patient_name, "age": patient_age}},
+        summary_text="Resumo",
+    )
+
+
 @pytest.mark.asyncio
 async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "room1_final_variants.db")
@@ -97,6 +118,34 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         case_repo,
         status=CaseStatus.FAILED,
         event_id="$origin-final-failed",
+    )
+    await _store_case_context(
+        case_repo,
+        case_id=denied_triage_id,
+        record_number="777001",
+        patient_name="PACIENTE TRIAGEM",
+        patient_age=51,
+    )
+    await _store_case_context(
+        case_repo,
+        case_id=appt_confirmed_id,
+        record_number="777002",
+        patient_name="PACIENTE APTO",
+        patient_age=62,
+    )
+    await _store_case_context(
+        case_repo,
+        case_id=appt_denied_id,
+        record_number="777003",
+        patient_name="PACIENTE SEM AGENDA",
+        patient_age=44,
+    )
+    await _store_case_context(
+        case_repo,
+        case_id=failed_id,
+        record_number="777004",
+        patient_name="PACIENTE FALHA",
+        patient_age=73,
     )
 
     engine = sa.create_engine(sync_url)
@@ -142,32 +191,52 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
     assert matrix_poster.calls[0] == (
         "!room1:example.org",
         "$origin-final-deny-triage",
-        f"❌ negado (triagem)\nmotivo: critério clínico\ncaso: {denied_triage_id}",
+        (
+            "❌ negado (triagem)\n"
+            f"caso: {denied_triage_id}\n"
+            "registro: 777001\n"
+            "paciente: PACIENTE TRIAGEM\n"
+            "idade: 51\n"
+            "motivo: critério clínico"
+        ),
     )
     assert matrix_poster.calls[1] == (
         "!room1:example.org",
         "$origin-final-appt-ok",
         (
             "✅ aceito\n"
+            f"caso: {appt_confirmed_id}\n"
+            "registro: 777002\n"
+            "paciente: PACIENTE APTO\n"
+            "idade: 62\n"
             "agendamento: 16-02-2026 14:30 BRT\n"
             "local: Sala 2\n"
             "instrucoes: Jejum 8h\n"
-            f"caso: {appt_confirmed_id}"
         ),
     )
     assert matrix_poster.calls[2] == (
         "!room1:example.org",
         "$origin-final-appt-deny",
-        f"❌ negado (agendamento)\nmotivo: sem agenda\ncaso: {appt_denied_id}",
+        (
+            "❌ negado (agendamento)\n"
+            f"caso: {appt_denied_id}\n"
+            "registro: 777003\n"
+            "paciente: PACIENTE SEM AGENDA\n"
+            "idade: 44\n"
+            "motivo: sem agenda"
+        ),
     )
     assert matrix_poster.calls[3] == (
         "!room1:example.org",
         "$origin-final-failed",
         (
             "⚠️ falha no processamento\n"
+            f"caso: {failed_id}\n"
+            "registro: 777004\n"
+            "paciente: PACIENTE FALHA\n"
+            "idade: 73\n"
             "causa: llm\n"
-            "detalhes: schema mismatch\n"
-            f"caso: {failed_id}"
+            "detalhes: schema mismatch"
         ),
     )
 
