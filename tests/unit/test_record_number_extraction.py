@@ -35,6 +35,23 @@ def test_cleaning_preserves_linebreaks_after_watermark_removal() -> None:
     assert result.cleaned_text.count("\n") >= 2
 
 
+def test_removes_repeated_five_digit_watermark_blocks_and_residual_tokens() -> None:
+    text = (
+        "RELATÓRIO DE OCORRÊNCIAS 4762341\n"
+        "63625 63625 63625 63625 63625\n"
+        "63625 63625 63625 63625 63625\n"
+        "Nome Social:\n"
+        "63625\n"
+        "Motivo da Solicitação: Endoscopia Digestiva Alta - EDA\n"
+    )
+
+    result = extract_and_strip_agency_record_number(text)
+
+    assert result.agency_record_number == "4762341"
+    assert "63625" not in result.cleaned_text
+    assert "Motivo da Solicitação" in result.cleaned_text
+
+
 def test_prefers_explicit_registration_over_repeated_watermark() -> None:
     text = "RELATÓRIO DE OCORRÊNCIAS 4775652 ... 40371 40371 40371"
 
