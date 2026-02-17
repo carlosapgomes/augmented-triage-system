@@ -28,6 +28,7 @@ from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_message,
     build_room2_case_pdf_message,
+    build_room2_case_summary_formatted_html,
     build_room2_case_summary_message,
 )
 
@@ -37,10 +38,23 @@ logger = logging.getLogger(__name__)
 class MatrixRoomPosterPort(Protocol):
     """Port used to post standard text messages into Matrix rooms."""
 
-    async def send_text(self, *, room_id: str, body: str) -> str:
+    async def send_text(
+        self,
+        *,
+        room_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         """Post text body to a room and return generated matrix event id."""
 
-    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+    async def reply_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         """Post reply text body to a room event and return generated matrix event id."""
 
 
@@ -199,10 +213,17 @@ class PostRoom2WidgetService:
             summary_text=summary_text,
             suggested_action=suggested_action_json,
         )
+        summary_formatted_body = build_room2_case_summary_formatted_html(
+            case_id=case.case_id,
+            structured_data=structured_data_json,
+            summary_text=summary_text,
+            suggested_action=suggested_action_json,
+        )
         summary_event_id = await self._matrix_poster.reply_text(
             room_id=self._room2_id,
             event_id=root_event_id,
             body=summary_body,
+            formatted_body=summary_formatted_body,
         )
         logger.info(
             "room2_summary_posted case_id=%s room_id=%s event_id=%s parent_event_id=%s",

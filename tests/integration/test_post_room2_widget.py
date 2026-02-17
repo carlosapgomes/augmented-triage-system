@@ -23,20 +23,33 @@ from triage_automation.infrastructure.db.session import create_session_factory
 
 class FakeMatrixPoster:
     def __init__(self) -> None:
-        self.send_calls: list[tuple[str, str, str]] = []
-        self.reply_calls: list[tuple[str, str, str, str]] = []
+        self.send_calls: list[tuple[str, str, str, str | None]] = []
+        self.reply_calls: list[tuple[str, str, str, str, str | None]] = []
         self._counter = 0
 
-    async def send_text(self, *, room_id: str, body: str) -> str:
+    async def send_text(
+        self,
+        *,
+        room_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         self._counter += 1
         event_id = f"$room2-{self._counter}"
-        self.send_calls.append((room_id, body, event_id))
+        self.send_calls.append((room_id, body, event_id, formatted_body))
         return event_id
 
-    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+    async def reply_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         self._counter += 1
         reply_event_id = f"$room2-{self._counter}"
-        self.reply_calls.append((room_id, event_id, body, reply_event_id))
+        self.reply_calls.append((room_id, event_id, body, reply_event_id, formatted_body))
         return reply_event_id
 
 
@@ -208,7 +221,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert len(matrix_poster.send_calls) == 1
     assert len(matrix_poster.reply_calls) == 2
 
-    root_room_id, root_body, root_event_id = matrix_poster.send_calls[0]
+    root_room_id, root_body, root_event_id, root_formatted_body = matrix_poster.send_calls[0]
     assert root_room_id == "!room2:example.org"
     assert f"caso: {current_case.case_id}" in root_body
     assert "Solicitacao de triagem - contexto original" in root_body
@@ -217,8 +230,15 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "mxc://example.org/current" not in root_body
     assert "/widget/room2" not in root_body
     assert "Payload do widget" not in root_body
+    assert root_formatted_body is None
 
-    summary_room_id, summary_parent, summary_body, _summary_event_id = matrix_poster.reply_calls[0]
+    (
+        summary_room_id,
+        summary_parent,
+        summary_body,
+        _summary_event_id,
+        summary_formatted_body,
+    ) = matrix_poster.reply_calls[0]
     assert summary_room_id == "!room2:example.org"
     assert summary_parent == root_event_id
     assert f"caso: {current_case.case_id}" in summary_body
@@ -236,14 +256,25 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "sinal de alerta=nao" in summary_body
     assert "laudo_presente=sim" in summary_body
     assert "```json" not in summary_body
+    assert summary_formatted_body is not None
+    assert "<h1>Resumo tecnico da triagem</h1>" in summary_formatted_body
+    assert "<h2>Dados extraidos (chaves em portugues):</h2>" in summary_formatted_body
+    assert "<h3>prechecagem_politica:</h3>" in summary_formatted_body
 
-    instructions_room_id, instructions_parent, instructions_body, _instructions_event_id = (
+    (
+        instructions_room_id,
+        instructions_parent,
+        instructions_body,
+        _instructions_event_id,
+        instructions_formatted_body,
+    ) = (
         matrix_poster.reply_calls[1]
     )
     assert instructions_room_id == "!room2:example.org"
     assert instructions_parent == root_event_id
     assert "decisao: aceitar|negar" in instructions_body
     assert "suporte: nenhum|anestesista|anestesista_uti" in instructions_body
+    assert instructions_formatted_body is None
 
     with engine.begin() as connection:
         status = connection.execute(

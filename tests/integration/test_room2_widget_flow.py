@@ -41,12 +41,27 @@ class FakeMatrixPoster:
         self.calls: list[tuple[str, str]] = []
         self._counter = 0
 
-    async def send_text(self, *, room_id: str, body: str) -> str:
+    async def send_text(
+        self,
+        *,
+        room_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
+        _ = formatted_body
         self.calls.append((room_id, body))
         self._counter += 1
         return f"$room2-{self._counter}"
 
-    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+    async def reply_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
+        _ = formatted_body
         _ = event_id
         self.calls.append((room_id, body))
         self._counter += 1

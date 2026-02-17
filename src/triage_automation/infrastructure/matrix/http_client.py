@@ -114,7 +114,13 @@ class MatrixHttpClient:
         self._transport = transport or UrllibMatrixHttpTransport()
         self._timeout_seconds = timeout_seconds
 
-    async def send_text(self, *, room_id: str, body: str) -> str:
+    async def send_text(
+        self,
+        *,
+        room_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         """Send plain text message to room and return created Matrix event id."""
 
         txn_id = _new_txn_id()
@@ -122,15 +128,27 @@ class MatrixHttpClient:
             "/_matrix/client/v3/rooms/"
             f"{quote(room_id, safe='')}/send/m.room.message/{quote(txn_id, safe='')}"
         )
+        payload: dict[str, object] = {"msgtype": "m.text", "body": body}
+        if formatted_body is not None and formatted_body.strip():
+            payload["format"] = "org.matrix.custom.html"
+            payload["formatted_body"] = formatted_body
+
         response = await self._request_json(
             operation="send_text",
             method="PUT",
             path=path,
-            payload={"msgtype": "m.text", "body": body},
+            payload=payload,
         )
         return _extract_event_id(response=response, operation="send_text")
 
-    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+    async def reply_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         """Reply to a room event with plain text and return created Matrix event id."""
 
         txn_id = _new_txn_id()
@@ -138,15 +156,20 @@ class MatrixHttpClient:
             "/_matrix/client/v3/rooms/"
             f"{quote(room_id, safe='')}/send/m.room.message/{quote(txn_id, safe='')}"
         )
+        payload: dict[str, object] = {
+            "msgtype": "m.text",
+            "body": body,
+            "m.relates_to": {"m.in_reply_to": {"event_id": event_id}},
+        }
+        if formatted_body is not None and formatted_body.strip():
+            payload["format"] = "org.matrix.custom.html"
+            payload["formatted_body"] = formatted_body
+
         response = await self._request_json(
             operation="reply_text",
             method="PUT",
             path=path,
-            payload={
-                "msgtype": "m.text",
-                "body": body,
-                "m.relates_to": {"m.in_reply_to": {"event_id": event_id}},
-            },
+            payload=payload,
         )
         return _extract_event_id(response=response, operation="reply_text")
 

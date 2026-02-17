@@ -165,11 +165,26 @@ class FakeMatrixRuntimeClient:
         self._counter += 1
         return f"$event-{self._counter}"
 
-    async def send_text(self, *, room_id: str, body: str) -> str:
+    async def send_text(
+        self,
+        *,
+        room_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
+        _ = formatted_body
         self.send_calls.append((room_id, body))
         return self._next_event_id()
 
-    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+    async def reply_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
+        _ = formatted_body
         self.reply_calls.append((room_id, event_id, body))
         return self._next_event_id()
 

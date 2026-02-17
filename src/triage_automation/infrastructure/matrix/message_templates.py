@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from html import escape
 from uuid import UUID
 
 _PT_BR_KEY_MAP: dict[str, str] = {
@@ -129,6 +130,35 @@ def build_room2_case_summary_message(
     )
 
 
+def build_room2_case_summary_formatted_html(
+    *,
+    case_id: UUID,
+    structured_data: dict[str, object],
+    summary_text: str,
+    suggested_action: dict[str, object],
+) -> str:
+    """Build Room-2 message II HTML payload for Matrix formatted_body rendering."""
+
+    translated_structured = _translate_keys_to_portuguese(value=structured_data)
+    translated_suggestion = _translate_keys_to_portuguese(value=suggested_action)
+    structured_lines = _format_markdown_lines(translated_structured)
+    suggestion_lines = _format_markdown_lines(translated_suggestion)
+
+    summary_html = _format_paragraphs_html(summary_text)
+    structured_html = _format_markdown_lines_html(structured_lines)
+    suggestion_html = _format_markdown_lines_html(suggestion_lines)
+    return (
+        "<h1>Resumo tecnico da triagem</h1>"
+        f"<p>caso: {escape(str(case_id))}</p>"
+        "<h2>Resumo clinico:</h2>"
+        f"{summary_html}"
+        "<h2>Dados extraidos (chaves em portugues):</h2>"
+        f"{structured_html}"
+        "<h2>Recomendacao do sistema (chaves em portugues):</h2>"
+        f"{suggestion_html}"
+    )
+
+
 def _translate_keys_to_portuguese(*, value: object) -> object:
     if isinstance(value, dict):
         translated: dict[str, object] = {}
@@ -165,6 +195,52 @@ def _format_markdown_lines(value: object) -> list[str]:
             continue
         lines.append(f"- {top_key}: {_format_compact_value(top_value)}")
     return lines
+
+
+def _format_paragraphs_html(value: str) -> str:
+    stripped_lines = [line.strip() for line in value.splitlines() if line.strip()]
+    if not stripped_lines:
+        return "<p>(vazio)</p>"
+    return "".join(f"<p>{escape(line)}</p>" for line in stripped_lines)
+
+
+def _format_markdown_lines_html(lines: list[str]) -> str:
+    html_parts: list[str] = []
+    in_list = False
+
+    for line in lines:
+        content = line.strip()
+        if not content:
+            if in_list:
+                html_parts.append("</ul>")
+                in_list = False
+            continue
+
+        if content.startswith("### "):
+            if in_list:
+                html_parts.append("</ul>")
+                in_list = False
+            html_parts.append(f"<h3>{escape(content[4:])}</h3>")
+            continue
+
+        if content.startswith("- "):
+            if not in_list:
+                html_parts.append("<ul>")
+                in_list = True
+            html_parts.append(f"<li>{escape(content[2:])}</li>")
+            continue
+
+        if in_list:
+            html_parts.append("</ul>")
+            in_list = False
+        html_parts.append(f"<p>{escape(content)}</p>")
+
+    if in_list:
+        html_parts.append("</ul>")
+
+    if not html_parts:
+        return "<p>(vazio)</p>"
+    return "".join(html_parts)
 
 
 def _format_compact_value(value: object) -> str:

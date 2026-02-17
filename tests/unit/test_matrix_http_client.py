@@ -105,6 +105,68 @@ async def test_reply_text_includes_reply_relation() -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_text_includes_formatted_body_when_provided() -> None:
+    transport = _QueuedTransport(
+        responses=[
+            MatrixHttpResponse(
+                status_code=200,
+                body_bytes=b'{"event_id":"$evt-send-html-1"}',
+            )
+        ]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    event_id = await client.send_text(
+        room_id="!room:example.org",
+        body="# titulo",
+        formatted_body="<h1>titulo</h1>",
+    )
+
+    assert event_id == "$evt-send-html-1"
+    payload = json.loads((transport.calls[0]["body"] or b"").decode("utf-8"))
+    assert payload["msgtype"] == "m.text"
+    assert payload["body"] == "# titulo"
+    assert payload["format"] == "org.matrix.custom.html"
+    assert payload["formatted_body"] == "<h1>titulo</h1>"
+
+
+@pytest.mark.asyncio
+async def test_reply_text_includes_formatted_body_when_provided() -> None:
+    transport = _QueuedTransport(
+        responses=[
+            MatrixHttpResponse(
+                status_code=200,
+                body_bytes=b'{"event_id":"$evt-reply-html-1"}',
+            )
+        ]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    event_id = await client.reply_text(
+        room_id="!room:example.org",
+        event_id="$origin-1",
+        body="# resumo",
+        formatted_body="<h1>resumo</h1>",
+    )
+
+    assert event_id == "$evt-reply-html-1"
+    payload = json.loads((transport.calls[0]["body"] or b"").decode("utf-8"))
+    assert payload["msgtype"] == "m.text"
+    assert payload["body"] == "# resumo"
+    assert payload["format"] == "org.matrix.custom.html"
+    assert payload["formatted_body"] == "<h1>resumo</h1>"
+    assert payload["m.relates_to"]["m.in_reply_to"]["event_id"] == "$origin-1"
+
+
+@pytest.mark.asyncio
 async def test_redact_event_calls_redaction_endpoint() -> None:
     transport = _QueuedTransport(responses=[MatrixHttpResponse(status_code=200, body_bytes=b"{}")])
     client = MatrixHttpClient(
