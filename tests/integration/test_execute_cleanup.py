@@ -17,6 +17,7 @@ from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAudit
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
 from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.matrix.http_client import MatrixRequestError
 
 
 class FakeMatrixRedactor:
@@ -28,6 +29,31 @@ class FakeMatrixRedactor:
         self.calls.append((room_id, event_id))
         if event_id in self._fail_event_ids:
             raise RuntimeError(f"failed to redact {event_id}")
+
+
+class FakeRateLimitedRedactor:
+    def __init__(self, *, event_id: str, fail_attempts: int, retry_after_ms: int) -> None:
+        self._event_id = event_id
+        self._remaining_failures = fail_attempts
+        self._retry_after_ms = retry_after_ms
+        self.calls: list[tuple[str, str]] = []
+
+    async def redact_event(self, *, room_id: str, event_id: str) -> None:
+        self.calls.append((room_id, event_id))
+        if event_id != self._event_id:
+            return
+        if self._remaining_failures < 1:
+            return
+        self._remaining_failures -= 1
+        raise MatrixRequestError(
+            operation="redact_event",
+            status_code=429,
+            details=(
+                '{"errcode":"M_LIMIT_EXCEEDED","error":"Too Many Requests",'
+                f'"retry_after_ms":{self._retry_after_ms}'
+                "}"
+            ),
+        )
 
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
@@ -147,3 +173,81 @@ async def test_cleanup_redacts_messages_audits_results_and_marks_case_cleaned(
     payload = _decode_json(cleanup_event["payload"])
     assert payload["count_redacted_success"] == 2
     assert payload["count_redacted_failed"] == 1
+
+
+@pytest.mark.asyncio
+async def test_cleanup_retries_matrix_rate_limit_and_completes(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "cleanup_execute_rate_limit.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+
+    created_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.CLEANUP_RUNNING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-cleanup-rate-limit",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    await message_repo.add_message(
+        CaseMessageCreateInput(
+            case_id=created_case.case_id,
+            room_id="!room1:example.org",
+            event_id="$event-rate-limit-1",
+            kind="room1_origin",
+            sender_user_id="@human:example.org",
+        )
+    )
+
+    redactor = FakeRateLimitedRedactor(
+        event_id="$event-rate-limit-1",
+        fail_attempts=1,
+        retry_after_ms=5,
+    )
+    sleep_calls: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+
+    service = ExecuteCleanupService(
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_redactor=redactor,
+        sleep=fake_sleep,
+        max_redaction_attempts=3,
+    )
+
+    result = await service.execute(case_id=created_case.case_id)
+
+    assert result.redacted_success == 1
+    assert result.redacted_failed == 0
+    assert redactor.calls == [
+        ("!room1:example.org", "$event-rate-limit-1"),
+        ("!room1:example.org", "$event-rate-limit-1"),
+    ]
+    assert len(sleep_calls) == 1
+    assert sleep_calls[0] >= 0.2
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text("SELECT status FROM cases WHERE case_id = :case_id"),
+            {"case_id": created_case.case_id.hex},
+        ).mappings().one()
+        event_types = connection.execute(
+            sa.text(
+                "SELECT event_type FROM case_events "
+                "WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": created_case.case_id.hex},
+        ).scalars().all()
+
+    assert case_row["status"] == "CLEANED"
+    assert list(event_types).count("MATRIX_EVENT_REDACTED") == 1
+    assert list(event_types).count("MATRIX_EVENT_REDACTION_FAILED") == 0
