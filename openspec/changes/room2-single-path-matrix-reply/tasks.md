@@ -8,7 +8,7 @@
 
 - [x] 2.1 Implement strict Room-2 decision template parsing (no free-text inference) for `decision`, `support_flag`, and `reason`.
 - [x] 2.2 Enforce existing decision contract rules (`accept|deny`, `support_flag` constraints, `reason` semantics) during parsed payload validation.
-- [ ] 2.3 Enforce `m.in_reply_to` binding to the active Room-2 root context event (message I) and reject missing/mismatched parent relations.
+- [x] 2.3 Enforce `m.in_reply_to` binding to the active Room-2 root context event (message I) and reject missing/mismatched parent relations.
 
 ## 3. Decision Routing And Actor Attribution
 
