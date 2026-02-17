@@ -1,6 +1,6 @@
 # Manual E2E Runbook
 
-This runbook validates the Room-2 widget path end-to-end in a deterministic local environment.
+This runbook validates the Room-2 structured Matrix reply path end-to-end in a deterministic local environment.
 Run `docs/runtime-smoke.md` first to confirm process startup and callback reachability.
 
 ## Prerequisites
@@ -13,36 +13,38 @@ uv run python -m apps.bot_matrix.main
 uv run python -m apps.worker.main
 ```
 
-2. Confirm `.env` has a public widget URL base:
+2. Use a test case already moved to `WAIT_DOCTOR` with Room-2 case context posted by bot.
 
-- `WIDGET_PUBLIC_URL` (or fallback `WEBHOOK_PUBLIC_URL`)
+## Room-2 Structured Reply Positive Path
 
-3. Use a test case already moved to `WAIT_DOCTOR` with a valid Room-2 widget post.
+1. Validate the three-message Room-2 combo for the target case in desktop and mobile clients:
 
-## Room-2 Widget Positive Path
+- message I: original PDF context
+- message II: extracted data + summary + recommendation (reply to message I)
+- message III: strict template instructions (reply to message I)
+- verify in both desktop and mobile that messages remain grouped under message I
 
-1. Open the launch URL published in Room-2:
+2. Open message III and copy the strict template.
 
-- `/widget/room2?case_id=<case-id>`
+3. Submit decision by sending a Matrix reply to message I (reply to message I):
 
-2. Authenticate in the widget UI (or API-level equivalent):
+- include template fields exactly:
+  - `decision: accept|deny`
+  - `support_flag: none|anesthesist|anesthesist_icu`
+  - `reason: <texto livre ou vazio>`
+  - `case_id: <case-id>`
 
-- `POST /auth/login`
+4. For positive flow validation, send:
 
-3. Fetch Room-2 decision context:
-
-- `POST /widget/room2/bootstrap`
-
-4. Submit an accept decision:
-
-- `POST /widget/room2/submit`
-- Payload: `decision=accept`, `support_flag=none`, optional `reason`
+- `decision: accept`
+- `support_flag: none`
+- optional `reason`
 
 5. Validate expected progression:
 
 - Case status moves to `DOCTOR_ACCEPTED`
 - A next job `post_room3_request` is enqueued
-- Audit includes the widget submit actor and outcome
+- Audit includes the Matrix sender as actor and outcome
 
 ## Widget Negative Auth Checks
 

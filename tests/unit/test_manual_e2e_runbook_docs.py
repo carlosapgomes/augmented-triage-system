@@ -39,14 +39,16 @@ def test_runtime_smoke_runbook_parity_with_compose_commands() -> None:
     assert "docker compose logs -f bot-api bot-matrix worker" in runbook
 
 
-def test_manual_e2e_runbook_exists_and_covers_widget_positive_flow() -> None:
+def test_manual_e2e_runbook_exists_and_covers_matrix_reply_positive_flow() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
-    assert "## Room-2 Widget Positive Path" in runbook
-    assert "/widget/room2?case_id=" in runbook
-    assert "POST /auth/login" in runbook
-    assert "POST /widget/room2/bootstrap" in runbook
-    assert "POST /widget/room2/submit" in runbook
+    assert "## Room-2 Structured Reply Positive Path" in runbook
+    assert "message I" in runbook
+    assert "message II" in runbook
+    assert "message III" in runbook
+    assert "reply to message I" in runbook
+    assert "desktop" in runbook
+    assert "mobile" in runbook
     assert "DOCTOR_ACCEPTED" in runbook
     assert "post_room3_request" in runbook
 
