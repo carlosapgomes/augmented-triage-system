@@ -28,11 +28,11 @@ from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_formatted_html,
     build_room2_case_decision_instructions_message,
+    build_room2_case_pdf_attachment_filename,
     build_room2_case_pdf_formatted_html,
     build_room2_case_pdf_message,
     build_room2_case_summary_formatted_html,
     build_room2_case_summary_message,
-    build_room2_case_text_attachment_filename,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,15 +60,16 @@ class MatrixRoomPosterPort(Protocol):
     ) -> str:
         """Post reply text body to a room event and return generated matrix event id."""
 
-    async def reply_file_text(
+    async def reply_file_from_mxc(
         self,
         *,
         room_id: str,
         event_id: str,
         filename: str,
-        text_content: str,
+        mxc_url: str,
+        mimetype: str,
     ) -> str:
-        """Post a text file attachment as reply and return generated matrix event id."""
+        """Post a file attachment by MXC URL as reply and return generated matrix event id."""
 
 
 @dataclass
@@ -122,6 +123,11 @@ class PostRoom2WidgetService:
             raise PostRoom2WidgetRetriableError(
                 cause="room2",
                 details="Missing extracted_text for Room-2 case context post",
+            )
+        if case.pdf_mxc_url is None:
+            raise PostRoom2WidgetRetriableError(
+                cause="room2",
+                details="Missing pdf_mxc_url for Room-2 case context attachment",
             )
         if case.agency_record_number is None:
             raise PostRoom2WidgetRetriableError(
@@ -226,14 +232,15 @@ class PostRoom2WidgetService:
             )
         )
 
-        text_attachment_filename = build_room2_case_text_attachment_filename(
+        pdf_attachment_filename = build_room2_case_pdf_attachment_filename(
             case_id=case.case_id
         )
-        text_attachment_event_id = await self._matrix_poster.reply_file_text(
+        pdf_attachment_event_id = await self._matrix_poster.reply_file_from_mxc(
             room_id=self._room2_id,
             event_id=root_event_id,
-            filename=text_attachment_filename,
-            text_content=case.extracted_text,
+            filename=pdf_attachment_filename,
+            mxc_url=case.pdf_mxc_url,
+            mimetype="application/pdf",
         )
         logger.info(
             (
@@ -242,7 +249,7 @@ class PostRoom2WidgetService:
             ),
             case.case_id,
             self._room2_id,
-            text_attachment_event_id,
+            pdf_attachment_event_id,
             root_event_id,
         )
 
@@ -250,9 +257,9 @@ class PostRoom2WidgetService:
             CaseMessageCreateInput(
                 case_id=case.case_id,
                 room_id=self._room2_id,
-                event_id=text_attachment_event_id,
+                event_id=pdf_attachment_event_id,
                 sender_user_id=None,
-                kind="room2_case_text_attachment",
+                kind="room2_case_pdf_attachment",
             )
         )
 
@@ -261,11 +268,12 @@ class PostRoom2WidgetService:
                 case_id=case.case_id,
                 actor_type="bot",
                 room_id=self._room2_id,
-                matrix_event_id=text_attachment_event_id,
-                event_type="ROOM2_CASE_TEXT_ATTACHMENT_POSTED",
+                matrix_event_id=pdf_attachment_event_id,
+                event_type="ROOM2_CASE_PDF_ATTACHMENT_POSTED",
                 payload={
                     "reply_to_event_id": root_event_id,
-                    "filename": text_attachment_filename,
+                    "filename": pdf_attachment_filename,
+                    "pdf_mxc_url": case.pdf_mxc_url,
                 },
             )
         )

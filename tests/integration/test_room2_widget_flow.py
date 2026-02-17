@@ -39,7 +39,7 @@ SUBMIT_PATH = "/widget/room2/submit"
 class FakeMatrixPoster:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
-        self.file_calls: list[tuple[str, str, str, str]] = []
+        self.file_calls: list[tuple[str, str, str, str, str]] = []
         self._counter = 0
 
     async def send_text(
@@ -68,16 +68,16 @@ class FakeMatrixPoster:
         self._counter += 1
         return f"$room2-{self._counter}"
 
-    async def reply_file_text(
+    async def reply_file_from_mxc(
         self,
         *,
         room_id: str,
         event_id: str,
         filename: str,
-        text_content: str,
+        mxc_url: str,
+        mimetype: str,
     ) -> str:
-        _ = event_id
-        self.file_calls.append((room_id, filename, text_content, event_id))
+        self.file_calls.append((room_id, event_id, filename, mxc_url, mimetype))
         self._counter += 1
         return f"$room2-{self._counter}"
 

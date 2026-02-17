@@ -5,11 +5,11 @@ from uuid import UUID
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_formatted_html,
     build_room2_case_decision_instructions_message,
+    build_room2_case_pdf_attachment_filename,
     build_room2_case_pdf_formatted_html,
     build_room2_case_pdf_message,
     build_room2_case_summary_formatted_html,
     build_room2_case_summary_message,
-    build_room2_case_text_attachment_filename,
     build_room2_decision_ack_message,
     build_room2_decision_error_message,
 )
@@ -26,9 +26,7 @@ def test_build_room2_case_pdf_message_includes_compact_context_and_attachment_hi
 
     assert f"caso: {case_id}" in body
     assert "12345" in body
-    assert "anexo `.txt`" in body
-    assert "Previa do texto extraido:" in body
-    assert "Paciente com dispepsia crônica." in body
+    assert "PDF original do relatorio" in body
 
 
 def test_build_room2_case_pdf_formatted_html_includes_preview_context() -> None:
@@ -43,17 +41,15 @@ def test_build_room2_case_pdf_formatted_html_includes_preview_context() -> None:
     assert "<h1>Solicitacao de triagem - contexto original</h1>" in body
     assert f"<p>caso: {case_id}</p>" in body
     assert "<p>registro: 12345</p>" in body
-    assert "anexo <code>.txt</code>" in body
-    assert "<h2>Previa do texto extraido:</h2>" in body
-    assert "<pre><code>Linha 1\nLinha 2</code></pre>" in body
+    assert "PDF original do relatorio" in body
 
 
-def test_build_room2_case_text_attachment_filename_is_deterministic() -> None:
+def test_build_room2_case_pdf_attachment_filename_is_deterministic() -> None:
     case_id = UUID("11111111-1111-1111-1111-111111111111")
 
-    filename = build_room2_case_text_attachment_filename(case_id=case_id)
+    filename = build_room2_case_pdf_attachment_filename(case_id=case_id)
 
-    assert filename == "caso-11111111-1111-1111-1111-111111111111-texto-extraido.txt"
+    assert filename == "caso-11111111-1111-1111-1111-111111111111-relatorio-original.pdf"
 
 
 def test_build_room2_case_summary_message_includes_structured_payloads() -> None:

@@ -213,6 +213,37 @@ class MatrixHttpClient:
         )
         return _extract_event_id(response=response, operation="reply_file_text")
 
+    async def reply_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        """Reply with `m.file` event referencing an existing MXC media URL."""
+
+        txn_id = _new_txn_id()
+        path = (
+            "/_matrix/client/v3/rooms/"
+            f"{quote(room_id, safe='')}/send/m.room.message/{quote(txn_id, safe='')}"
+        )
+        response = await self._request_json(
+            operation="reply_file_from_mxc",
+            method="PUT",
+            path=path,
+            payload={
+                "msgtype": "m.file",
+                "body": filename,
+                "filename": filename,
+                "url": mxc_url,
+                "info": {"mimetype": mimetype},
+                "m.relates_to": {"m.in_reply_to": {"event_id": event_id}},
+            },
+        )
+        return _extract_event_id(response=response, operation="reply_file_from_mxc")
+
     async def upload_media(
         self,
         *,

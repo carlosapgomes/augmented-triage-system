@@ -51,7 +51,7 @@ class FakeMatrixClient:
         self._counter = 0
         self.send_calls: list[tuple[str, str, str]] = []
         self.reply_calls: list[tuple[str, str, str, str]] = []
-        self.reply_file_calls: list[tuple[str, str, str, str, str]] = []
+        self.reply_file_calls: list[tuple[str, str, str, str, str, str]] = []
         self.redactions: list[tuple[str, str]] = []
 
     def _next_event_id(self) -> str:
@@ -83,17 +83,18 @@ class FakeMatrixClient:
         self.reply_calls.append((room_id, event_id, body, response_event_id))
         return response_event_id
 
-    async def reply_file_text(
+    async def reply_file_from_mxc(
         self,
         *,
         room_id: str,
         event_id: str,
         filename: str,
-        text_content: str,
+        mxc_url: str,
+        mimetype: str,
     ) -> str:
         response_event_id = self._next_event_id()
         self.reply_file_calls.append(
-            (room_id, event_id, filename, text_content, response_event_id)
+            (room_id, event_id, filename, mxc_url, mimetype, response_event_id)
         )
         return response_event_id
 

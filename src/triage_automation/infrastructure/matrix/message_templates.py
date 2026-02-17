@@ -92,18 +92,13 @@ def build_room2_case_pdf_message(
     agency_record_number: str,
     extracted_text: str,
 ) -> str:
-    """Build Room-2 message I body as concise context plus attachment guidance."""
-
-    preview_text = _build_extracted_text_preview(extracted_text=extracted_text)
+    """Build Room-2 message I body with concise context plus PDF attachment guidance."""
 
     return (
         "# Solicitacao de triagem - contexto original\n\n"
         f"caso: {case_id}\n"
         f"registro: {agency_record_number}\n\n"
-        "O texto completo do relatorio foi enviado como anexo `.txt` "
-        "na resposta desta mensagem.\n\n"
-        "Previa do texto extraido:\n"
-        f"{preview_text}"
+        "O PDF original do relatorio foi anexado como resposta a esta mensagem."
     )
 
 
@@ -113,25 +108,20 @@ def build_room2_case_pdf_formatted_html(
     agency_record_number: str,
     extracted_text: str,
 ) -> str:
-    """Build Room-2 message I HTML payload with concise preview."""
-
-    preview_text = _build_extracted_text_preview(extracted_text=extracted_text)
+    """Build Room-2 message I HTML payload with concise PDF attachment guidance."""
 
     return (
         "<h1>Solicitacao de triagem - contexto original</h1>"
         f"<p>caso: {escape(str(case_id))}</p>"
         f"<p>registro: {escape(agency_record_number)}</p>"
-        "<p>O texto completo do relatorio foi enviado como anexo <code>.txt</code> "
-        "na resposta desta mensagem.</p>"
-        "<h2>Previa do texto extraido:</h2>"
-        f"<pre><code>{escape(preview_text)}</code></pre>"
+        "<p>O PDF original do relatorio foi anexado como resposta a esta mensagem.</p>"
     )
 
 
-def build_room2_case_text_attachment_filename(*, case_id: UUID) -> str:
-    """Build deterministic Room-2 extracted text attachment filename."""
+def build_room2_case_pdf_attachment_filename(*, case_id: UUID) -> str:
+    """Build deterministic Room-2 original report PDF attachment filename."""
 
-    return f"caso-{case_id}-texto-extraido.txt"
+    return f"caso-{case_id}-relatorio-original.pdf"
 
 
 def build_room2_case_summary_message(
@@ -272,14 +262,6 @@ def _format_markdown_lines_html(lines: list[str]) -> str:
     if not html_parts:
         return "<p>(vazio)</p>"
     return "".join(html_parts)
-
-
-def _build_extracted_text_preview(*, extracted_text: str, max_lines: int = 12) -> str:
-    lines = [line.strip() for line in extracted_text.splitlines() if line.strip()]
-    if not lines:
-        return "(vazio)"
-    preview_lines = lines[:max_lines]
-    return "\n".join(preview_lines)
 
 
 def _format_compact_value(value: object) -> str:

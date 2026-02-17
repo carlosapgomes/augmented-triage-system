@@ -250,6 +250,38 @@ async def test_reply_file_text_uploads_then_posts_m_file_reply() -> None:
 
 
 @pytest.mark.asyncio
+async def test_reply_file_from_mxc_posts_m_file_reply_with_existing_url() -> None:
+    transport = _QueuedTransport(
+        responses=[MatrixHttpResponse(status_code=200, body_bytes=b'{"event_id":"$evt-file-2"}')]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    event_id = await client.reply_file_from_mxc(
+        room_id="!room:example.org",
+        event_id="$origin-2",
+        filename="relatorio.pdf",
+        mxc_url="mxc://example.org/arquivo-pdf",
+        mimetype="application/pdf",
+    )
+
+    assert event_id == "$evt-file-2"
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["method"] == "PUT"
+    payload = json.loads((call["body"] or b"").decode("utf-8"))
+    assert payload["msgtype"] == "m.file"
+    assert payload["body"] == "relatorio.pdf"
+    assert payload["filename"] == "relatorio.pdf"
+    assert payload["url"] == "mxc://example.org/arquivo-pdf"
+    assert payload["info"]["mimetype"] == "application/pdf"
+    assert payload["m.relates_to"]["m.in_reply_to"]["event_id"] == "$origin-2"
+
+
+@pytest.mark.asyncio
 async def test_redact_event_calls_redaction_endpoint() -> None:
     transport = _QueuedTransport(responses=[MatrixHttpResponse(status_code=200, body_bytes=b"{}")])
     client = MatrixHttpClient(
