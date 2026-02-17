@@ -15,6 +15,11 @@ from triage_automation.application.ports.message_repository_port import MessageR
 from triage_automation.domain.case_status import CaseStatus
 
 logger = logging.getLogger(__name__)
+_ACCEPTED_REACTION_KEYS = frozenset({"👍", "✅"})
+_VARIATION_SELECTOR_TRANSLATION = {
+    ord("\uFE0E"): None,  # text presentation selector
+    ord("\uFE0F"): None,  # emoji presentation selector
+}
 
 
 @dataclass(frozen=True)
@@ -72,7 +77,8 @@ class ReactionService:
             event.reactor_user_id,
             event.reaction_key,
         )
-        if event.reaction_key != "👍":
+        normalized_key = _normalize_reaction_key(event.reaction_key)
+        if normalized_key not in _ACCEPTED_REACTION_KEYS:
             return ReactionResult(processed=False, reason="not_thumbs_up")
 
         if event.room_id == self._room1_id:
@@ -181,3 +187,9 @@ class ReactionService:
         )
         logger.info("reaction_ack_recorded case_id=%s room_id=%s", mapping.case_id, event.room_id)
         return ReactionResult(processed=True)
+
+
+def _normalize_reaction_key(value: str) -> str:
+    """Normalize reaction key by dropping variation selectors and trimming spaces."""
+
+    return value.translate(_VARIATION_SELECTOR_TRANSLATION).strip()

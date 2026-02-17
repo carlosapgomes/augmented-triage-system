@@ -116,7 +116,7 @@ async def test_redact_event_calls_redaction_endpoint() -> None:
     await client.redact_event(room_id="!room:example.org", event_id="$event-3")
 
     assert len(transport.calls) == 1
-    assert transport.calls[0]["method"] == "POST"
+    assert transport.calls[0]["method"] == "PUT"
     assert re.match(
         (
             r"^https://matrix\.example\.org/_matrix/client/v3/rooms/%21room%3Aexample\.org/"

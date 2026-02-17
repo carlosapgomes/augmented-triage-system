@@ -269,6 +269,178 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
 
 
 @pytest.mark.asyncio
+async def test_room1_checkmark_with_variation_triggers_cleanup_once(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "reaction_room1_checkmark.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    job_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_R1_CLEANUP_THUMBS,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-reaction-checkmark-1",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET room1_final_reply_event_id = :event_id "
+                "WHERE case_id = :case_id"
+            ),
+            {"event_id": "$room1-final-checkmark-1", "case_id": case.case_id.hex},
+        )
+
+    service = ReactionService(
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        job_queue=job_repo,
+    )
+
+    result = await service.handle(
+        ReactionEvent(
+            room_id="!room1:example.org",
+            reaction_event_id="$reaction-checkmark-1",
+            reactor_user_id="@nurse:example.org",
+            related_event_id="$room1-final-checkmark-1",
+            reaction_key="✅️",
+        )
+    )
+
+    assert result.processed is True
+
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, cleanup_triggered_at FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+        cleanup_job_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'execute_cleanup'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    assert case_row["status"] == "CLEANUP_RUNNING"
+    assert case_row["cleanup_triggered_at"] is not None
+    assert int(cleanup_job_count) == 1
+
+
+@pytest.mark.asyncio
+async def test_room2_room3_ack_accept_checkmark_and_thumbs_variants(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "reaction_room23_variants.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    job_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-reaction-variants-23",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    await message_repo.add_message(
+        CaseMessageCreateInput(
+            case_id=case.case_id,
+            room_id="!room2:example.org",
+            event_id="$room2-ack-variant-1",
+            sender_user_id=None,
+            kind="bot_ack",
+        )
+    )
+    await message_repo.add_message(
+        CaseMessageCreateInput(
+            case_id=case.case_id,
+            room_id="!room3:example.org",
+            event_id="$room3-ack-variant-1",
+            sender_user_id=None,
+            kind="bot_ack",
+        )
+    )
+
+    service = ReactionService(
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        job_queue=job_repo,
+    )
+
+    room2_result = await service.handle(
+        ReactionEvent(
+            room_id="!room2:example.org",
+            reaction_event_id="$reaction-room2-checkmark-variant",
+            reactor_user_id="@doctor:example.org",
+            related_event_id="$room2-ack-variant-1",
+            reaction_key="✅️",
+        )
+    )
+    room3_result = await service.handle(
+        ReactionEvent(
+            room_id="!room3:example.org",
+            reaction_event_id="$reaction-room3-thumbs-variant",
+            reactor_user_id="@scheduler:example.org",
+            related_event_id="$room3-ack-variant-1",
+            reaction_key="👍️",
+        )
+    )
+
+    assert room2_result.processed is True
+    assert room3_result.processed is True
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        cleanup_job_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs WHERE case_id = :case_id "
+                "AND job_type = 'execute_cleanup'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room2_audit = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
+                "AND event_type = 'ROOM2_ACK_THUMBS_UP_RECEIVED'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room3_audit = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
+                "AND event_type = 'ROOM3_ACK_THUMBS_UP_RECEIVED'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    assert int(cleanup_job_count) == 0
+    assert int(room2_audit) == 1
+    assert int(room3_audit) == 1
+
+
+@pytest.mark.asyncio
 async def test_runtime_listener_routes_room1_thumbs_to_cleanup_trigger_path(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "reaction_listener_room1.db")
     session_factory = create_session_factory(async_url)

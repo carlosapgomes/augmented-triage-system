@@ -160,7 +160,7 @@ class MatrixHttpClient:
         )
         await self._request_json(
             operation="redact_event",
-            method="POST",
+            method="PUT",
             path=path,
             payload={},
         )
