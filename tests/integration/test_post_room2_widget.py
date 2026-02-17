@@ -223,13 +223,16 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert summary_parent == root_event_id
     assert f"caso: {current_case.case_id}" in summary_body
     assert "Resumo LLM1" in summary_body
-    assert "Dados extraidos" in summary_body
+    assert "# Resumo tecnico da triagem" in summary_body
+    assert "## Dados extraidos (chaves em portugues):" in summary_body
+    assert "## Recomendacao do sistema (chaves em portugues):" in summary_body
     assert "sugestao" in summary_body.lower()
     assert "negar" in summary_body
     assert "deny" not in summary_body
-    assert "- prechecagem_politica:" in summary_body
-    assert "  - laboratorio_aprovado: sim" in summary_body
-    assert "  - é pediátrico?: nao" in summary_body
+    assert "### prechecagem_politica:" in summary_body
+    assert "- laboratorio_aprovado: sim" in summary_body
+    assert "- é pediátrico?: nao" in summary_body
+    assert "- ecg:" in summary_body
     assert "sinal de alerta=nao" in summary_body
     assert "laudo_presente=sim" in summary_body
     assert "```json" not in summary_body

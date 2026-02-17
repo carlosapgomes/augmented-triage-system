@@ -109,7 +109,7 @@ def build_room2_case_summary_message(
     summary_text: str,
     suggested_action: dict[str, object],
 ) -> str:
-    """Build Room-2 message II body in plain text with pt-BR field labels."""
+    """Build Room-2 message II body using markdown-like section headings."""
 
     translated_structured = _translate_keys_to_portuguese(value=structured_data)
     translated_suggestion = _translate_keys_to_portuguese(value=suggested_action)
@@ -118,13 +118,13 @@ def build_room2_case_summary_message(
     structured_block = "\n".join(structured_lines)
     suggestion_block = "\n".join(suggestion_lines)
     return (
-        "Resumo tecnico da triagem\n"
+        "# Resumo tecnico da triagem\n\n"
         f"caso: {case_id}\n\n"
-        "Resumo clinico:\n"
+        "## Resumo clinico:\n\n"
         f"{summary_text}\n\n"
-        "Dados extraidos (chaves em portugues):\n"
+        "## Dados extraidos (chaves em portugues):\n\n"
         f"{structured_block}\n\n"
-        "Recomendacao do sistema (chaves em portugues):\n"
+        "## Recomendacao do sistema (chaves em portugues):\n\n"
         f"{suggestion_block}"
     )
 
@@ -154,14 +154,14 @@ def _format_markdown_lines(value: object) -> list[str]:
     for top_key in sorted(top_level):
         top_value = top_level[top_key]
         if isinstance(top_value, dict):
-            lines.append(f"- {top_key}:")
+            lines.append(f"### {top_key}:")
             second_level: dict[str, object] = {str(k): v for k, v in top_value.items()}
             if not second_level:
-                lines.append("  - (vazio)")
+                lines.append("- (vazio)")
                 continue
             for second_key in sorted(second_level):
                 second_value = second_level[second_key]
-                lines.append(f"  - {second_key}: {_format_compact_value(second_value)}")
+                lines.append(f"- {second_key}: {_format_compact_value(second_value)}")
             continue
         lines.append(f"- {top_key}: {_format_compact_value(top_value)}")
     return lines

@@ -41,11 +41,16 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
 
     assert f"caso: {case_id}" in body
     assert "Resumo LLM1" in body
-    assert "- prechecagem_politica:" in body
-    assert "  - laboratorio_aprovado: sim" in body
-    assert "  - é pediátrico?: sim" in body
-    assert "  - asa: classe=II" in body
-    assert "  - ecg: sinal de alerta=desconhecido" in body
+    assert "# Resumo tecnico da triagem" in body
+    assert "## Resumo clinico:" in body
+    assert "## Dados extraidos (chaves em portugues):" in body
+    assert "## Recomendacao do sistema (chaves em portugues):" in body
+    assert "### prechecagem_politica:" in body
+    assert "- laboratorio_aprovado: sim" in body
+    assert "- é pediátrico?: sim" in body
+    assert "### eda:" in body
+    assert "- asa: classe=II" in body
+    assert "- ecg: sinal de alerta=desconhecido" in body
     assert "flag_pediatrico" not in body
     assert "abnormal_flag" not in body
     assert "sugestao" in body.lower()
