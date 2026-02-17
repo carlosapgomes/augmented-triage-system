@@ -7,6 +7,7 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_pdf_message,
     build_room2_case_summary_message,
     build_room2_decision_ack_message,
+    build_room2_decision_error_message,
 )
 
 
@@ -70,3 +71,19 @@ def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> 
     assert "decision: accept" in body
     assert "support_flag: none" in body
     assert "reason: criterios atendidos" in body
+
+
+def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
+    case_id = UUID("55555555-5555-5555-5555-555555555555")
+
+    body = build_room2_decision_error_message(
+        case_id=case_id,
+        error_code="invalid_template",
+    )
+
+    assert "resultado: erro" in body
+    assert f"case_id: {case_id}" in body
+    assert "error_code: invalid_template" in body
+    assert "acao:" in body
+    assert "Template obrigatorio" in body
+    assert "decision: accept|deny" in body

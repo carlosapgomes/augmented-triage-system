@@ -74,6 +74,19 @@ async def _setup_wait_doctor_case(
     *,
     origin_event_id: str,
 ) -> tuple[UUID, str]:
+    return await _setup_case_with_status(
+        async_url,
+        origin_event_id=origin_event_id,
+        status=CaseStatus.WAIT_DOCTOR,
+    )
+
+
+async def _setup_case_with_status(
+    async_url: str,
+    *,
+    origin_event_id: str,
+    status: CaseStatus,
+) -> tuple[UUID, str]:
     session_factory = create_session_factory(async_url)
     case_repo = SqlAlchemyCaseRepository(session_factory)
     message_repo = SqlAlchemyMessageRepository(session_factory)
@@ -81,7 +94,7 @@ async def _setup_wait_doctor_case(
     case = await case_repo.create_case(
         CaseCreateInput(
             case_id=uuid4(),
-            status=CaseStatus.WAIT_DOCTOR,
+            status=status,
             room1_origin_room_id="!room1:example.org",
             room1_origin_event_id=origin_event_id,
             room1_sender_user_id="@human:example.org",
@@ -292,7 +305,11 @@ async def test_runtime_listener_rejects_reply_with_typed_doctor_identity_field(
 
     assert next_since == "s-room2-typed-identity"
     assert routed_count == 0
-    assert sync_client.reply_calls == []
+    assert len(sync_client.reply_calls) == 1
+    error_body = sync_client.reply_calls[0][2]
+    assert "resultado: erro" in error_body
+    assert "error_code: invalid_template" in error_body
+    assert f"case_id: {case_id}" in error_body
     assert sync_client.send_calls == []
 
     engine = sa.create_engine(sync_url)
@@ -375,7 +392,11 @@ async def test_runtime_listener_rejects_reply_from_room2_unauthorized_sender(
 
     assert next_since == "s-room2-unauthorized"
     assert routed_count == 0
-    assert sync_client.reply_calls == []
+    assert len(sync_client.reply_calls) == 1
+    error_body = sync_client.reply_calls[0][2]
+    assert "resultado: erro" in error_body
+    assert "error_code: authorization_failed" in error_body
+    assert f"case_id: {case_id}" in error_body
     assert sync_client.send_calls == []
 
     engine = sa.create_engine(sync_url)
@@ -397,3 +418,69 @@ async def test_runtime_listener_rejects_reply_from_room2_unauthorized_sender(
     assert case_row["doctor_support_flag"] is None
     assert case_row["doctor_user_id"] is None
     assert int(jobs_count) == 0
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_emits_error_feedback_when_case_not_waiting_doctor(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room2_reply_listener_wrong_state.db")
+    case_id, root_event_id = await _setup_case_with_status(
+        async_url,
+        origin_event_id="$origin-room2-listener-wrong-state",
+        status=CaseStatus.DOCTOR_ACCEPTED,
+    )
+    body = (
+        "decision: accept\n"
+        "support_flag: none\n"
+        "reason: criterios atendidos\n"
+        f"case_id: {case_id}"
+    )
+    sync_client = FakeMatrixRuntimeClient(
+        _sync_payload(
+            next_batch="s-room2-wrong-state",
+            room_id="!room2:example.org",
+            events=[
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-wrong-state",
+                    sender="@doctor:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                )
+            ],
+        )
+    )
+
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=message_repository,
+        matrix_poster=sync_client,
+        room2_id="!room2:example.org",
+    )
+    room2_reply_service = Room2ReplyService(
+        room2_id="!room2:example.org",
+        decision_service=decision_service,
+        membership_authorizer=sync_client,
+    )
+
+    next_since, routed_count = await poll_room2_reply_events_once(
+        matrix_client=sync_client,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id="!room2:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room2-wrong-state"
+    assert routed_count == 0
+    assert len(sync_client.reply_calls) == 1
+    error_body = sync_client.reply_calls[0][2]
+    assert "resultado: erro" in error_body
+    assert "error_code: state_conflict" in error_body
+    assert f"case_id: {case_id}" in error_body

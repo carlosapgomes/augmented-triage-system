@@ -6,6 +6,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Protocol, cast
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -33,6 +34,9 @@ from triage_automation.infrastructure.matrix.http_client import (
     MatrixHttpClient,
     MatrixTransportError,
 )
+from triage_automation.infrastructure.matrix.message_templates import (
+    build_room2_decision_error_message,
+)
 from triage_automation.infrastructure.matrix.reaction_parser import parse_matrix_reaction_event
 from triage_automation.infrastructure.matrix.room2_reply_parser import (
     parse_room2_decision_reply_event,
@@ -44,6 +48,13 @@ from triage_automation.infrastructure.matrix.sync_events import (
 )
 
 _SYNC_HTTP_TIMEOUT_BUFFER_SECONDS = 10.0
+_ROOM2_REPLY_ERROR_REASON_TO_CODE: dict[str, str] = {
+    "unauthorized_sender": "authorization_failed",
+    "authorization_check_failed": "authorization_failed",
+    "wrong_state": "state_conflict",
+    "duplicate_or_race": "state_conflict",
+    "not_found": "state_conflict",
+}
 logger = logging.getLogger(__name__)
 
 
@@ -272,6 +283,7 @@ async def poll_room2_reply_events_once(
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
     routed_count = await _route_room2_replies_from_sync(
         sync_payload=sync_payload,
+        matrix_client=matrix_client,
         room2_reply_service=room2_reply_service,
         message_repository=message_repository,
         room2_id=room2_id,
@@ -315,6 +327,7 @@ async def poll_room1_reactions_and_room3_once(
     )
     room2_reply_count = await _route_room2_replies_from_sync(
         sync_payload=sync_payload,
+        matrix_client=matrix_client,
         room2_reply_service=room2_reply_service,
         message_repository=message_repository,
         room2_id=room2_id,
@@ -551,6 +564,7 @@ async def _route_reactions_from_sync(
 async def _route_room2_replies_from_sync(
     *,
     sync_payload: dict[str, object],
+    matrix_client: MatrixRoom1ListenerClientPort,
     room2_reply_service: Room2ReplyService,
     message_repository: SqlAlchemyMessageRepository,
     room2_id: str,
@@ -581,6 +595,13 @@ async def _route_room2_replies_from_sync(
             expected_case_id=mapped_case_id,
         )
         if parsed is None:
+            await _send_room2_error_feedback(
+                matrix_client=matrix_client,
+                room_id=room2_id,
+                reply_to_event_id=_extract_event_id(timeline_event.event),
+                case_id=mapped_case_id,
+                error_code="invalid_template",
+            )
             continue
 
         result = await room2_reply_service.handle_reply(
@@ -597,6 +618,18 @@ async def _route_room2_replies_from_sync(
         )
         if result.processed:
             routed_count += 1
+            continue
+
+        error_code = _ROOM2_REPLY_ERROR_REASON_TO_CODE.get(result.reason or "")
+        if error_code is None:
+            continue
+        await _send_room2_error_feedback(
+            matrix_client=matrix_client,
+            room_id=room2_id,
+            reply_to_event_id=parsed.event_id,
+            case_id=parsed.case_id,
+            error_code=error_code,
+        )
 
     return routed_count
 
@@ -643,6 +676,42 @@ def _extract_reply_target_event_id(event: dict[str, object]) -> str | None:
     if not isinstance(reply_event_id, str) or not reply_event_id:
         return None
     return reply_event_id
+
+
+def _extract_event_id(event: dict[str, object]) -> str | None:
+    event_id = event.get("event_id")
+    if not isinstance(event_id, str) or not event_id:
+        return None
+    return event_id
+
+
+async def _send_room2_error_feedback(
+    *,
+    matrix_client: MatrixRoom1ListenerClientPort,
+    room_id: str,
+    reply_to_event_id: str | None,
+    case_id: UUID,
+    error_code: str,
+) -> None:
+    if reply_to_event_id is None:
+        return
+    body = build_room2_decision_error_message(
+        case_id=case_id,
+        error_code=error_code,
+    )
+    try:
+        await matrix_client.reply_text(
+            room_id=room_id,
+            event_id=reply_to_event_id,
+            body=body,
+        )
+    except Exception as exc:  # pragma: no cover - defensive resilience path
+        logger.warning(
+            "room2_error_feedback_post_failed room_id=%s reply_to_event_id=%s error=%s",
+            room_id,
+            reply_to_event_id,
+            exc,
+        )
 
 
 if __name__ == "__main__":

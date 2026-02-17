@@ -109,6 +109,33 @@ def build_room2_decision_ack_message(
     )
 
 
+def build_room2_decision_error_message(*, case_id: UUID, error_code: str) -> str:
+    """Build deterministic Room-2 decision error feedback with correction guidance."""
+
+    guidance = _room2_decision_error_guidance(error_code=error_code)
+    return (
+        "resultado: erro\n"
+        f"case_id: {case_id}\n"
+        f"error_code: {error_code}\n"
+        f"acao: {guidance}\n\n"
+        "Template obrigatorio:\n"
+        "decision: accept|deny\n"
+        "support_flag: none|anesthesist|anesthesist_icu\n"
+        "reason: <texto livre ou vazio>\n"
+        f"case_id: {case_id}"
+    )
+
+
+def _room2_decision_error_guidance(*, error_code: str) -> str:
+    if error_code == "invalid_template":
+        return "Responda novamente como reply usando exatamente o template."
+    if error_code == "authorization_failed":
+        return "Apenas membros autorizados da Room-2 podem decidir; verifique acesso."
+    if error_code == "state_conflict":
+        return "Caso nao esta em WAIT_DOCTOR; nao reenviar decisao duplicada."
+    return "Revise o template e tente novamente."
+
+
 def build_room3_request_message(*, case_id: UUID) -> str:
     """Build Room-3 scheduling request body including strict reply instructions."""
 
