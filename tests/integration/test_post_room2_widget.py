@@ -211,8 +211,11 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     root_room_id, root_body, root_event_id = matrix_poster.send_calls[0]
     assert root_room_id == "!room2:example.org"
     assert str(current_case.case_id) in root_body
-    assert "Solicitacao de triagem" in root_body
-    assert "Abra o widget de decisao:" in root_body
+    assert "Solicitacao de triagem - contexto original" in root_body
+    assert "PDF original:" in root_body
+    assert "mxc://example.org/current" in root_body
+    assert "/widget/room2" not in root_body
+    assert "Payload do widget" not in root_body
 
     summary_room_id, summary_parent, summary_body, _summary_event_id = matrix_poster.reply_calls[0]
     assert summary_room_id == "!room2:example.org"

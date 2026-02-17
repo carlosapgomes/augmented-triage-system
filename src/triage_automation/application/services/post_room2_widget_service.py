@@ -27,8 +27,8 @@ from triage_automation.application.ports.prior_case_query_port import (
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_message,
+    build_room2_case_pdf_message,
     build_room2_case_summary_message,
-    build_room2_widget_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,6 +91,11 @@ class PostRoom2WidgetService:
                 details=f"Case status {case.status.value} is not ready for Room-2 widget post",
             )
 
+        if case.pdf_mxc_url is None:
+            raise PostRoom2WidgetRetriableError(
+                cause="room2",
+                details="Missing pdf_mxc_url for Room-2 case context post",
+            )
         if case.agency_record_number is None:
             raise PostRoom2WidgetRetriableError(
                 cause="room2",
@@ -148,37 +153,27 @@ class PostRoom2WidgetService:
             )
         )
 
-        payload = _build_widget_payload(
-            case=case,
-            prior_context=prior_context,
-            widget_public_base_url=self._widget_public_base_url,
-        )
-
-        widget_body = build_room2_widget_message(
+        root_body = build_room2_case_pdf_message(
             case_id=case.case_id,
             agency_record_number=case.agency_record_number,
-            widget_launch_url=_build_widget_launch_url(
-                widget_public_base_url=self._widget_public_base_url,
-                case_id=case.case_id,
-            ),
-            payload=payload,
+            pdf_mxc_url=case.pdf_mxc_url,
         )
-        widget_event_id = await self._matrix_poster.send_text(
+        root_event_id = await self._matrix_poster.send_text(
             room_id=self._room2_id,
-            body=widget_body,
+            body=root_body,
         )
         logger.info(
             "room2_widget_posted case_id=%s room_id=%s event_id=%s",
             case.case_id,
             self._room2_id,
-            widget_event_id,
+            root_event_id,
         )
 
         await self._message_repository.add_message(
             CaseMessageCreateInput(
                 case_id=case.case_id,
                 room_id=self._room2_id,
-                event_id=widget_event_id,
+                event_id=root_event_id,
                 sender_user_id=None,
                 kind="room2_case_root",
             )
@@ -189,7 +184,7 @@ class PostRoom2WidgetService:
                 case_id=case.case_id,
                 actor_type="bot",
                 room_id=self._room2_id,
-                matrix_event_id=widget_event_id,
+                matrix_event_id=root_event_id,
                 event_type="ROOM2_WIDGET_POSTED",
                 payload={
                     "case_id": str(case.case_id),
@@ -206,7 +201,7 @@ class PostRoom2WidgetService:
         )
         summary_event_id = await self._matrix_poster.reply_text(
             room_id=self._room2_id,
-            event_id=widget_event_id,
+            event_id=root_event_id,
             body=summary_body,
         )
         logger.info(
@@ -214,7 +209,7 @@ class PostRoom2WidgetService:
             case.case_id,
             self._room2_id,
             summary_event_id,
-            widget_event_id,
+            root_event_id,
         )
 
         await self._message_repository.add_message(
@@ -234,7 +229,7 @@ class PostRoom2WidgetService:
                 room_id=self._room2_id,
                 matrix_event_id=summary_event_id,
                 event_type="ROOM2_CASE_SUMMARY_POSTED",
-                payload={"reply_to_event_id": widget_event_id},
+                payload={"reply_to_event_id": root_event_id},
             )
         )
 
@@ -243,7 +238,7 @@ class PostRoom2WidgetService:
         )
         instructions_event_id = await self._matrix_poster.reply_text(
             room_id=self._room2_id,
-            event_id=widget_event_id,
+            event_id=root_event_id,
             body=instructions_body,
         )
         logger.info(
@@ -254,7 +249,7 @@ class PostRoom2WidgetService:
             case.case_id,
             self._room2_id,
             instructions_event_id,
-            widget_event_id,
+            root_event_id,
         )
 
         await self._message_repository.add_message(
@@ -274,7 +269,7 @@ class PostRoom2WidgetService:
                 room_id=self._room2_id,
                 matrix_event_id=instructions_event_id,
                 event_type="ROOM2_CASE_INSTRUCTIONS_POSTED",
-                payload={"reply_to_event_id": widget_event_id},
+                payload={"reply_to_event_id": root_event_id},
             )
         )
 
@@ -308,7 +303,7 @@ class PostRoom2WidgetService:
             case.case_id,
             CaseStatus.WAIT_DOCTOR.value,
         )
-        return payload
+        return {}
 
 
 def _build_widget_payload(

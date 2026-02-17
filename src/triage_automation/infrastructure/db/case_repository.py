@@ -130,6 +130,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
+            cases.c.pdf_mxc_url,
             cases.c.agency_record_number,
             cases.c.structured_data_json,
             cases.c.summary_text,
@@ -146,6 +147,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         return CaseRoom2WidgetSnapshot(
             case_id=cast("Any", row["case_id"]),
             status=CaseStatus(cast(str, row["status"])),
+            pdf_mxc_url=cast(str | None, row["pdf_mxc_url"]),
             agency_record_number=cast(str | None, row["agency_record_number"]),
             structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
             summary_text=cast(str | None, row["summary_text"]),

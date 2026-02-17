@@ -20,7 +20,7 @@
 
 - [x] 4.1 Emit deterministic Room-2 success feedback when a structured decision is accepted and applied.
 - [x] 4.2 Emit actionable Room-2 error feedback for parse/validation/state/authorization failures.
-- [ ] 4.3 Remove widget-style decision as a standard runtime path, keeping `/callbacks/triage-decision` as emergency-only compatibility behavior.
+- [x] 4.3 Remove widget-style decision as a standard runtime path, keeping `/callbacks/triage-decision` as emergency-only compatibility behavior.
 - [x] 4.4 Persist Room-2 decision confirmation message as a dedicated reaction acknowledgment target posted after accepted decision handling.
 - [x] 4.5 Accept only supported positive Room-2 acknowledgment reactions on the confirmation target as optional audit signal and keep workflow progression non-blocking.
 
