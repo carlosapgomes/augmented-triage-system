@@ -30,6 +30,28 @@ def extract_patient_name_age(
     return patient_name, patient_age
 
 
+def extract_requested_exam(structured_data_json: dict[str, Any] | None) -> str | None:
+    """Extract requested exam/procedure name from LLM1 structured payload."""
+
+    if not isinstance(structured_data_json, dict):
+        return None
+
+    eda_raw = structured_data_json.get("eda")
+    if not isinstance(eda_raw, dict):
+        return None
+
+    requested_raw = eda_raw.get("requested_procedure")
+    if not isinstance(requested_raw, dict):
+        requested_raw = eda_raw.get("procedimento_solicitado")
+    if not isinstance(requested_raw, dict):
+        return None
+
+    exam_name = _normalize_optional_string(requested_raw.get("name"))
+    if exam_name is None:
+        exam_name = _normalize_optional_string(requested_raw.get("nome"))
+    return exam_name
+
+
 def _normalize_optional_string(value: object) -> str | None:
     if not isinstance(value, str):
         return None

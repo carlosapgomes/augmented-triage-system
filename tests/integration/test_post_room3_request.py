@@ -70,6 +70,7 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     await case_repo.store_llm1_artifacts(
         case_id=case.case_id,
         structured_data_json={
+            "eda": {"requested_procedure": {"name": "EDA"}},
             "patient": {
                 "name": "EVALDO CARDOSO DOS SANTOS",
                 "age": 42,
@@ -97,6 +98,7 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     assert "registro: 4777300" in request_body
     assert "paciente: EVALDO CARDOSO DOS SANTOS" in request_body
     assert "idade: 42" in request_body
+    assert "exame solicitado: EDA" in request_body
     assert "caso esperado" in request_body.lower()
     assert "copie a proxima mensagem" in request_body.lower()
 

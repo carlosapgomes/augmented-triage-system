@@ -541,18 +541,20 @@ def build_room3_request_message(
     agency_record_number: str | None,
     patient_name: str | None,
     patient_age: str | None,
+    requested_exam: str | None,
 ) -> str:
     """Build Room-3 guidance message that points scheduler to copy template."""
 
-    record_display = _format_room3_context_value(agency_record_number)
-    patient_display = _format_room3_context_value(patient_name)
-    age_display = _format_room3_context_value(patient_age)
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+        requested_exam=requested_exam,
+    )
     return (
         "Solicitacao de agendamento\n\n"
-        f"caso: {case_id}\n"
-        f"registro: {record_display}\n"
-        f"paciente: {patient_display}\n"
-        f"idade: {age_display}\n\n"
+        f"{context_block}\n\n"
         "1. Copie a PROXIMA mensagem (modelo puro).\n"
         "2. Responda como resposta a ela, preenchendo os campos.\n"
         "3. Mantenha exatamente uma linha por campo.\n\n"
@@ -589,6 +591,7 @@ def build_room3_ack_message(
     agency_record_number: str | None,
     patient_name: str | None,
     patient_age: str | None,
+    requested_exam: str | None,
 ) -> str:
     """Build Room-3 ack body used as audit-only reaction target."""
 
@@ -597,6 +600,7 @@ def build_room3_ack_message(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
         patient_age=patient_age,
+        requested_exam=requested_exam,
     )
     return (
         "Solicitacao de agendamento registrada\n"
@@ -626,6 +630,7 @@ def build_room1_final_accepted_message(
     agency_record_number: str | None,
     patient_name: str | None,
     patient_age: str | None,
+    requested_exam: str | None,
     appointment_at: datetime,
     location: str,
     instructions: str,
@@ -637,6 +642,7 @@ def build_room1_final_accepted_message(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
         patient_age=patient_age,
+        requested_exam=requested_exam,
     )
     return (
         "✅ aceito\n"
@@ -653,6 +659,7 @@ def build_room1_final_denied_triage_message(
     agency_record_number: str | None,
     patient_name: str | None,
     patient_age: str | None,
+    requested_exam: str | None,
     reason: str,
 ) -> str:
     """Build Room-1 triage denied final reply template."""
@@ -662,6 +669,7 @@ def build_room1_final_denied_triage_message(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
         patient_age=patient_age,
+        requested_exam=requested_exam,
     )
     return (
         "❌ negado (triagem)\n"
@@ -676,6 +684,7 @@ def build_room1_final_denied_appointment_message(
     agency_record_number: str | None,
     patient_name: str | None,
     patient_age: str | None,
+    requested_exam: str | None,
     reason: str,
 ) -> str:
     """Build Room-1 appointment denied final reply template."""
@@ -685,6 +694,7 @@ def build_room1_final_denied_appointment_message(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
         patient_age=patient_age,
+        requested_exam=requested_exam,
     )
     return (
         "❌ negado (agendamento)\n"
@@ -699,6 +709,7 @@ def build_room1_final_failure_message(
     agency_record_number: str | None,
     patient_name: str | None,
     patient_age: str | None,
+    requested_exam: str | None,
     cause: str,
     details: str,
 ) -> str:
@@ -709,6 +720,7 @@ def build_room1_final_failure_message(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
         patient_age=patient_age,
+        requested_exam=requested_exam,
     )
     return (
         "⚠️ falha no processamento\n"
@@ -724,10 +736,12 @@ def _build_case_context_block(
     agency_record_number: str | None,
     patient_name: str | None,
     patient_age: str | None,
+    requested_exam: str | None,
 ) -> str:
     return (
         f"caso: {case_id}\n"
         f"registro: {_format_room3_context_value(agency_record_number)}\n"
         f"paciente: {_format_room3_context_value(patient_name)}\n"
-        f"idade: {_format_room3_context_value(patient_age)}"
+        f"idade: {_format_room3_context_value(patient_age)}\n"
+        f"exame solicitado: {_format_room3_context_value(requested_exam)}"
     )

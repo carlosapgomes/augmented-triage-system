@@ -68,6 +68,7 @@ async def _store_case_context(
     record_number: str,
     patient_name: str,
     patient_age: int,
+    requested_exam: str,
 ) -> None:
     await case_repo.store_pdf_extraction(
         case_id=case_id,
@@ -77,7 +78,10 @@ async def _store_case_context(
     )
     await case_repo.store_llm1_artifacts(
         case_id=case_id,
-        structured_data_json={"patient": {"name": patient_name, "age": patient_age}},
+        structured_data_json={
+            "patient": {"name": patient_name, "age": patient_age},
+            "eda": {"requested_procedure": {"name": requested_exam}},
+        },
         summary_text="Resumo",
     )
 
@@ -125,6 +129,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         record_number="777001",
         patient_name="PACIENTE TRIAGEM",
         patient_age=51,
+        requested_exam="EDA",
     )
     await _store_case_context(
         case_repo,
@@ -132,6 +137,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         record_number="777002",
         patient_name="PACIENTE APTO",
         patient_age=62,
+        requested_exam="EDA",
     )
     await _store_case_context(
         case_repo,
@@ -139,6 +145,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         record_number="777003",
         patient_name="PACIENTE SEM AGENDA",
         patient_age=44,
+        requested_exam="EDA",
     )
     await _store_case_context(
         case_repo,
@@ -146,6 +153,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         record_number="777004",
         patient_name="PACIENTE FALHA",
         patient_age=73,
+        requested_exam="EDA",
     )
 
     engine = sa.create_engine(sync_url)
@@ -197,6 +205,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "registro: 777001\n"
             "paciente: PACIENTE TRIAGEM\n"
             "idade: 51\n"
+            "exame solicitado: EDA\n"
             "motivo: critério clínico"
         ),
     )
@@ -209,6 +218,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "registro: 777002\n"
             "paciente: PACIENTE APTO\n"
             "idade: 62\n"
+            "exame solicitado: EDA\n"
             "agendamento: 16-02-2026 14:30 BRT\n"
             "local: Sala 2\n"
             "instrucoes: Jejum 8h\n"
@@ -223,6 +233,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "registro: 777003\n"
             "paciente: PACIENTE SEM AGENDA\n"
             "idade: 44\n"
+            "exame solicitado: EDA\n"
             "motivo: sem agenda"
         ),
     )
@@ -235,6 +246,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "registro: 777004\n"
             "paciente: PACIENTE FALHA\n"
             "idade: 73\n"
+            "exame solicitado: EDA\n"
             "causa: llm\n"
             "detalhes: schema mismatch"
         ),

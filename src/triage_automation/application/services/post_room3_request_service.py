@@ -16,7 +16,10 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
-from triage_automation.application.services.patient_context import extract_patient_name_age
+from triage_automation.application.services.patient_context import (
+    extract_patient_name_age,
+    extract_requested_exam,
+)
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room3_reply_template_message,
@@ -127,11 +130,13 @@ class PostRoom3RequestService:
             )
 
         patient_name, patient_age = extract_patient_name_age(snapshot.structured_data_json)
+        requested_exam = extract_requested_exam(snapshot.structured_data_json)
         request_body = build_room3_request_message(
             case_id=case_id,
             agency_record_number=snapshot.agency_record_number,
             patient_name=patient_name,
             patient_age=patient_age,
+            requested_exam=requested_exam,
         )
         request_event_id = await self._matrix_poster.send_text(
             room_id=self._room3_id,

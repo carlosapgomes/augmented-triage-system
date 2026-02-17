@@ -20,7 +20,10 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
-from triage_automation.application.services.patient_context import extract_patient_name_age
+from triage_automation.application.services.patient_context import (
+    extract_patient_name_age,
+    extract_requested_exam,
+)
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.scheduler_parser import SchedulerParseError, parse_scheduler_reply
 from triage_automation.infrastructure.matrix.message_templates import (
@@ -258,11 +261,13 @@ class Room3ReplyService:
         """Post Room-3 ack after valid scheduler reply; failures are audit-only."""
 
         patient_name, patient_age = extract_patient_name_age(structured_data_json)
+        requested_exam = extract_requested_exam(structured_data_json)
         body = build_room3_ack_message(
             case_id=case_id,
             agency_record_number=agency_record_number,
             patient_name=patient_name,
             patient_age=patient_age,
+            requested_exam=requested_exam,
         )
         try:
             ack_event_id = await self._matrix_poster.reply_text(

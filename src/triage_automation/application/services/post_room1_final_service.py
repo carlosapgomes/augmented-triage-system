@@ -19,7 +19,10 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
-from triage_automation.application.services.patient_context import extract_patient_name_age
+from triage_automation.application.services.patient_context import (
+    extract_patient_name_age,
+    extract_requested_exam,
+)
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_accepted_message,
@@ -169,6 +172,7 @@ def _render_final_message(
     payload: dict[str, object],
 ) -> str:
     patient_name, patient_age = extract_patient_name_age(case.structured_data_json)
+    requested_exam = extract_requested_exam(case.structured_data_json)
 
     if job_type == "post_room1_final_denial_triage":
         _require_status(case=case, expected=CaseStatus.DOCTOR_DENIED, job_type=job_type)
@@ -178,6 +182,7 @@ def _render_final_message(
             agency_record_number=case.agency_record_number,
             patient_name=patient_name,
             patient_age=patient_age,
+            requested_exam=requested_exam,
             reason=reason,
         )
 
@@ -197,6 +202,7 @@ def _render_final_message(
             agency_record_number=case.agency_record_number,
             patient_name=patient_name,
             patient_age=patient_age,
+            requested_exam=requested_exam,
             appointment_at=case.appointment_at,
             location=case.appointment_location,
             instructions=case.appointment_instructions,
@@ -210,6 +216,7 @@ def _render_final_message(
             agency_record_number=case.agency_record_number,
             patient_name=patient_name,
             patient_age=patient_age,
+            requested_exam=requested_exam,
             reason=reason,
         )
 
@@ -222,6 +229,7 @@ def _render_final_message(
             agency_record_number=case.agency_record_number,
             patient_name=patient_name,
             patient_age=patient_age,
+            requested_exam=requested_exam,
             cause=cause,
             details=details,
         )
