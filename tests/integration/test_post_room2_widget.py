@@ -249,9 +249,19 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
             ),
             {"case_id": current_case.case_id.hex},
         ).scalar_one()
+        root_case_id = connection.execute(
+            sa.text(
+                "SELECT case_id FROM case_messages "
+                "WHERE room_id = :room_id AND event_id = :event_id AND kind = 'room2_case_root' "
+                "LIMIT 1"
+            ),
+            {"room_id": "!room2:example.org", "event_id": root_event_id},
+        ).scalar_one_or_none()
 
     assert status == "WAIT_DOCTOR"
-    assert list(kinds) == ["bot_widget", "room2_case_summary", "room2_case_instructions"]
+    assert list(kinds) == ["room2_case_root", "room2_case_summary", "room2_case_instructions"]
+    assert root_case_id is not None
+    assert UUID(str(root_case_id)) == current_case.case_id
     parsed_status_payload = (
         status_event_payload
         if isinstance(status_event_payload, dict)

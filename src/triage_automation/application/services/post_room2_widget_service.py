@@ -180,7 +180,7 @@ class PostRoom2WidgetService:
                 room_id=self._room2_id,
                 event_id=widget_event_id,
                 sender_user_id=None,
-                kind="bot_widget",
+                kind="room2_case_root",
             )
         )
 
