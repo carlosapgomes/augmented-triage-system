@@ -97,6 +97,7 @@ def test_build_room2_case_decision_instructions_message_has_strict_template() ->
     assert "copie a proxima mensagem" in body.lower()
     assert "responda como resposta a ela" in body.lower()
     assert "decisao:aceitar" in body
+    assert "valores validos" in body.lower()
     assert "caso esperado" in body
     assert f"caso esperado: {case_id}" in body
 
@@ -118,9 +119,9 @@ def test_build_room2_case_decision_template_message_is_copy_paste_ready() -> Non
 
     body = build_room2_case_decision_template_message(case_id=case_id)
 
-    assert body.startswith("decisao: aceitar|negar\n")
-    assert "suporte: nenhum|anestesista|anestesista_uti\n" in body
-    assert "motivo:\n" in body
+    assert body.startswith("decisao: aceitar\n")
+    assert "suporte: nenhum\n" in body
+    assert "motivo: (opcional)\n" in body
     assert body.endswith(f"caso: {case_id}")
 
 
@@ -130,9 +131,9 @@ def test_build_room2_case_decision_template_formatted_html_has_only_pre_block() 
     body = build_room2_case_decision_template_formatted_html(case_id=case_id)
 
     assert body.startswith("<pre><code>")
-    assert "decisao: aceitar|negar" in body
-    assert "suporte: nenhum|anestesista|anestesista_uti" in body
-    assert "motivo:" in body
+    assert "decisao: aceitar" in body
+    assert "suporte: nenhum" in body
+    assert "motivo: (opcional)" in body
     assert f"caso: {case_id}" in body
     assert body.endswith("</code></pre>")
 

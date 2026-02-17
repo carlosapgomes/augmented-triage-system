@@ -303,6 +303,7 @@ def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
         "Regras:\n"
         "- Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)\n"
         "- decisao=negar exige suporte=nenhum\n"
+        "- valores validos: decisao=aceitar|negar; suporte=nenhum|anestesista|anestesista_uti\n"
         "- Nao adicione linhas fora do modelo\n"
         f"- caso esperado: {case_id}"
     )
@@ -322,6 +323,8 @@ def build_room2_case_decision_instructions_formatted_html(*, case_id: UUID) -> s
         "<ul>"
         "<li>Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)</li>"
         "<li>decisao=negar exige suporte=nenhum</li>"
+        "<li>valores validos: decisao=aceitar|negar; "
+        "suporte=nenhum|anestesista|anestesista_uti</li>"
         "<li>Nao adicione linhas fora do modelo</li>"
         f"<li>caso esperado: {escape(str(case_id))}</li>"
         "</ul>"
@@ -332,9 +335,9 @@ def build_room2_case_decision_template_message(*, case_id: UUID) -> str:
     """Build Room-2 pure template message intended for doctor copy/paste reply."""
 
     return (
-        "decisao: aceitar|negar\n"
-        "suporte: nenhum|anestesista|anestesista_uti\n"
-        "motivo:\n"
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: (opcional)\n"
         f"caso: {case_id}"
     )
 
@@ -343,9 +346,9 @@ def build_room2_case_decision_template_formatted_html(*, case_id: UUID) -> str:
     """Build Room-2 pure template HTML payload for easier copy on supporting clients."""
 
     template_block = (
-        "decisao: aceitar|negar\n"
-        "suporte: nenhum|anestesista|anestesista_uti\n"
-        "motivo:\n"
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: (opcional)\n"
         f"caso: {escape(str(case_id))}"
     )
     return f"<pre><code>{template_block}</code></pre>"

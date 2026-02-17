@@ -31,6 +31,16 @@ _SUPPORT_ALIASES: dict[str, str] = {
     "anestesista_uti": "anesthesist_icu",
     "anestesista_icu": "anesthesist_icu",
 }
+_EMPTY_REASON_MARKERS = {
+    "",
+    "(opcional)",
+    "opcional",
+    "(vazio)",
+    "vazio",
+    "-",
+    "n/a",
+    "na",
+}
 
 
 @dataclass(frozen=True)
@@ -101,8 +111,7 @@ def parse_doctor_decision_reply(
     if expected_case_id is not None and case_id != expected_case_id:
         raise DoctorDecisionParseError("case_id_mismatch")
 
-    reason_raw = parsed_fields["reason"]
-    reason = reason_raw if reason_raw else None
+    reason = _normalize_reason(parsed_fields["reason"])
 
     return DoctorDecisionReplyParsed(
         case_id=case_id,
@@ -136,3 +145,10 @@ def _normalized_message_lines(*, body: str) -> list[str]:
             continue
         lines.append(line)
     return lines
+
+
+def _normalize_reason(reason_raw: str) -> str | None:
+    normalized = reason_raw.strip()
+    if normalized.lower() in _EMPTY_REASON_MARKERS:
+        return None
+    return normalized

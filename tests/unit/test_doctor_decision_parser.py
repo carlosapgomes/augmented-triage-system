@@ -44,6 +44,21 @@ def test_parse_deny_template_with_empty_reason_success() -> None:
     assert parsed.reason is None
 
 
+def test_parse_treats_optional_reason_marker_as_empty() -> None:
+    case_id = "22222222-2222-2222-2222-222222222222"
+    body = (
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: (opcional)\n"
+        f"caso: {case_id}\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert str(parsed.case_id) == case_id
+    assert parsed.reason is None
+
+
 def test_parse_still_accepts_legacy_english_keys_for_backward_compatibility() -> None:
     body = (
         "decision: accept\n"
