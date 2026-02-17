@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from triage_automation.infrastructure.matrix.room2_reply_parser import (
     parse_room2_decision_reply_event,
 )
@@ -120,6 +122,31 @@ def test_parse_room2_reply_rejects_invalid_template_even_with_correct_parent() -
         event=event,
         bot_user_id="@bot:example.org",
         active_root_event_id=active_root_event_id,
+    )
+
+    assert parsed is None
+
+
+def test_parse_room2_reply_rejects_case_id_mismatch_against_expected() -> None:
+    active_root_event_id = "$room2-root-1"
+    event = _room2_reply_event(
+        event_id="$room2-reply-5",
+        sender="@doctor:example.org",
+        body=(
+            "decision: accept\n"
+            "support_flag: none\n"
+            "reason: ok\n"
+            "case_id: 11111111-1111-1111-1111-111111111111\n"
+        ),
+        reply_to_event_id=active_root_event_id,
+    )
+
+    parsed = parse_room2_decision_reply_event(
+        room_id="!room2:example.org",
+        event=event,
+        bot_user_id="@bot:example.org",
+        active_root_event_id=active_root_event_id,
+        expected_case_id=UUID("22222222-2222-2222-2222-222222222222"),
     )
 
     assert parsed is None

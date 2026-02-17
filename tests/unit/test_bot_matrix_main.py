@@ -46,8 +46,10 @@ async def test_room1_listener_retries_after_transport_failure(
         await asyncio.wait_for(
             run_room1_intake_listener(
                 matrix_client=matrix_client,
+                message_repository=object(),  # no routed events in this test
                 intake_service=object(),  # no routed events in this test
                 reaction_service=object(),  # no routed events in this test
+                room2_reply_service=object(),  # no routed events in this test
                 room3_reply_service=object(),  # no routed events in this test
                 room1_id="!room1:example.org",
                 room2_id="!room2:example.org",

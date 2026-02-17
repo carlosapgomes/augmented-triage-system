@@ -5,12 +5,20 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from triage_automation.application.dto.webhook_models import Decision, SupportFlag
+from triage_automation.application.services.handle_doctor_decision_service import (
+    HandleDoctorDecisionService,
+)
 from triage_automation.application.services.reaction_service import ReactionService
 from triage_automation.application.services.room1_intake_service import Room1IntakeService
+from triage_automation.application.services.room2_reply_service import (
+    Room2ReplyEvent,
+    Room2ReplyService,
+)
 from triage_automation.application.services.room3_reply_service import Room3ReplyService
 from triage_automation.config.settings import Settings, load_settings
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
@@ -25,6 +33,9 @@ from triage_automation.infrastructure.matrix.http_client import (
     MatrixTransportError,
 )
 from triage_automation.infrastructure.matrix.reaction_parser import parse_matrix_reaction_event
+from triage_automation.infrastructure.matrix.room2_reply_parser import (
+    parse_room2_decision_reply_event,
+)
 from triage_automation.infrastructure.matrix.room3_reply_parser import parse_room3_reply_event
 from triage_automation.infrastructure.matrix.sync_events import (
     extract_next_batch_token,
@@ -44,6 +55,9 @@ class MatrixRoom1ListenerClientPort(Protocol):
     async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
         """Post reply text to Matrix and return created event id."""
 
+    async def send_text(self, *, room_id: str, body: str) -> str:
+        """Post text to Matrix and return created event id."""
+
 
 @dataclass(frozen=True)
 class BotMatrixRuntime:
@@ -51,8 +65,10 @@ class BotMatrixRuntime:
 
     settings: Settings
     matrix_client: MatrixRoom1ListenerClientPort
+    message_repository: SqlAlchemyMessageRepository
     room1_intake_service: Room1IntakeService
     reaction_service: ReactionService
+    room2_reply_service: Room2ReplyService
     room3_reply_service: Room3ReplyService
 
 
@@ -81,6 +97,7 @@ def build_bot_matrix_runtime(
     matrix_client: MatrixRoom1ListenerClientPort | None = None,
     room1_intake_service: Room1IntakeService | None = None,
     reaction_service: ReactionService | None = None,
+    room2_reply_service: Room2ReplyService | None = None,
     room3_reply_service: Room3ReplyService | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
 ) -> BotMatrixRuntime:
@@ -103,8 +120,14 @@ def build_bot_matrix_runtime(
         matrix_client=runtime_matrix_client,
         session_factory=runtime_session_factory,
     )
+    runtime_message_repository = SqlAlchemyMessageRepository(runtime_session_factory)
     runtime_reaction_service = reaction_service or build_reaction_service(
         settings=runtime_settings,
+        session_factory=runtime_session_factory,
+    )
+    runtime_room2_reply_service = room2_reply_service or build_room2_reply_service(
+        settings=runtime_settings,
+        matrix_client=runtime_matrix_client,
         session_factory=runtime_session_factory,
     )
     runtime_room3_reply_service = room3_reply_service or build_room3_reply_service(
@@ -116,8 +139,10 @@ def build_bot_matrix_runtime(
     return BotMatrixRuntime(
         settings=runtime_settings,
         matrix_client=runtime_matrix_client,
+        message_repository=runtime_message_repository,
         room1_intake_service=runtime_room1_intake_service,
         reaction_service=runtime_reaction_service,
+        room2_reply_service=runtime_room2_reply_service,
         room3_reply_service=runtime_room3_reply_service,
     )
 
@@ -230,11 +255,37 @@ async def poll_room3_reply_events_once(
     return next_since, routed_count
 
 
+async def poll_room2_reply_events_once(
+    *,
+    matrix_client: MatrixRoom1ListenerClientPort,
+    room2_reply_service: Room2ReplyService,
+    message_repository: SqlAlchemyMessageRepository,
+    room2_id: str,
+    bot_user_id: str,
+    since_token: str | None,
+    sync_timeout_ms: int,
+) -> tuple[str | None, int]:
+    """Poll Matrix once and route supported Room-2 decision reply events."""
+
+    sync_payload = await matrix_client.sync(since=since_token, timeout_ms=sync_timeout_ms)
+    next_since = extract_next_batch_token(sync_payload, fallback=since_token)
+    routed_count = await _route_room2_replies_from_sync(
+        sync_payload=sync_payload,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id=room2_id,
+        bot_user_id=bot_user_id,
+    )
+    return next_since, routed_count
+
+
 async def poll_room1_reactions_and_room3_once(
     *,
     matrix_client: MatrixRoom1ListenerClientPort,
     intake_service: Room1IntakeService,
     reaction_service: ReactionService,
+    room2_reply_service: Room2ReplyService,
+    message_repository: SqlAlchemyMessageRepository,
     room3_reply_service: Room3ReplyService,
     room1_id: str,
     room2_id: str,
@@ -242,8 +293,8 @@ async def poll_room1_reactions_and_room3_once(
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
-) -> tuple[str | None, int, int, int]:
-    """Poll Matrix once and route Room-1 intake, reactions, and Room-3 replies."""
+) -> tuple[str | None, int, int, int, int]:
+    """Poll Matrix once and route Room-1 intake, reactions, Room-2, and Room-3 replies."""
 
     sync_payload = await matrix_client.sync(since=since_token, timeout_ms=sync_timeout_ms)
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
@@ -261,20 +312,29 @@ async def poll_room1_reactions_and_room3_once(
         room3_id=room3_id,
         bot_user_id=bot_user_id,
     )
+    room2_reply_count = await _route_room2_replies_from_sync(
+        sync_payload=sync_payload,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id=room2_id,
+        bot_user_id=bot_user_id,
+    )
     room3_reply_count = await _route_room3_replies_from_sync(
         sync_payload=sync_payload,
         room3_reply_service=room3_reply_service,
         room3_id=room3_id,
         bot_user_id=bot_user_id,
     )
-    return next_since, intake_count, reaction_count, room3_reply_count
+    return next_since, intake_count, reaction_count, room2_reply_count, room3_reply_count
 
 
 async def run_room1_intake_listener(
     *,
     matrix_client: MatrixRoom1ListenerClientPort,
+    message_repository: SqlAlchemyMessageRepository,
     intake_service: Room1IntakeService,
     reaction_service: ReactionService,
+    room2_reply_service: Room2ReplyService,
     room3_reply_service: Room3ReplyService,
     room1_id: str,
     room2_id: str,
@@ -301,11 +361,13 @@ async def run_room1_intake_listener(
     since_token = initial_since_token
     while not stop_event.is_set():
         try:
-            since_token, intake_count, reaction_count, room3_reply_count = (
+            since_token, intake_count, reaction_count, room2_reply_count, room3_reply_count = (
                 await poll_room1_reactions_and_room3_once(
                     matrix_client=matrix_client,
                     intake_service=intake_service,
                     reaction_service=reaction_service,
+                    room2_reply_service=room2_reply_service,
+                    message_repository=message_repository,
                     room3_reply_service=room3_reply_service,
                     room1_id=room1_id,
                     room2_id=room2_id,
@@ -315,14 +377,15 @@ async def run_room1_intake_listener(
                     sync_timeout_ms=sync_timeout_ms,
                 )
             )
-            if intake_count or reaction_count or room3_reply_count:
+            if intake_count or reaction_count or room2_reply_count or room3_reply_count:
                 logger.info(
                     (
                         "bot_matrix_sync_routed intake=%s reactions=%s "
-                        "room3_replies=%s"
+                        "room2_replies=%s room3_replies=%s"
                     ),
                     intake_count,
                     reaction_count,
+                    room2_reply_count,
                     room3_reply_count,
                 )
             else:
@@ -346,8 +409,10 @@ async def _run_bot_matrix() -> None:
 
     await run_room1_intake_listener(
         matrix_client=runtime.matrix_client,
+        message_repository=runtime.message_repository,
         intake_service=runtime.room1_intake_service,
         reaction_service=runtime.reaction_service,
+        room2_reply_service=runtime.room2_reply_service,
         room3_reply_service=runtime.room3_reply_service,
         room1_id=runtime.settings.room1_id,
         room2_id=runtime.settings.room2_id,
@@ -380,6 +445,28 @@ def build_reaction_service(
         audit_repository=SqlAlchemyAuditRepository(session_factory),
         message_repository=SqlAlchemyMessageRepository(session_factory),
         job_queue=SqlAlchemyJobQueueRepository(session_factory),
+    )
+
+
+def build_room2_reply_service(
+    *,
+    settings: Settings,
+    matrix_client: MatrixRoom1ListenerClientPort,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> Room2ReplyService:
+    """Build Room-2 decision reply service for runtime listener routing."""
+
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=SqlAlchemyMessageRepository(session_factory),
+        matrix_poster=matrix_client,
+        room2_id=settings.room2_id,
+    )
+    return Room2ReplyService(
+        room2_id=settings.room2_id,
+        decision_service=decision_service,
     )
 
 
@@ -455,6 +542,58 @@ async def _route_reactions_from_sync(
     return routed_count
 
 
+async def _route_room2_replies_from_sync(
+    *,
+    sync_payload: dict[str, object],
+    room2_reply_service: Room2ReplyService,
+    message_repository: SqlAlchemyMessageRepository,
+    room2_id: str,
+    bot_user_id: str,
+) -> int:
+    routed_count = 0
+    for timeline_event in iter_joined_room_timeline_events(sync_payload):
+        if timeline_event.room_id != room2_id:
+            continue
+
+        reply_target_event_id = _extract_reply_target_event_id(timeline_event.event)
+        if reply_target_event_id is None:
+            continue
+
+        mapped_case_id = await message_repository.find_case_id_by_room_event_kind(
+            room_id=room2_id,
+            event_id=reply_target_event_id,
+            kind="room2_case_root",
+        )
+        if mapped_case_id is None:
+            continue
+
+        parsed = parse_room2_decision_reply_event(
+            room_id=timeline_event.room_id,
+            event=timeline_event.event,
+            bot_user_id=bot_user_id,
+            active_root_event_id=reply_target_event_id,
+            expected_case_id=mapped_case_id,
+        )
+        if parsed is None:
+            continue
+
+        await room2_reply_service.handle_reply(
+            Room2ReplyEvent(
+                room_id=parsed.room_id,
+                event_id=parsed.event_id,
+                sender_user_id=parsed.sender_user_id,
+                reply_to_event_id=parsed.reply_to_event_id,
+                case_id=parsed.case_id,
+                decision=cast(Decision, parsed.decision),
+                support_flag=cast(SupportFlag, parsed.support_flag),
+                reason=parsed.reason,
+            )
+        )
+        routed_count += 1
+
+    return routed_count
+
+
 async def _route_room3_replies_from_sync(
     *,
     sync_payload: dict[str, object],
@@ -479,6 +618,24 @@ async def _route_room3_replies_from_sync(
         routed_count += 1
 
     return routed_count
+
+
+def _extract_reply_target_event_id(event: dict[str, object]) -> str | None:
+    """Extract `m.in_reply_to.event_id` from Matrix event payload when present."""
+
+    content = event.get("content")
+    if not isinstance(content, dict):
+        return None
+    relates = content.get("m.relates_to")
+    if not isinstance(relates, dict):
+        return None
+    in_reply_to = relates.get("m.in_reply_to")
+    if not isinstance(in_reply_to, dict):
+        return None
+    reply_event_id = in_reply_to.get("event_id")
+    if not isinstance(reply_event_id, str) or not reply_event_id:
+        return None
+    return reply_event_id
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@
 
 ## 3. Decision Routing And Actor Attribution
 
-- [ ] 3.1 Wire Room-2 structured reply events from Matrix runtime listener to the existing doctor-decision application path without adding business logic in adapters.
+- [x] 3.1 Wire Room-2 structured reply events from Matrix runtime listener to the existing doctor-decision application path without adding business logic in adapters.
 - [ ] 3.2 Derive `doctor_user_id` from Matrix event sender and ignore/reject any typed identity field in reply content.
 - [ ] 3.3 Keep Room-2 membership as authorization boundary and ensure unauthorized decision-like events are rejected without state mutation.
 

@@ -32,6 +32,7 @@ def parse_room2_decision_reply_event(
     event: dict[str, Any],
     bot_user_id: str,
     active_root_event_id: str,
+    expected_case_id: UUID | None = None,
 ) -> Room2DecisionReplyEvent | None:
     """Parse Matrix message event into normalized Room-2 decision reply payload."""
 
@@ -73,7 +74,10 @@ def parse_room2_decision_reply_event(
         return None
 
     try:
-        parsed = parse_doctor_decision_reply(body=body)
+        parsed = parse_doctor_decision_reply(
+            body=body,
+            expected_case_id=expected_case_id,
+        )
     except DoctorDecisionParseError:
         return None
 
