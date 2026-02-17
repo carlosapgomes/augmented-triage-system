@@ -103,6 +103,23 @@ def build_room2_case_pdf_message(
     )
 
 
+def build_room2_case_pdf_formatted_html(
+    *,
+    case_id: UUID,
+    agency_record_number: str,
+    extracted_text: str,
+) -> str:
+    """Build Room-2 message I HTML payload preserving extracted text line breaks."""
+
+    return (
+        "<h1>Solicitacao de triagem - contexto original</h1>"
+        f"<p>caso: {escape(str(case_id))}</p>"
+        f"<p>registro: {escape(agency_record_number)}</p>"
+        "<h2>Texto extraido do relatorio original:</h2>"
+        f"<pre><code>{escape(extracted_text)}</code></pre>"
+    )
+
+
 def build_room2_case_summary_message(
     *,
     case_id: UUID,
@@ -273,15 +290,42 @@ def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
     """Build Room-2 message III body with strict doctor decision reply template."""
 
     return (
-        "Instrucao de decisao medica\n"
-        "Responda como resposta a mensagem raiz deste caso usando exatamente o modelo:\n\n"
+        "# Instrucao de decisao medica\n\n"
+        "Responda como resposta a ESTA mensagem.\n"
+        "Copie o modelo abaixo, preencha e envie mantendo uma linha por campo:\n\n"
+        "```text\n"
         "decisao: aceitar|negar\n"
         "suporte: nenhum|anestesista|anestesista_uti\n"
         "motivo: <texto livre ou vazio>\n"
-        f"caso: {case_id}\n\n"
+        f"caso: {case_id}\n"
+        "```\n\n"
         "Regras:\n"
+        "- Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)\n"
         "- decisao=negar exige suporte=nenhum\n"
-        "- Nao use texto fora do modelo"
+        "- Nao adicione linhas fora do modelo"
+    )
+
+
+def build_room2_case_decision_instructions_formatted_html(*, case_id: UUID) -> str:
+    """Build Room-2 message III HTML payload with copy-paste friendly template block."""
+
+    template_block = (
+        "decisao: aceitar|negar\n"
+        "suporte: nenhum|anestesista|anestesista_uti\n"
+        "motivo: &lt;texto livre ou vazio&gt;\n"
+        f"caso: {escape(str(case_id))}"
+    )
+    return (
+        "<h1>Instrucao de decisao medica</h1>"
+        "<p>Responda como resposta a <strong>ESTA mensagem</strong>.</p>"
+        "<p>Copie o modelo abaixo, preencha e envie mantendo uma linha por campo:</p>"
+        f"<pre><code>{template_block}</code></pre>"
+        "<h2>Regras:</h2>"
+        "<ul>"
+        "<li>Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)</li>"
+        "<li>decisao=negar exige suporte=nenhum</li>"
+        "<li>Nao adicione linhas fora do modelo</li>"
+        "</ul>"
     )
 
 

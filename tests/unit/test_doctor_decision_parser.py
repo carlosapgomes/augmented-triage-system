@@ -58,6 +58,51 @@ def test_parse_still_accepts_legacy_english_keys_for_backward_compatibility() ->
     assert parsed.support_flag == "none"
 
 
+def test_parse_accepts_without_space_after_colon() -> None:
+    body = (
+        "decisao:aceitar\n"
+        "suporte:nenhum\n"
+        "motivo:ok\n"
+        "caso:11111111-1111-1111-1111-111111111111\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
+    assert parsed.reason == "ok"
+
+
+def test_parse_accepts_template_wrapped_in_code_fences() -> None:
+    body = (
+        "```text\n"
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
+        "```\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
+
+
+def test_parse_accepts_decisao_with_accent() -> None:
+    body = (
+        "decisão: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
+
+
 def test_parse_rejects_unknown_field() -> None:
     body = (
         "decisao: aceitar\n"

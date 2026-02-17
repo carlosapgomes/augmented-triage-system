@@ -128,6 +128,32 @@ def test_parse_room2_reply_rejects_invalid_template_even_with_correct_parent() -
     assert parsed is None
 
 
+def test_parse_room2_reply_accepts_without_space_after_colon() -> None:
+    active_root_event_id = "$room2-root-1"
+    event = _room2_reply_event(
+        event_id="$room2-reply-compact",
+        sender="@doctor:example.org",
+        body=(
+            "decisao:aceitar\n"
+            "suporte:nenhum\n"
+            "motivo:ok\n"
+            "caso:11111111-1111-1111-1111-111111111111\n"
+        ),
+        reply_to_event_id=active_root_event_id,
+    )
+
+    parsed = parse_room2_decision_reply_event(
+        room_id="!room2:example.org",
+        event=event,
+        bot_user_id="@bot:example.org",
+        active_root_event_id=active_root_event_id,
+    )
+
+    assert parsed is not None
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
+
+
 def test_parse_room2_reply_rejects_case_id_mismatch_against_expected() -> None:
     active_root_event_id = "$room2-root-1"
     event = _room2_reply_event(

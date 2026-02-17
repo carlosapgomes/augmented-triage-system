@@ -26,7 +26,9 @@ from triage_automation.application.ports.prior_case_query_port import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
+    build_room2_case_decision_instructions_formatted_html,
     build_room2_case_decision_instructions_message,
+    build_room2_case_pdf_formatted_html,
     build_room2_case_pdf_message,
     build_room2_case_summary_formatted_html,
     build_room2_case_summary_message,
@@ -172,9 +174,15 @@ class PostRoom2WidgetService:
             agency_record_number=case.agency_record_number,
             extracted_text=case.extracted_text,
         )
+        root_formatted_body = build_room2_case_pdf_formatted_html(
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            extracted_text=case.extracted_text,
+        )
         root_event_id = await self._matrix_poster.send_text(
             room_id=self._room2_id,
             body=root_body,
+            formatted_body=root_formatted_body,
         )
         logger.info(
             "room2_widget_posted case_id=%s room_id=%s event_id=%s",
@@ -257,10 +265,14 @@ class PostRoom2WidgetService:
         instructions_body = build_room2_case_decision_instructions_message(
             case_id=case.case_id
         )
+        instructions_formatted_body = build_room2_case_decision_instructions_formatted_html(
+            case_id=case.case_id
+        )
         instructions_event_id = await self._matrix_poster.reply_text(
             room_id=self._room2_id,
             event_id=root_event_id,
             body=instructions_body,
+            formatted_body=instructions_formatted_body,
         )
         logger.info(
             (

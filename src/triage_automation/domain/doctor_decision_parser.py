@@ -7,7 +7,7 @@ from uuid import UUID
 
 _REQUIRED_KEYS = ("decision", "support_flag", "reason", "case_id")
 _KEY_ALIASES: dict[str, tuple[str, ...]] = {
-    "decision": ("decision", "decisao"),
+    "decision": ("decision", "decisao", "decisão"),
     "support_flag": ("support_flag", "suporte"),
     "reason": ("reason", "motivo"),
     "case_id": ("case_id", "caso"),
@@ -60,16 +60,17 @@ def parse_doctor_decision_reply(
 ) -> DoctorDecisionReplyParsed:
     """Parse strict Room-2 doctor decision reply template."""
 
-    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    lines = _normalized_message_lines(body=body)
     if not lines:
         raise DoctorDecisionParseError("empty_message")
 
     parsed_fields: dict[str, str] = {}
     for line in lines:
-        if ":" not in line:
+        normalized_line = line.replace("：", ":")
+        if ":" not in normalized_line:
             raise DoctorDecisionParseError("invalid_line_format")
 
-        key_raw, value = line.split(":", 1)
+        key_raw, value = normalized_line.split(":", 1)
         parsed_key = _normalize_key(key_raw.strip().lower())
         if parsed_key is None:
             raise DoctorDecisionParseError("unknown_field")
@@ -123,3 +124,15 @@ def _normalize_key(raw_key: str) -> str | None:
         if raw_key in aliases:
             return canonical
     return None
+
+
+def _normalized_message_lines(*, body: str) -> list[str]:
+    lines: list[str] = []
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("```"):
+            continue
+        lines.append(line)
+    return lines

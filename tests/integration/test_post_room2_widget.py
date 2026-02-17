@@ -230,7 +230,9 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "mxc://example.org/current" not in root_body
     assert "/widget/room2" not in root_body
     assert "Payload do widget" not in root_body
-    assert root_formatted_body is None
+    assert root_formatted_body is not None
+    assert "<h1>Solicitacao de triagem - contexto original</h1>" in root_formatted_body
+    assert "<pre><code>current text</code></pre>" in root_formatted_body
 
     (
         summary_room_id,
@@ -274,7 +276,12 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert instructions_parent == root_event_id
     assert "decisao: aceitar|negar" in instructions_body
     assert "suporte: nenhum|anestesista|anestesista_uti" in instructions_body
-    assert instructions_formatted_body is None
+    assert "```text" in instructions_body
+    assert "decisao:aceitar" in instructions_body
+    assert instructions_formatted_body is not None
+    assert "<h1>Instrucao de decisao medica</h1>" in instructions_formatted_body
+    assert "<pre><code>" in instructions_formatted_body
+    assert "decisao: aceitar|negar" in instructions_formatted_body
 
     with engine.begin() as connection:
         status = connection.execute(

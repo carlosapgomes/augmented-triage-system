@@ -3,7 +3,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from triage_automation.infrastructure.matrix.message_templates import (
+    build_room2_case_decision_instructions_formatted_html,
     build_room2_case_decision_instructions_message,
+    build_room2_case_pdf_formatted_html,
     build_room2_case_pdf_message,
     build_room2_case_summary_formatted_html,
     build_room2_case_summary_message,
@@ -25,6 +27,22 @@ def test_build_room2_case_pdf_message_includes_case_and_pdf_context() -> None:
     assert "12345" in body
     assert "Paciente com dispepsia crônica." in body
     assert "texto extraido" in body.lower()
+
+
+def test_build_room2_case_pdf_formatted_html_includes_preformatted_context() -> None:
+    case_id = UUID("11111111-1111-1111-1111-111111111111")
+
+    body = build_room2_case_pdf_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        extracted_text="Linha 1\nLinha 2",
+    )
+
+    assert "<h1>Solicitacao de triagem - contexto original</h1>" in body
+    assert f"<p>caso: {case_id}</p>" in body
+    assert "<p>registro: 12345</p>" in body
+    assert "<h2>Texto extraido do relatorio original:</h2>" in body
+    assert "<pre><code>Linha 1\nLinha 2</code></pre>" in body
 
 
 def test_build_room2_case_summary_message_includes_structured_payloads() -> None:
@@ -67,11 +85,26 @@ def test_build_room2_case_decision_instructions_message_has_strict_template() ->
 
     body = build_room2_case_decision_instructions_message(case_id=case_id)
 
-    assert "resposta" in body.lower()
+    assert "copie o modelo" in body.lower()
+    assert "```text" in body
     assert "decisao: aceitar|negar" in body
     assert "suporte: nenhum|anestesista|anestesista_uti" in body
     assert "motivo:" in body
+    assert "decisao:aceitar" in body
     assert f"caso: {case_id}" in body
+
+
+def test_build_room2_case_decision_instructions_formatted_html_has_copy_block() -> None:
+    case_id = UUID("33333333-3333-3333-3333-333333333333")
+
+    body = build_room2_case_decision_instructions_formatted_html(case_id=case_id)
+
+    assert "<h1>Instrucao de decisao medica</h1>" in body
+    assert "<pre><code>" in body
+    assert "decisao: aceitar|negar" in body
+    assert "suporte: nenhum|anestesista|anestesista_uti" in body
+    assert f"caso: {case_id}" in body
+    assert "decisao:aceitar" in body
 
 
 def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
