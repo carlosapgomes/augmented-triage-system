@@ -210,7 +210,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
 
     root_room_id, root_body, root_event_id = matrix_poster.send_calls[0]
     assert root_room_id == "!room2:example.org"
-    assert str(current_case.case_id) in root_body
+    assert f"caso: {current_case.case_id}" in root_body
     assert "Solicitacao de triagem - contexto original" in root_body
     assert "Texto extraido do relatorio original:" in root_body
     assert "current text" in root_body
@@ -221,10 +221,12 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     summary_room_id, summary_parent, summary_body, _summary_event_id = matrix_poster.reply_calls[0]
     assert summary_room_id == "!room2:example.org"
     assert summary_parent == root_event_id
-    assert str(current_case.case_id) in summary_body
+    assert f"caso: {current_case.case_id}" in summary_body
     assert "Resumo LLM1" in summary_body
     assert "Dados extraidos" in summary_body
     assert "sugestao" in summary_body.lower()
+    assert "- prechecagem_politica:" in summary_body
+    assert "  - laboratorio_aprovado: yes" in summary_body
     assert "```json" not in summary_body
 
     instructions_room_id, instructions_parent, instructions_body, _instructions_event_id = (
@@ -232,8 +234,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     )
     assert instructions_room_id == "!room2:example.org"
     assert instructions_parent == root_event_id
-    assert "decision: accept|deny" in instructions_body
-    assert "support_flag: none|anesthesist|anesthesist_icu" in instructions_body
+    assert "decisao: aceitar|negar" in instructions_body
+    assert "suporte: nenhum|anestesista|anestesista_uti" in instructions_body
 
     with engine.begin() as connection:
         status = connection.execute(

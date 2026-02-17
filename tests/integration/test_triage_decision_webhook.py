@@ -252,10 +252,10 @@ async def test_webhook_posts_room2_decision_ack_and_persists_target_mapping(tmp_
     _, related_event_id, ack_body = matrix_poster.reply_calls[0]
     assert related_event_id == "$doctor-decision-event"
     assert "resultado: sucesso" in ack_body
-    assert f"case_id: {case_id}" in ack_body
-    assert "decision: accept" in ack_body
-    assert "support_flag: none" in ack_body
-    assert "reason: " in ack_body
+    assert f"caso: {case_id}" in ack_body
+    assert "decisao: aceitar" in ack_body
+    assert "suporte: nenhum" in ack_body
+    assert "motivo: " in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:

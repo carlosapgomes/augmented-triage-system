@@ -11,6 +11,10 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from triage_automation.application.dto.webhook_models import Decision, SupportFlag
+from triage_automation.application.ports.message_repository_port import (
+    CaseMessageCreateInput,
+    DuplicateCaseMessageError,
+)
 from triage_automation.application.services.handle_doctor_decision_service import (
     HandleDoctorDecisionService,
 )
@@ -638,6 +642,18 @@ async def _route_room2_replies_from_sync(
             )
         )
         if result.processed:
+            try:
+                await message_repository.add_message(
+                    CaseMessageCreateInput(
+                        case_id=parsed.case_id,
+                        room_id=room2_id,
+                        event_id=parsed.event_id,
+                        sender_user_id=parsed.sender_user_id,
+                        kind="room2_doctor_reply",
+                    )
+                )
+            except DuplicateCaseMessageError:
+                pass
             routed_count += 1
             continue
 

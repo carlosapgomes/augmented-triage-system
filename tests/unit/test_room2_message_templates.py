@@ -20,7 +20,7 @@ def test_build_room2_case_pdf_message_includes_case_and_pdf_context() -> None:
         extracted_text="Paciente com dispepsia crônica.",
     )
 
-    assert str(case_id) in body
+    assert f"caso: {case_id}" in body
     assert "12345" in body
     assert "Paciente com dispepsia crônica." in body
     assert "texto extraido" in body.lower()
@@ -36,9 +36,11 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
 
-    assert str(case_id) in body
+    assert f"caso: {case_id}" in body
     assert "Resumo LLM1" in body
-    assert "laboratorio_aprovado" in body
+    assert "- prechecagem_politica:" in body
+    assert "  - laboratorio_aprovado: yes" in body
+    assert "  - asa: classe=II" in body
     assert "sugestao" in body.lower()
     assert "Dados extraidos" in body
     assert "Recomendacao" in body
@@ -50,11 +52,11 @@ def test_build_room2_case_decision_instructions_message_has_strict_template() ->
 
     body = build_room2_case_decision_instructions_message(case_id=case_id)
 
-    assert "reply" in body.lower()
-    assert "decision: accept|deny" in body
-    assert "support_flag: none|anesthesist|anesthesist_icu" in body
-    assert "reason:" in body
-    assert f"case_id: {case_id}" in body
+    assert "resposta" in body.lower()
+    assert "decisao: aceitar|negar" in body
+    assert "suporte: nenhum|anestesista|anestesista_uti" in body
+    assert "motivo:" in body
+    assert f"caso: {case_id}" in body
 
 
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
@@ -68,10 +70,10 @@ def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> 
     )
 
     assert "resultado: sucesso" in body
-    assert f"case_id: {case_id}" in body
-    assert "decision: accept" in body
-    assert "support_flag: none" in body
-    assert "reason: criterios atendidos" in body
+    assert f"caso: {case_id}" in body
+    assert "decisao: aceitar" in body
+    assert "suporte: nenhum" in body
+    assert "motivo: criterios atendidos" in body
 
 
 def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
@@ -83,8 +85,8 @@ def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
     )
 
     assert "resultado: erro" in body
-    assert f"case_id: {case_id}" in body
-    assert "error_code: invalid_template" in body
+    assert f"caso: {case_id}" in body
+    assert "codigo_erro: invalid_template" in body
     assert "acao:" in body
-    assert "Template obrigatorio" in body
-    assert "decision: accept|deny" in body
+    assert "Modelo obrigatorio" in body
+    assert "decisao: aceitar|negar" in body

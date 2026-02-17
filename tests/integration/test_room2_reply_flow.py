@@ -236,9 +236,9 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     assert sync_client.reply_calls[0][1] == "$doctor-room2-reply-1"
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
-    assert f"case_id: {case_id}" in ack_body
-    assert "decision: accept" in ack_body
-    assert "support_flag: none" in ack_body
+    assert f"caso: {case_id}" in ack_body
+    assert "decisao: aceitar" in ack_body
+    assert "suporte: nenhum" in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -255,12 +255,20 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
             ),
             {"case_id": case_id.hex},
         ).scalar_one()
+        room2_reply_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_messages "
+                "WHERE case_id = :case_id AND kind = 'room2_doctor_reply'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
 
     assert case_row["status"] == "DOCTOR_ACCEPTED"
     assert case_row["doctor_decision"] == "accept"
     assert case_row["doctor_support_flag"] == "none"
     assert case_row["doctor_user_id"] == "@doctor:example.org"
     assert jobs == "post_room3_request"
+    assert int(room2_reply_count) == 1
 
 
 @pytest.mark.asyncio
@@ -324,8 +332,8 @@ async def test_runtime_listener_routes_room2_deny_reply_to_denial_job_path(
     assert len(sync_client.reply_calls) == 1
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
-    assert "decision: deny" in ack_body
-    assert "support_flag: none" in ack_body
+    assert "decisao: negar" in ack_body
+    assert "suporte: nenhum" in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -419,7 +427,7 @@ async def test_runtime_listener_duplicate_room2_replies_are_idempotent(
     second_feedback = sync_client.reply_calls[1][2]
     assert "resultado: sucesso" in first_feedback
     assert "resultado: erro" in second_feedback
-    assert "error_code: state_conflict" in second_feedback
+    assert "codigo_erro: state_conflict" in second_feedback
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -504,8 +512,8 @@ async def test_runtime_listener_rejects_reply_with_typed_doctor_identity_field(
     assert len(sync_client.reply_calls) == 1
     error_body = sync_client.reply_calls[0][2]
     assert "resultado: erro" in error_body
-    assert "error_code: invalid_template" in error_body
-    assert f"case_id: {case_id}" in error_body
+    assert "codigo_erro: invalid_template" in error_body
+    assert f"caso: {case_id}" in error_body
     assert sync_client.send_calls == []
 
     engine = sa.create_engine(sync_url)
@@ -591,8 +599,8 @@ async def test_runtime_listener_rejects_reply_from_room2_unauthorized_sender(
     assert len(sync_client.reply_calls) == 1
     error_body = sync_client.reply_calls[0][2]
     assert "resultado: erro" in error_body
-    assert "error_code: authorization_failed" in error_body
-    assert f"case_id: {case_id}" in error_body
+    assert "codigo_erro: authorization_failed" in error_body
+    assert f"caso: {case_id}" in error_body
     assert sync_client.send_calls == []
 
     engine = sa.create_engine(sync_url)
@@ -678,8 +686,8 @@ async def test_runtime_listener_emits_error_feedback_when_case_not_waiting_docto
     assert len(sync_client.reply_calls) == 1
     error_body = sync_client.reply_calls[0][2]
     assert "resultado: erro" in error_body
-    assert "error_code: state_conflict" in error_body
-    assert f"case_id: {case_id}" in error_body
+    assert "codigo_erro: state_conflict" in error_body
+    assert f"caso: {case_id}" in error_body
 
 
 @pytest.mark.asyncio

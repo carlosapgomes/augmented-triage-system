@@ -13,10 +13,10 @@ from triage_automation.domain.doctor_decision_parser import (
 def test_parse_accept_template_success() -> None:
     case_id = "11111111-1111-1111-1111-111111111111"
     body = (
-        "decision: accept\n"
-        "support_flag: anesthesist\n"
-        "reason: risco cardiovascular moderado\n"
-        f"case_id: {case_id}\n"
+        "decisao: aceitar\n"
+        "suporte: anestesista\n"
+        "motivo: risco cardiovascular moderado\n"
+        f"caso: {case_id}\n"
     )
 
     parsed = parse_doctor_decision_reply(body=body)
@@ -30,10 +30,10 @@ def test_parse_accept_template_success() -> None:
 def test_parse_deny_template_with_empty_reason_success() -> None:
     case_id = "22222222-2222-2222-2222-222222222222"
     body = (
-        "decision: deny\n"
-        "support_flag: none\n"
-        "reason:\n"
-        f"case_id: {case_id}\n"
+        "decisao: negar\n"
+        "suporte: nenhum\n"
+        "motivo:\n"
+        f"caso: {case_id}\n"
     )
 
     parsed = parse_doctor_decision_reply(body=body)
@@ -44,12 +44,26 @@ def test_parse_deny_template_with_empty_reason_success() -> None:
     assert parsed.reason is None
 
 
-def test_parse_rejects_unknown_field() -> None:
+def test_parse_still_accepts_legacy_english_keys_for_backward_compatibility() -> None:
     body = (
         "decision: accept\n"
         "support_flag: none\n"
         "reason: ok\n"
-        "caso: 11111111-1111-1111-1111-111111111111\n"
+        "case_id: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
+
+
+def test_parse_rejects_unknown_field() -> None:
+    body = (
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
+        "campo_extra: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="unknown_field"):
@@ -58,9 +72,9 @@ def test_parse_rejects_unknown_field() -> None:
 
 def test_parse_rejects_missing_required_field() -> None:
     body = (
-        "decision: accept\n"
-        "reason: ok\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "decisao: aceitar\n"
+        "motivo: ok\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="missing_support_flag_line"):
@@ -69,10 +83,10 @@ def test_parse_rejects_missing_required_field() -> None:
 
 def test_parse_rejects_invalid_case_uuid() -> None:
     body = (
-        "decision: accept\n"
-        "support_flag: none\n"
-        "reason: ok\n"
-        "case_id: not-a-uuid\n"
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
+        "caso: not-a-uuid\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="invalid_case_line"):
@@ -81,10 +95,10 @@ def test_parse_rejects_invalid_case_uuid() -> None:
 
 def test_parse_rejects_case_id_mismatch() -> None:
     body = (
-        "decision: accept\n"
-        "support_flag: none\n"
-        "reason: ok\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="case_id_mismatch"):
@@ -96,10 +110,10 @@ def test_parse_rejects_case_id_mismatch() -> None:
 
 def test_parse_rejects_deny_with_non_none_support_flag() -> None:
     body = (
-        "decision: deny\n"
-        "support_flag: anesthesist\n"
-        "reason: risco alto\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "decisao: negar\n"
+        "suporte: anestesista\n"
+        "motivo: risco alto\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="invalid_support_flag_for_decision"):
@@ -108,10 +122,10 @@ def test_parse_rejects_deny_with_non_none_support_flag() -> None:
 
 def test_parse_accept_allows_anesthesist_icu_support_flag() -> None:
     body = (
-        "decision: accept\n"
-        "support_flag: anesthesist_icu\n"
-        "reason: suporte adicional recomendado\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "decisao: aceitar\n"
+        "suporte: anestesista_uti\n"
+        "motivo: suporte adicional recomendado\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     parsed = parse_doctor_decision_reply(body=body)
@@ -122,11 +136,11 @@ def test_parse_accept_allows_anesthesist_icu_support_flag() -> None:
 
 def test_parse_rejects_typed_doctor_user_id_field() -> None:
     body = (
-        "decision: accept\n"
-        "support_flag: none\n"
-        "reason: ok\n"
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
         "doctor_user_id: @doctor:example.org\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="unknown_field"):
@@ -135,10 +149,10 @@ def test_parse_rejects_typed_doctor_user_id_field() -> None:
 
 def test_parse_rejects_malformed_line_without_colon() -> None:
     body = (
-        "decision accept\n"
-        "support_flag: none\n"
-        "reason: ok\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "decisao aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="invalid_line_format"):
@@ -147,10 +161,10 @@ def test_parse_rejects_malformed_line_without_colon() -> None:
 
 def test_parse_rejects_invalid_decision_enum_value() -> None:
     body = (
-        "decision: maybe\n"
-        "support_flag: none\n"
-        "reason: ok\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "decisao: talvez\n"
+        "suporte: nenhum\n"
+        "motivo: ok\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="invalid_decision_value"):
@@ -159,10 +173,10 @@ def test_parse_rejects_invalid_decision_enum_value() -> None:
 
 def test_parse_rejects_invalid_support_flag_enum_value() -> None:
     body = (
-        "decision: accept\n"
-        "support_flag: surgeon\n"
-        "reason: ok\n"
-        "case_id: 11111111-1111-1111-1111-111111111111\n"
+        "decisao: aceitar\n"
+        "suporte: cirurgiao\n"
+        "motivo: ok\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
     with pytest.raises(DoctorDecisionParseError, match="invalid_support_flag_value"):

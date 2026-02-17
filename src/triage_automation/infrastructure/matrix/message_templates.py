@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import cast
 from uuid import UUID
 
 _PT_BR_KEY_MAP: dict[str, str] = {
@@ -13,7 +12,7 @@ _PT_BR_KEY_MAP: dict[str, str] = {
     "asa": "asa",
     "bullet_points": "pontos",
     "cardiovascular_risk": "risco_cardiovascular",
-    "case_id": "case_id",
+    "case_id": "caso",
     "class": "classe",
     "confidence": "confianca",
     "details": "detalhes",
@@ -95,7 +94,7 @@ def build_room2_case_pdf_message(
 
     return (
         "Solicitacao de triagem - contexto original\n"
-        f"case_id: {case_id}\n"
+        f"caso: {case_id}\n"
         f"registro: {agency_record_number}\n"
         "Texto extraido do relatorio original:\n"
         f"{extracted_text}"
@@ -119,7 +118,7 @@ def build_room2_case_summary_message(
     suggestion_block = "\n".join(suggestion_lines)
     return (
         "Resumo tecnico da triagem\n"
-        f"case_id: {case_id}\n\n"
+        f"caso: {case_id}\n\n"
         "Resumo clinico:\n"
         f"{summary_text}\n\n"
         "Dados extraidos (chaves em portugues):\n"
@@ -142,38 +141,43 @@ def _translate_keys_to_portuguese(*, value: object) -> object:
     return value
 
 
-def _format_markdown_lines(value: object, *, depth: int = 0) -> list[str]:
-    indent = "  " * depth
-    if isinstance(value, dict):
-        dict_value = cast("dict[object, object]", value)
-        if not dict_value:
-            return [f"{indent}- (vazio)"]
-        sorted_items = sorted(
-            ((str(raw_key), nested) for raw_key, nested in dict_value.items()),
-            key=lambda item: item[0],
-        )
-        lines: list[str] = []
-        for key, nested in sorted_items:
-            if isinstance(nested, (dict, list)):
-                lines.append(f"{indent}- {key}:")
-                lines.extend(_format_markdown_lines(nested, depth=depth + 1))
-            else:
-                lines.append(f"{indent}- {key}: {_format_scalar(nested)}")
-        return lines
+def _format_markdown_lines(value: object) -> list[str]:
+    if not isinstance(value, dict):
+        return [f"- {_format_scalar(value)}"]
 
+    top_level: dict[str, object] = {str(k): v for k, v in value.items()}
+    if not top_level:
+        return ["- (vazio)"]
+
+    lines: list[str] = []
+    for top_key in sorted(top_level):
+        top_value = top_level[top_key]
+        if isinstance(top_value, dict):
+            lines.append(f"- {top_key}:")
+            second_level: dict[str, object] = {str(k): v for k, v in top_value.items()}
+            if not second_level:
+                lines.append("  - (vazio)")
+                continue
+            for second_key in sorted(second_level):
+                second_value = second_level[second_key]
+                lines.append(f"  - {second_key}: {_format_compact_value(second_value)}")
+            continue
+        lines.append(f"- {top_key}: {_format_compact_value(top_value)}")
+    return lines
+
+
+def _format_compact_value(value: object) -> str:
+    if isinstance(value, dict):
+        nested: dict[str, object] = {str(k): v for k, v in value.items()}
+        if not nested:
+            return "(vazio)"
+        parts = [f"{key}={_format_compact_value(nested[key])}" for key in sorted(nested)]
+        return "; ".join(parts)
     if isinstance(value, list):
         if not value:
-            return [f"{indent}- (vazio)"]
-        lines = []
-        for item in value:
-            if isinstance(item, (dict, list)):
-                lines.append(f"{indent}-")
-                lines.extend(_format_markdown_lines(item, depth=depth + 1))
-            else:
-                lines.append(f"{indent}- {_format_scalar(item)}")
-        return lines
-
-    return [f"{indent}- {_format_scalar(value)}"]
+            return "(vazio)"
+        return ", ".join(_format_compact_value(item) for item in value)
+    return _format_scalar(value)
 
 
 def _format_scalar(value: object) -> str:
@@ -191,14 +195,14 @@ def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
 
     return (
         "Instrucao de decisao medica\n"
-        "Responda como reply a mensagem raiz deste caso usando exatamente o template:\n\n"
-        "decision: accept|deny\n"
-        "support_flag: none|anesthesist|anesthesist_icu\n"
-        "reason: <texto livre ou vazio>\n"
-        f"case_id: {case_id}\n\n"
+        "Responda como resposta a mensagem raiz deste caso usando exatamente o modelo:\n\n"
+        "decisao: aceitar|negar\n"
+        "suporte: nenhum|anestesista|anestesista_uti\n"
+        "motivo: <texto livre ou vazio>\n"
+        f"caso: {case_id}\n\n"
         "Regras:\n"
-        "- decision=deny exige support_flag=none\n"
-        "- Nao use texto fora do template"
+        "- decisao=negar exige suporte=nenhum\n"
+        "- Nao use texto fora do modelo"
     )
 
 
@@ -218,12 +222,14 @@ def build_room2_decision_ack_message(
     """Build Room-2 post-decision acknowledgment body for doctor reaction."""
 
     reason_value = reason or ""
+    decision_label = _format_decision_value(decision)
+    support_label = _format_support_value(support_flag)
     return (
         "resultado: sucesso\n"
-        f"case_id: {case_id}\n"
-        f"decision: {decision}\n"
-        f"support_flag: {support_flag}\n"
-        f"reason: {reason_value}\n"
+        f"caso: {case_id}\n"
+        f"decisao: {decision_label}\n"
+        f"suporte: {support_label}\n"
+        f"motivo: {reason_value}\n"
         "Reaja com +1 para confirmar ciencia do encerramento."
     )
 
@@ -234,25 +240,43 @@ def build_room2_decision_error_message(*, case_id: UUID, error_code: str) -> str
     guidance = _room2_decision_error_guidance(error_code=error_code)
     return (
         "resultado: erro\n"
-        f"case_id: {case_id}\n"
-        f"error_code: {error_code}\n"
+        f"caso: {case_id}\n"
+        f"codigo_erro: {error_code}\n"
         f"acao: {guidance}\n\n"
-        "Template obrigatorio:\n"
-        "decision: accept|deny\n"
-        "support_flag: none|anesthesist|anesthesist_icu\n"
-        "reason: <texto livre ou vazio>\n"
-        f"case_id: {case_id}"
+        "Modelo obrigatorio:\n"
+        "decisao: aceitar|negar\n"
+        "suporte: nenhum|anestesista|anestesista_uti\n"
+        "motivo: <texto livre ou vazio>\n"
+        f"caso: {case_id}"
     )
 
 
 def _room2_decision_error_guidance(*, error_code: str) -> str:
     if error_code == "invalid_template":
-        return "Responda novamente como reply usando exatamente o template."
+        return "Responda novamente como resposta usando exatamente o modelo."
     if error_code == "authorization_failed":
         return "Apenas membros autorizados da Room-2 podem decidir; verifique acesso."
     if error_code == "state_conflict":
-        return "Caso nao esta em WAIT_DOCTOR; nao reenviar decisao duplicada."
-    return "Revise o template e tente novamente."
+        return "Caso nao esta aguardando decisao medica; nao reenviar decisao duplicada."
+    return "Revise o modelo e tente novamente."
+
+
+def _format_decision_value(value: str) -> str:
+    if value == "accept":
+        return "aceitar"
+    if value == "deny":
+        return "negar"
+    return value
+
+
+def _format_support_value(value: str) -> str:
+    if value == "none":
+        return "nenhum"
+    if value == "anesthesist":
+        return "anestesista"
+    if value == "anesthesist_icu":
+        return "anestesista_uti"
+    return value
 
 
 def build_room3_request_message(*, case_id: UUID) -> str:

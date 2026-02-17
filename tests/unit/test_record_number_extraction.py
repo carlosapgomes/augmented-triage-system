@@ -22,6 +22,19 @@ def test_all_occurrences_of_selected_token_are_removed() -> None:
     assert "4775652" not in result.cleaned_text
 
 
+def test_cleaning_preserves_linebreaks_after_watermark_removal() -> None:
+    text = (
+        "RELATÓRIO DE OCORRÊNCIAS 4775652\n"
+        "Linha clínica 1 4775652\n"
+        "Linha clínica 2"
+    )
+
+    result = extract_and_strip_agency_record_number(text)
+
+    assert "4775652" not in result.cleaned_text
+    assert result.cleaned_text.count("\n") >= 2
+
+
 def test_prefers_explicit_registration_over_repeated_watermark() -> None:
     text = "RELATÓRIO DE OCORRÊNCIAS 4775652 ... 40371 40371 40371"
 
