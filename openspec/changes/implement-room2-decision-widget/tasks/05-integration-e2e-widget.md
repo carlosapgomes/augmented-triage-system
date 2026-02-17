@@ -30,9 +30,9 @@ Prove widget flow end-to-end from Room-2 posting to case decision/job enqueue ou
 - `uv run mypy src apps`
 
 ## Mandatory Checklist
-- [ ] Existing callback integration tests still pass
-- [ ] Widget path preserves idempotency/race handling
-- [ ] Audit trail contains actor identity and outcome
+- [x] Existing callback integration tests still pass
+- [x] Widget path preserves idempotency/race handling
+- [x] Audit trail contains actor identity and outcome
 
 ## STOP RULE
 Stop after integration coverage is green; do not start docs/config updates in this slice.

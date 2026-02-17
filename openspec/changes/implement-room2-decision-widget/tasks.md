@@ -24,9 +24,9 @@
 
 ## 5. End-to-End Integration Coverage
 
-- [ ] 5.1 Add integration test: authenticated widget accept path reaches existing doctor decision outcomes/jobs (`tasks/05-integration-e2e-widget.md`)
-- [ ] 5.2 Add integration test: authenticated widget deny path preserves `support_flag=none` rule (`tasks/05-integration-e2e-widget.md`)
-- [ ] 5.3 Add integration tests for unauthorized/non-admin submit rejection with no case mutation (`tasks/05-integration-e2e-widget.md`)
+- [x] 5.1 Add integration test: authenticated widget accept path reaches existing doctor decision outcomes/jobs (`tasks/05-integration-e2e-widget.md`)
+- [x] 5.2 Add integration test: authenticated widget deny path preserves `support_flag=none` rule (`tasks/05-integration-e2e-widget.md`)
+- [x] 5.3 Add integration tests for unauthorized/non-admin submit rejection with no case mutation (`tasks/05-integration-e2e-widget.md`)
 
 ## 6. Runtime Configuration and Operational Docs
 
