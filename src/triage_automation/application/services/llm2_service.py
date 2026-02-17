@@ -20,6 +20,9 @@ from triage_automation.application.services.prompt_template_service import (
     MissingActivePromptTemplateError,
     PromptTemplateService,
 )
+from triage_automation.application.services.ptbr_language_guard import (
+    collect_forbidden_terms,
+)
 from triage_automation.domain.policy.eda_policy import (
     EdaPolicyPrecheckInput,
     Llm2PolicyAlignmentInput,
@@ -54,6 +57,11 @@ class Llm2RetriableError(RuntimeError):
 
 class Llm2Service:
     """Execute LLM2 call, enforce schema, and apply deterministic policy rules."""
+
+    _LANGUAGE_RETRY_INSTRUCTION = (
+        "Regra obrigatoria adicional: todo texto narrativo deve estar em portugues "
+        "brasileiro (pt-BR), sem palavras em ingles."
+    )
 
     def __init__(
         self,
@@ -106,34 +114,37 @@ class Llm2Service:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
+        validated = _decode_and_validate_llm2_response(
+            raw_response=raw_response,
+            case_id=case_id,
+            agency_record_number=agency_record_number,
+        )
 
-        try:
-            decoded = decode_llm_json_object(raw_response)
-        except LlmJsonParseError as error:
-            raise Llm2RetriableError(
-                cause="llm2",
-                details="LLM2 returned non-JSON payload",
-            ) from error
-
-        try:
-            validated = Llm2Response.model_validate(decoded)
-        except ValidationError as error:
-            raise Llm2RetriableError(
-                cause="llm2",
-                details=f"LLM2 schema validation failed: {error}",
-            ) from error
-
-        if validated.case_id != str(case_id):
-            raise Llm2RetriableError(
-                cause="llm2",
-                details="LLM2 case_id mismatch",
+        forbidden_terms = _collect_llm2_forbidden_terms(validated=validated)
+        if forbidden_terms:
+            retry_user_prompt = (
+                f"{user_prompt}\n\n"
+                f"{self._LANGUAGE_RETRY_INSTRUCTION}"
             )
-
-        if validated.agency_record_number != agency_record_number:
-            raise Llm2RetriableError(
-                cause="llm2",
-                details="LLM2 agency_record_number mismatch",
+            retry_response = await self._llm_client.complete(
+                system_prompt=system_prompt,
+                user_prompt=retry_user_prompt,
             )
+            validated = _decode_and_validate_llm2_response(
+                raw_response=retry_response,
+                case_id=case_id,
+                agency_record_number=agency_record_number,
+            )
+            forbidden_terms = _collect_llm2_forbidden_terms(validated=validated)
+            if forbidden_terms:
+                joined_terms = ", ".join(forbidden_terms)
+                raise Llm2RetriableError(
+                    cause="llm2",
+                    details=(
+                        "LLM2 output contains non-ptbr narrative terms after retry: "
+                        f"{joined_terms}"
+                    ),
+                )
 
         policy_result = reconcile_eda_policy(
             precheck=EdaPolicyPrecheckInput(
@@ -217,18 +228,19 @@ class Llm2Service:
 
 def _default_system_prompt() -> str:
     return (
-        "You are a clinical decision-support assistant for Upper GI Endoscopy (EDA) triage. "
-        "Return ONLY valid JSON that strictly matches schema_version 1.1. "
-        "Write every natural-language field in Brazilian Portuguese (pt-BR). "
-        "Use only allowed enum values for suggestion and support_recommendation. "
-        "Do not include markdown, code fences, or extra keys."
+        "Voce e um assistente de apoio a decisao clinica para triagem de Endoscopia "
+        "Digestiva Alta (EDA). Retorne APENAS JSON valido que siga estritamente "
+        "o schema_version 1.1. Escreva todos os campos narrativos em portugues "
+        "brasileiro (pt-BR). Nao use palavras em ingles nos campos narrativos. "
+        "Use apenas valores de enum permitidos para suggestion e support_recommendation. "
+        "Nao inclua markdown, blocos de codigo ou chaves extras."
     )
 
 
 def _default_user_prompt_template() -> str:
     return (
-        "Task: suggest accept/deny and support recommendation for EDA triage "
-        "using LLM1 structured data and prior-case context."
+        "Tarefa: sugerir accept/deny e recomendacao de suporte para triagem EDA "
+        "usando dados estruturados do LLM1 e contexto de caso anterior."
     )
 
 
@@ -249,8 +261,57 @@ def _render_user_prompt(
         f"{template}\n\n"
         f"case_id: {case_id}\n"
         f"agency_record_number: {agency_record_number}\n\n"
-        f"Extracted data (LLM1 JSON):\n{llm1_json}\n\n"
-        f"Prior decision (if any):\n{prior_case}\n\n"
-        "Return JSON schema_version 1.1 with policy_alignment and confidence.\n"
-        "All narrative/text outputs must be in Brazilian Portuguese (pt-BR)."
+        f"Dados extraidos (JSON LLM1):\n{llm1_json}\n\n"
+        f"Decisao anterior (se houver):\n{prior_case}\n\n"
+        "Retorne JSON schema_version 1.1 com policy_alignment e confidence.\n"
+        "Todos os campos narrativos devem estar em portugues brasileiro (pt-BR).\n"
+        "Nao use palavras em ingles nos campos narrativos."
     )
+
+
+def _decode_and_validate_llm2_response(
+    *,
+    raw_response: str,
+    case_id: UUID,
+    agency_record_number: str,
+) -> Llm2Response:
+    try:
+        decoded = decode_llm_json_object(raw_response)
+    except LlmJsonParseError as error:
+        raise Llm2RetriableError(
+            cause="llm2",
+            details="LLM2 returned non-JSON payload",
+        ) from error
+
+    try:
+        validated = Llm2Response.model_validate(decoded)
+    except ValidationError as error:
+        raise Llm2RetriableError(
+            cause="llm2",
+            details=f"LLM2 schema validation failed: {error}",
+        ) from error
+
+    if validated.case_id != str(case_id):
+        raise Llm2RetriableError(
+            cause="llm2",
+            details="LLM2 case_id mismatch",
+        )
+
+    if validated.agency_record_number != agency_record_number:
+        raise Llm2RetriableError(
+            cause="llm2",
+            details="LLM2 agency_record_number mismatch",
+        )
+
+    return validated
+
+
+def _collect_llm2_forbidden_terms(*, validated: Llm2Response) -> list[str]:
+    texts: list[str] = [
+        validated.rationale.short_reason,
+        *validated.rationale.details,
+        *validated.rationale.missing_info_questions,
+    ]
+    if validated.policy_alignment.notes is not None:
+        texts.append(validated.policy_alignment.notes)
+    return collect_forbidden_terms(texts=texts)

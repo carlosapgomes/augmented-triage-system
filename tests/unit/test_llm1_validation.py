@@ -12,13 +12,18 @@ from triage_automation.application.services.llm1_service import (
 
 
 class FakeLlmClient:
-    def __init__(self, response_text: str) -> None:
-        self.response_text = response_text
+    def __init__(self, response_text: str | list[str]) -> None:
+        if isinstance(response_text, list):
+            self._responses = response_text
+        else:
+            self._responses = [response_text]
         self.calls: list[tuple[str, str]] = []
 
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
         self.calls.append((system_prompt, user_prompt))
-        return self.response_text
+        if len(self._responses) == 1:
+            return self._responses[0]
+        return self._responses.pop(0)
 
 
 def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
@@ -155,3 +160,52 @@ async def test_agency_record_number_is_injected_exactly_into_prompt() -> None:
     assert len(client.calls) == 1
     _, user_prompt = client.calls[0]
     assert f"agency_record_number: {agency_record}" in user_prompt
+
+
+@pytest.mark.asyncio
+async def test_llm1_retries_once_when_narrative_contains_english_terms() -> None:
+    agency_record = "12345"
+    invalid_payload = _valid_llm1_payload(agency_record)
+    invalid_payload["summary"] = {
+        "one_liner": "Patient denied for criteria mismatch",
+        "bullet_points": ["ponto 1", "ponto 2", "ponto 3"],
+    }
+    valid_payload = _valid_llm1_payload(agency_record)
+    valid_payload["summary"] = {
+        "one_liner": "Paciente negado por criterio clinico",
+        "bullet_points": ["ponto 1", "ponto 2", "ponto 3"],
+    }
+    client = FakeLlmClient([json.dumps(invalid_payload), json.dumps(valid_payload)])
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="texto limpo",
+    )
+
+    assert result.summary_text == "Paciente negado por criterio clinico"
+    assert len(client.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_llm1_fails_when_english_terms_persist_after_retry() -> None:
+    agency_record = "12345"
+    invalid_payload = _valid_llm1_payload(agency_record)
+    invalid_payload["summary"] = {
+        "one_liner": "Patient denied for criteria mismatch",
+        "bullet_points": ["ponto 1", "ponto 2", "ponto 3"],
+    }
+    client = FakeLlmClient([json.dumps(invalid_payload), json.dumps(invalid_payload)])
+    service = Llm1Service(llm_client=client)
+
+    with pytest.raises(Llm1RetriableError) as error_info:
+        await service.run(
+            case_id=uuid4(),
+            agency_record_number=agency_record,
+            clean_text="texto limpo",
+        )
+
+    assert error_info.value.cause == "llm1"
+    assert "non-ptbr narrative terms" in error_info.value.details
+    assert len(client.calls) == 2

@@ -186,7 +186,9 @@ def _format_scalar(value: object) -> str:
     if isinstance(value, bool):
         return "sim" if value else "nao"
     if isinstance(value, str):
-        return value if value else "(vazio)"
+        if not value:
+            return "(vazio)"
+        return _map_presentation_value(value)
     return str(value)
 
 
@@ -270,6 +272,20 @@ def _format_decision_value(value: str) -> str:
 
 
 def _format_support_value(value: str) -> str:
+    if value == "none":
+        return "nenhum"
+    if value == "anesthesist":
+        return "anestesista"
+    if value == "anesthesist_icu":
+        return "anestesista_uti"
+    return value
+
+
+def _map_presentation_value(value: str) -> str:
+    if value == "accept":
+        return "aceitar"
+    if value == "deny":
+        return "negar"
     if value == "none":
         return "nenhum"
     if value == "anesthesist":

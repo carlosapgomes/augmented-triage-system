@@ -18,6 +18,9 @@ from triage_automation.application.services.prompt_template_service import (
     MissingActivePromptTemplateError,
     PromptTemplateService,
 )
+from triage_automation.application.services.ptbr_language_guard import (
+    collect_forbidden_terms,
+)
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
 
 
@@ -46,6 +49,11 @@ class Llm1RetriableError(RuntimeError):
 
 class Llm1Service:
     """Execute LLM1 call, enforce schema, and normalize output."""
+
+    _LANGUAGE_RETRY_INSTRUCTION = (
+        "Regra obrigatoria adicional: todo texto narrativo deve estar em portugues "
+        "brasileiro (pt-BR), sem palavras em ingles."
+    )
 
     def __init__(
         self,
@@ -88,28 +96,35 @@ class Llm1Service:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
+        validated = _decode_and_validate_llm1_response(
+            raw_response=raw_response,
+            agency_record_number=agency_record_number,
+        )
 
-        try:
-            decoded = decode_llm_json_object(raw_response)
-        except LlmJsonParseError as error:
-            raise Llm1RetriableError(
-                cause="llm1",
-                details="LLM1 returned non-JSON payload",
-            ) from error
-
-        try:
-            validated = Llm1Response.model_validate(decoded)
-        except ValidationError as error:
-            raise Llm1RetriableError(
-                cause="llm1",
-                details=f"LLM1 schema validation failed: {error}",
-            ) from error
-
-        if validated.agency_record_number != agency_record_number:
-            raise Llm1RetriableError(
-                cause="llm1",
-                details="LLM1 agency_record_number mismatch",
+        forbidden_terms = _collect_llm1_forbidden_terms(validated=validated)
+        if forbidden_terms:
+            retry_user_prompt = (
+                f"{user_prompt}\n\n"
+                f"{self._LANGUAGE_RETRY_INSTRUCTION}"
             )
+            retry_response = await self._llm_client.complete(
+                system_prompt=system_prompt,
+                user_prompt=retry_user_prompt,
+            )
+            validated = _decode_and_validate_llm1_response(
+                raw_response=retry_response,
+                agency_record_number=agency_record_number,
+            )
+            forbidden_terms = _collect_llm1_forbidden_terms(validated=validated)
+            if forbidden_terms:
+                joined_terms = ", ".join(forbidden_terms)
+                raise Llm1RetriableError(
+                    cause="llm1",
+                    details=(
+                        "LLM1 output contains non-ptbr narrative terms after retry: "
+                        f"{joined_terms}"
+                    ),
+                )
 
         structured = validated.model_dump(mode="json", by_alias=True)
         return Llm1ServiceResult(
@@ -152,18 +167,19 @@ class Llm1Service:
 
 def _default_system_prompt() -> str:
     return (
-        "You are a clinical assistant for Upper GI Endoscopy (EDA) triage. "
-        "Return ONLY valid JSON that strictly matches schema_version 1.1. "
-        "Write every natural-language field in Brazilian Portuguese (pt-BR). "
-        "Do not include markdown, code fences, or extra keys. "
-        "Do not invent facts; use null/unknown when information is missing."
+        "Voce e um assistente clinico para triagem de Endoscopia Digestiva Alta (EDA). "
+        "Retorne APENAS JSON valido que siga estritamente o schema_version 1.1. "
+        "Escreva todos os campos narrativos em portugues brasileiro (pt-BR). "
+        "Nao use palavras em ingles nos campos narrativos. "
+        "Nao inclua markdown, blocos de codigo ou chaves extras. "
+        "Nao invente fatos; use null/unknown quando faltar informacao."
     )
 
 
 def _default_user_prompt_template() -> str:
     return (
-        "Task: extract structured data and generate a concise triage summary from a "
-        "clinical report for EDA triage."
+        "Tarefa: extrair dados estruturados e gerar resumo conciso de triagem "
+        "a partir de um relatorio clinico para triagem EDA."
     )
 
 
@@ -178,7 +194,53 @@ def _render_user_prompt(
         f"{template}\n\n"
         f"case_id: {case_id}\n"
         f"agency_record_number: {agency_record_number}\n\n"
-        "Return JSON schema_version 1.1 and preserve agency_record_number exactly.\n"
-        "All narrative/text outputs must be in Brazilian Portuguese (pt-BR).\n\n"
-        f"Clinical report text:\n{clean_text}"
+        "Retorne JSON schema_version 1.1 e preserve agency_record_number exatamente.\n"
+        "Todos os campos narrativos devem estar em portugues brasileiro (pt-BR).\n"
+        "Nao use palavras em ingles nos campos narrativos.\n\n"
+        f"Texto clinico do relatorio:\n{clean_text}"
     )
+
+
+def _decode_and_validate_llm1_response(
+    *,
+    raw_response: str,
+    agency_record_number: str,
+) -> Llm1Response:
+    try:
+        decoded = decode_llm_json_object(raw_response)
+    except LlmJsonParseError as error:
+        raise Llm1RetriableError(
+            cause="llm1",
+            details="LLM1 returned non-JSON payload",
+        ) from error
+
+    try:
+        validated = Llm1Response.model_validate(decoded)
+    except ValidationError as error:
+        raise Llm1RetriableError(
+            cause="llm1",
+            details=f"LLM1 schema validation failed: {error}",
+        ) from error
+
+    if validated.agency_record_number != agency_record_number:
+        raise Llm1RetriableError(
+            cause="llm1",
+            details="LLM1 agency_record_number mismatch",
+        )
+
+    return validated
+
+
+def _collect_llm1_forbidden_terms(*, validated: Llm1Response) -> list[str]:
+    texts: list[str] = [
+        validated.summary.one_liner,
+        *validated.summary.bullet_points,
+    ]
+    optional_texts = [
+        validated.policy_precheck.notes,
+        validated.extraction_quality.notes,
+        validated.eda.asa.rationale,
+        validated.eda.cardiovascular_risk.rationale,
+    ]
+    texts.extend(text for text in optional_texts if text is not None)
+    return collect_forbidden_terms(texts=texts)

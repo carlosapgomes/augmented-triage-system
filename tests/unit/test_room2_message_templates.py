@@ -42,6 +42,8 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
     assert "  - laboratorio_aprovado: yes" in body
     assert "  - asa: classe=II" in body
     assert "sugestao" in body.lower()
+    assert "aceitar" in body
+    assert "accept" not in body
     assert "Dados extraidos" in body
     assert "Recomendacao" in body
     assert "```json" not in body

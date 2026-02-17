@@ -225,6 +225,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "Resumo LLM1" in summary_body
     assert "Dados extraidos" in summary_body
     assert "sugestao" in summary_body.lower()
+    assert "negar" in summary_body
+    assert "deny" not in summary_body
     assert "- prechecagem_politica:" in summary_body
     assert "  - laboratorio_aprovado: yes" in summary_body
     assert "```json" not in summary_body
