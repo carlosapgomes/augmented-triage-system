@@ -137,8 +137,12 @@ def build_room2_case_summary_message(
 
     translated_structured = _translate_keys_to_portuguese(value=structured_data)
     translated_suggestion = _translate_keys_to_portuguese(value=suggested_action)
-    structured_lines = _format_markdown_lines(translated_structured)
-    suggestion_lines = _format_markdown_lines(translated_suggestion)
+    compact_structured, compact_suggestion = _prune_redundant_summary_fields(
+        structured_data=translated_structured,
+        suggested_action=translated_suggestion,
+    )
+    structured_lines = _format_compact_markdown_lines(compact_structured)
+    suggestion_lines = _format_compact_markdown_lines(compact_suggestion)
     structured_block = "\n".join(structured_lines)
     suggestion_block = "\n".join(suggestion_lines)
     return (
@@ -146,9 +150,9 @@ def build_room2_case_summary_message(
         f"caso: {case_id}\n\n"
         "## Resumo clinico:\n\n"
         f"{summary_text}\n\n"
-        "## Dados extraidos (chaves em portugues):\n\n"
+        "## Dados extraidos:\n\n"
         f"{structured_block}\n\n"
-        "## Recomendacao do sistema (chaves em portugues):\n\n"
+        "## Recomendacao do sistema:\n\n"
         f"{suggestion_block}"
     )
 
@@ -164,8 +168,12 @@ def build_room2_case_summary_formatted_html(
 
     translated_structured = _translate_keys_to_portuguese(value=structured_data)
     translated_suggestion = _translate_keys_to_portuguese(value=suggested_action)
-    structured_lines = _format_markdown_lines(translated_structured)
-    suggestion_lines = _format_markdown_lines(translated_suggestion)
+    compact_structured, compact_suggestion = _prune_redundant_summary_fields(
+        structured_data=translated_structured,
+        suggested_action=translated_suggestion,
+    )
+    structured_lines = _format_compact_markdown_lines(compact_structured)
+    suggestion_lines = _format_compact_markdown_lines(compact_suggestion)
 
     summary_html = _format_paragraphs_html(summary_text)
     structured_html = _format_markdown_lines_html(structured_lines)
@@ -175,9 +183,9 @@ def build_room2_case_summary_formatted_html(
         f"<p>caso: {escape(str(case_id))}</p>"
         "<h2>Resumo clinico:</h2>"
         f"{summary_html}"
-        "<h2>Dados extraidos (chaves em portugues):</h2>"
+        "<h2>Dados extraidos:</h2>"
         f"{structured_html}"
-        "<h2>Recomendacao do sistema (chaves em portugues):</h2>"
+        "<h2>Recomendacao do sistema:</h2>"
         f"{suggestion_html}"
     )
 
@@ -215,6 +223,30 @@ def _format_markdown_lines(value: object) -> list[str]:
             for second_key in sorted(second_level):
                 second_value = second_level[second_key]
                 lines.append(f"- {second_key}: {_format_compact_value(second_value)}")
+            continue
+        lines.append(f"- {top_key}: {_format_compact_value(top_value)}")
+    return lines
+
+
+def _format_compact_markdown_lines(value: object) -> list[str]:
+    """Format dict payload using compact one-line-per-section representation."""
+
+    if not isinstance(value, dict):
+        return [f"- {_format_scalar(value)}"]
+
+    top_level: dict[str, object] = {str(k): v for k, v in value.items()}
+    if not top_level:
+        return ["- (vazio)"]
+
+    lines: list[str] = []
+    for top_key in sorted(top_level):
+        top_value = top_level[top_key]
+        if isinstance(top_value, dict):
+            flat_parts = _flatten_dict_pairs(top_value)
+            if not flat_parts:
+                lines.append(f"- {top_key}: (vazio)")
+                continue
+            lines.append(f"- {top_key}: {'; '.join(flat_parts)}")
             continue
         lines.append(f"- {top_key}: {_format_compact_value(top_value)}")
     return lines
@@ -290,6 +322,62 @@ def _format_scalar(value: object) -> str:
             return "(vazio)"
         return _map_presentation_value(value)
     return str(value)
+
+
+def _flatten_dict_pairs(value: dict[str, object], prefix: str = "") -> list[str]:
+    """Flatten nested dict into key path pairs preserving all leaf values."""
+
+    if not value:
+        return []
+
+    pairs: list[str] = []
+    for key in sorted(value):
+        nested = value[key]
+        key_path = f"{prefix}.{key}" if prefix else key
+        if isinstance(nested, dict):
+            nested_pairs = _flatten_dict_pairs(
+                {str(inner_key): inner_value for inner_key, inner_value in nested.items()},
+                prefix=key_path,
+            )
+            if nested_pairs:
+                pairs.extend(nested_pairs)
+                continue
+            pairs.append(f"{key_path}=(vazio)")
+            continue
+        pairs.append(f"{key_path}={_format_compact_value(nested)}")
+    return pairs
+
+
+def _prune_redundant_summary_fields(
+    *,
+    structured_data: object,
+    suggested_action: object,
+) -> tuple[object, object]:
+    """Remove redundant metadata fields to reduce vertical payload size."""
+
+    if not isinstance(structured_data, dict) or not isinstance(suggested_action, dict):
+        return structured_data, suggested_action
+
+    shared_drop_keys = {"idioma", "versao_schema"}
+    structured_clean = {
+        str(key): value
+        for key, value in structured_data.items()
+        if str(key) not in shared_drop_keys
+    }
+    suggestion_clean = {
+        str(key): value
+        for key, value in suggested_action.items()
+        if str(key) not in shared_drop_keys | {"caso"}
+    }
+
+    structured_record = structured_clean.get("numero_registro")
+    if (
+        "numero_registro" in suggestion_clean
+        and suggestion_clean.get("numero_registro") == structured_record
+    ):
+        suggestion_clean.pop("numero_registro", None)
+
+    return structured_clean, suggestion_clean
 
 
 def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:

@@ -71,14 +71,11 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
     assert "Resumo LLM1" in body
     assert "# Resumo tecnico da triagem" in body
     assert "## Resumo clinico:" in body
-    assert "## Dados extraidos (chaves em portugues):" in body
-    assert "## Recomendacao do sistema (chaves em portugues):" in body
-    assert "### prechecagem_politica:" in body
-    assert "- laboratorio_aprovado: sim" in body
-    assert "- é pediátrico?: sim" in body
-    assert "### eda:" in body
-    assert "- asa: classe=II" in body
-    assert "- ecg: sinal de alerta=desconhecido" in body
+    assert "## Dados extraidos:" in body
+    assert "## Recomendacao do sistema:" in body
+    assert "- prechecagem_politica: laboratorio_aprovado=sim;" in body
+    assert "é pediátrico?=sim" in body
+    assert "- eda: asa.classe=II; ecg.sinal de alerta=desconhecido" in body
     assert "flag_pediatrico" not in body
     assert "abnormal_flag" not in body
     assert "sugestao" in body.lower()
@@ -156,12 +153,39 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     assert f"<p>caso: {case_id}</p>" in body
     assert "<h2>Resumo clinico:</h2>" in body
     assert "<p>Resumo LLM1</p>" in body
-    assert "<h2>Dados extraidos (chaves em portugues):</h2>" in body
-    assert "<h3>prechecagem_politica:</h3>" in body
-    assert "<li>é pediátrico?: sim</li>" in body
-    assert "<li>ecg: sinal de alerta=desconhecido</li>" in body
-    assert "<h2>Recomendacao do sistema (chaves em portugues):</h2>" in body
+    assert "<h2>Dados extraidos:</h2>" in body
+    assert "<li>prechecagem_politica: laboratorio_aprovado=sim;" in body
+    assert "é pediátrico?=sim" in body
+    assert "<li>eda: ecg.sinal de alerta=desconhecido</li>" in body
+    assert "<h2>Recomendacao do sistema:</h2>" in body
     assert "<li>sugestao: aceitar</li>" in body
+
+
+def test_build_room2_case_summary_message_removes_redundant_metadata() -> None:
+    case_id = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        structured_data={
+            "language": "pt-BR",
+            "schema_version": "1.1",
+            "agency_record_number": "12345",
+            "patient": {"name": "JOSE"},
+        },
+        summary_text="Resumo clinico",
+        suggested_action={
+            "case_id": str(case_id),
+            "language": "pt-BR",
+            "schema_version": "1.1",
+            "agency_record_number": "12345",
+            "suggestion": "deny",
+        },
+    )
+
+    assert body.count("idioma:") == 0
+    assert body.count("versao_schema:") == 0
+    assert body.count("caso:") == 1
+    assert body.count("numero_registro: 12345") == 1
 
 
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
