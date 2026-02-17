@@ -58,6 +58,7 @@ class PostRoom2WidgetService:
         self,
         *,
         room2_id: str,
+        widget_public_base_url: str,
         case_repository: CaseRepositoryPort,
         audit_repository: AuditRepositoryPort,
         message_repository: MessageRepositoryPort,
@@ -65,6 +66,7 @@ class PostRoom2WidgetService:
         matrix_poster: MatrixRoomPosterPort,
     ) -> None:
         self._room2_id = room2_id
+        self._widget_public_base_url = widget_public_base_url.rstrip("/")
         self._case_repository = case_repository
         self._audit_repository = audit_repository
         self._message_repository = message_repository
@@ -136,11 +138,19 @@ class PostRoom2WidgetService:
             )
         )
 
-        payload = _build_widget_payload(case=case, prior_context=prior_context)
+        payload = _build_widget_payload(
+            case=case,
+            prior_context=prior_context,
+            widget_public_base_url=self._widget_public_base_url,
+        )
 
         widget_body = build_room2_widget_message(
             case_id=case.case_id,
             agency_record_number=case.agency_record_number,
+            widget_launch_url=_build_widget_launch_url(
+                widget_public_base_url=self._widget_public_base_url,
+                case_id=case.case_id,
+            ),
             payload=payload,
         )
         widget_event_id = await self._matrix_poster.send_text(
@@ -245,6 +255,7 @@ def _build_widget_payload(
     *,
     case: CaseRoom2WidgetSnapshot,
     prior_context: PriorCaseContext,
+    widget_public_base_url: str,
 ) -> dict[str, object]:
     assert case.agency_record_number is not None
     assert case.structured_data_json is not None
@@ -261,6 +272,15 @@ def _build_widget_payload(
         "summary": case.summary_text,
         "suggested_action": {
             "suggestion": _extract_suggestion(suggested_action_json),
+        },
+        "widget_launch": {
+            "case_id": str(case.case_id),
+            "url": _build_widget_launch_url(
+                widget_public_base_url=widget_public_base_url,
+                case_id=case.case_id,
+            ),
+            "bootstrap_path": "/widget/room2/bootstrap",
+            "submit_path": "/widget/room2/submit",
         },
     }
 
@@ -297,6 +317,12 @@ def _build_widget_payload(
             payload["prior_denial_count_7d"] = prior_context.prior_denial_count_7d
 
     return payload
+
+
+def _build_widget_launch_url(*, widget_public_base_url: str, case_id: UUID) -> str:
+    """Return deterministic Room-2 widget launch URL bound to the case identifier."""
+
+    return f"{widget_public_base_url}/widget/room2?case_id={case_id}"
 
 
 def _extract_suggestion(suggested_action_json: dict[str, Any]) -> str:

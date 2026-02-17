@@ -187,6 +187,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
 
     service = PostRoom2WidgetService(
         room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
         case_repository=case_repo,
         audit_repository=audit_repo,
         message_repository=message_repo,
@@ -207,8 +208,16 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert payload["structured_data"]["schema_version"] == "1.1"
     assert payload["summary"] == "Resumo LLM1"
     assert payload["suggested_action"]["suggestion"] == "deny"
+    assert payload["widget_launch"]["case_id"] == str(current_case.case_id)
+    assert payload["widget_launch"]["bootstrap_path"] == "/widget/room2/bootstrap"
+    assert payload["widget_launch"]["submit_path"] == "/widget/room2/submit"
+    assert payload["widget_launch"]["url"] == (
+        f"https://bot-api.example.org/widget/room2?case_id={current_case.case_id}"
+    )
     assert payload["prior_case"]["prior_case_id"] == str(prior_case.case_id)
     assert payload["prior_denial_count_7d"] == 1
+    assert "Abra o widget de decisao:" in widget_body
+    assert payload["widget_launch"]["url"] in widget_body
 
     ack_room_id, ack_body = matrix_poster.calls[1]
     assert ack_room_id == "!room2:example.org"
@@ -226,6 +235,23 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
             ),
             {"case_id": current_case.case_id.hex},
         ).scalars().all()
+        status_event_payload = connection.execute(
+            sa.text(
+                "SELECT payload FROM case_events "
+                "WHERE case_id = :case_id AND event_type = 'CASE_STATUS_CHANGED' "
+                "ORDER BY id DESC LIMIT 1"
+            ),
+            {"case_id": current_case.case_id.hex},
+        ).scalar_one()
 
     assert status == "WAIT_DOCTOR"
     assert list(kinds) == ["bot_widget", "bot_ack"]
+    parsed_status_payload = (
+        status_event_payload
+        if isinstance(status_event_payload, dict)
+        else json.loads(status_event_payload)
+    )
+    assert parsed_status_payload == {
+        "from_status": "R2_POST_WIDGET",
+        "to_status": "WAIT_DOCTOR",
+    }

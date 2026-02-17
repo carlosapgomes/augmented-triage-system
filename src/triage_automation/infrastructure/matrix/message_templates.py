@@ -11,6 +11,7 @@ def build_room2_widget_message(
     *,
     case_id: UUID,
     agency_record_number: str,
+    widget_launch_url: str,
     payload: dict[str, object],
 ) -> str:
     """Build Room-2 widget post body with embedded JSON payload."""
@@ -20,6 +21,7 @@ def build_room2_widget_message(
         "Solicitacao de triagem\n"
         f"caso: {case_id}\n"
         f"registro: {agency_record_number}\n\n"
+        f"Abra o widget de decisao: {widget_launch_url}\n\n"
         "Payload do widget:\n"
         f"```json\n{payload_json}\n```"
     )
@@ -52,7 +54,10 @@ def build_room3_request_message(*, case_id: UUID) -> str:
 def build_room3_ack_message(*, case_id: UUID) -> str:
     """Build Room-3 ack body used as audit-only reaction target."""
 
-    return f"Solicitacao de agendamento registrada para o caso: {case_id}\nReaja com +1 para confirmar."
+    return (
+        f"Solicitacao de agendamento registrada para o caso: {case_id}\n"
+        "Reaja com +1 para confirmar."
+    )
 
 
 def build_room3_invalid_format_reprompt(*, case_id: UUID) -> str:

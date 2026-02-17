@@ -31,9 +31,9 @@ Extend Room-2 widget post to include widget launch context while preserving ack/
 - `uv run mypy src apps`
 
 ## Mandatory Checklist
-- [ ] Room-2 ack reaction semantics unchanged (audit-only)
-- [ ] No state-machine transition changes
-- [ ] Prior-case payload semantics preserved
+- [x] Room-2 ack reaction semantics unchanged (audit-only)
+- [x] No state-machine transition changes
+- [x] Prior-case payload semantics preserved
 
 ## STOP RULE
 Stop after Room-2 posting parity is validated; do not implement static widget UI yet.

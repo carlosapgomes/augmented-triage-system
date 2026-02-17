@@ -12,9 +12,9 @@
 
 ## 3. Room-2 Launch Payload Integration
 
-- [ ] 3.1 Add failing service tests for Room-2 post including widget launch URL/context while preserving ack + audit behavior (`tasks/03-room2-launch-payload.md`)
-- [ ] 3.2 Update Room-2 message template/service composition to include widget launch metadata (`tasks/03-room2-launch-payload.md`)
-- [ ] 3.3 Verify no state-machine change (`LLM_SUGGEST -> R2_POST_WIDGET -> WAIT_DOCTOR` remains intact) (`tasks/03-room2-launch-payload.md`)
+- [x] 3.1 Add failing service tests for Room-2 post including widget launch URL/context while preserving ack + audit behavior (`tasks/03-room2-launch-payload.md`)
+- [x] 3.2 Update Room-2 message template/service composition to include widget launch metadata (`tasks/03-room2-launch-payload.md`)
+- [x] 3.3 Verify no state-machine change (`LLM_SUGGEST -> R2_POST_WIDGET -> WAIT_DOCTOR` remains intact) (`tasks/03-room2-launch-payload.md`)
 
 ## 4. Widget Static UI (Minimal)
 

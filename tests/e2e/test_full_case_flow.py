@@ -372,6 +372,7 @@ async def test_happy_path_reaches_cleaned_with_cleanup_redactions(tmp_path: Path
     )
     room2_service = PostRoom2WidgetService(
         room2_id="!room2:example.org",
+        widget_public_base_url="https://webhook.example.org",
         case_repository=case_repo,
         audit_repository=audit_repo,
         message_repository=message_repo,
@@ -558,6 +559,7 @@ async def test_doctor_deny_path_posts_room1_final_without_room3_request(tmp_path
     )
     room2_service = PostRoom2WidgetService(
         room2_id="!room2:example.org",
+        widget_public_base_url="https://webhook.example.org",
         case_repository=case_repo,
         audit_repository=audit_repo,
         message_repository=message_repo,
