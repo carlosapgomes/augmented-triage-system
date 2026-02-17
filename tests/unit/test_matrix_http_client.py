@@ -81,6 +81,41 @@ async def test_send_text_posts_message_payload_and_returns_event_id() -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_file_from_mxc_posts_m_file_payload_and_returns_event_id() -> None:
+    transport = _QueuedTransport(
+        responses=[
+            MatrixHttpResponse(
+                status_code=200,
+                body_bytes=b'{"event_id":"$evt-send-file-1"}',
+            )
+        ]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    event_id = await client.send_file_from_mxc(
+        room_id="!room:example.org",
+        filename="relatorio.pdf",
+        mxc_url="mxc://example.org/report-pdf",
+        mimetype="application/pdf",
+    )
+
+    assert event_id == "$evt-send-file-1"
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["method"] == "PUT"
+    payload = json.loads((call["body"] or b"").decode("utf-8"))
+    assert payload["msgtype"] == "m.file"
+    assert payload["body"] == "relatorio.pdf"
+    assert payload["filename"] == "relatorio.pdf"
+    assert payload["url"] == "mxc://example.org/report-pdf"
+    assert payload["info"]["mimetype"] == "application/pdf"
+
+
+@pytest.mark.asyncio
 async def test_reply_text_includes_reply_relation() -> None:
     transport = _QueuedTransport(
         responses=[MatrixHttpResponse(status_code=200, body_bytes=b'{"event_id":"$evt-reply-1"}')]

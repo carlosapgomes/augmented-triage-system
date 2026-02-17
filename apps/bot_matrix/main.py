@@ -62,11 +62,14 @@ _ROOM2_REPLY_ERROR_REASON_TO_CODE: dict[str, str] = {
 _ROOM2_REPLY_TARGET_MESSAGE_KINDS = {
     "room2_case_root",
     "room2_case_instructions",
+    "room2_case_template",
 }
 _ROOM2_AUTOMATION_MESSAGE_KINDS = {
     "room2_case_root",
+    "room2_case_pdf_attachment",
     "room2_case_summary",
     "room2_case_instructions",
+    "room2_case_template",
     "room2_decision_ack",
 }
 logger = logging.getLogger(__name__)

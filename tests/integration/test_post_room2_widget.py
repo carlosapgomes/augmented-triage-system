@@ -24,8 +24,8 @@ from triage_automation.infrastructure.db.session import create_session_factory
 class FakeMatrixPoster:
     def __init__(self) -> None:
         self.send_calls: list[tuple[str, str, str, str | None]] = []
+        self.send_file_calls: list[tuple[str, str, str, str, str]] = []
         self.reply_calls: list[tuple[str, str, str, str, str | None]] = []
-        self.reply_file_calls: list[tuple[str, str, str, str, str, str]] = []
         self._counter = 0
 
     async def send_text(
@@ -40,6 +40,19 @@ class FakeMatrixPoster:
         self.send_calls.append((room_id, body, event_id, formatted_body))
         return event_id
 
+    async def send_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        self._counter += 1
+        event_id = f"$room2-{self._counter}"
+        self.send_file_calls.append((room_id, filename, mxc_url, mimetype, event_id))
+        return event_id
+
     async def reply_text(
         self,
         *,
@@ -52,23 +65,6 @@ class FakeMatrixPoster:
         reply_event_id = f"$room2-{self._counter}"
         self.reply_calls.append((room_id, event_id, body, reply_event_id, formatted_body))
         return reply_event_id
-
-    async def reply_file_from_mxc(
-        self,
-        *,
-        room_id: str,
-        event_id: str,
-        filename: str,
-        mxc_url: str,
-        mimetype: str,
-    ) -> str:
-        self._counter += 1
-        reply_event_id = f"$room2-{self._counter}"
-        self.reply_file_calls.append(
-            (room_id, event_id, filename, mxc_url, mimetype, reply_event_id)
-        )
-        return reply_event_id
-
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
     db_path = tmp_path / filename
@@ -235,35 +231,17 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
 
     await service.post_widget(case_id=current_case.case_id)
 
-    assert len(matrix_poster.send_calls) == 1
-    assert len(matrix_poster.reply_file_calls) == 1
-    assert len(matrix_poster.reply_calls) == 2
+    assert len(matrix_poster.send_calls) == 0
+    assert len(matrix_poster.send_file_calls) == 1
+    assert len(matrix_poster.reply_calls) == 3
 
-    root_room_id, root_body, root_event_id, root_formatted_body = matrix_poster.send_calls[0]
+    root_room_id, root_filename, root_mxc_url, root_mimetype, root_event_id = (
+        matrix_poster.send_file_calls[0]
+    )
     assert root_room_id == "!room2:example.org"
-    assert f"caso: {current_case.case_id}" in root_body
-    assert "Solicitacao de triagem - contexto original" in root_body
-    assert "PDF original do relatorio" in root_body
-    assert "mxc://example.org/current" not in root_body
-    assert "/widget/room2" not in root_body
-    assert "Payload do widget" not in root_body
-    assert root_formatted_body is not None
-    assert "<h1>Solicitacao de triagem - contexto original</h1>" in root_formatted_body
-    assert "PDF original do relatorio" in root_formatted_body
-
-    (
-        attachment_room_id,
-        attachment_parent,
-        attachment_filename,
-        attachment_mxc_url,
-        attachment_mimetype,
-        _attachment_event_id,
-    ) = matrix_poster.reply_file_calls[0]
-    assert attachment_room_id == "!room2:example.org"
-    assert attachment_parent == root_event_id
-    assert attachment_filename == f"caso-{current_case.case_id}-relatorio-original.pdf"
-    assert attachment_mxc_url == "mxc://example.org/current"
-    assert attachment_mimetype == "application/pdf"
+    assert root_filename == f"caso-{current_case.case_id}-relatorio-original.pdf"
+    assert root_mxc_url == "mxc://example.org/current"
+    assert root_mimetype == "application/pdf"
 
     (
         summary_room_id,
@@ -300,19 +278,31 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
         instructions_body,
         _instructions_event_id,
         instructions_formatted_body,
-    ) = (
-        matrix_poster.reply_calls[1]
-    )
+    ) = matrix_poster.reply_calls[1]
     assert instructions_room_id == "!room2:example.org"
     assert instructions_parent == root_event_id
-    assert "decisao: aceitar|negar" in instructions_body
-    assert "suporte: nenhum|anestesista|anestesista_uti" in instructions_body
-    assert "```text" in instructions_body
+    assert "copie a proxima mensagem" in instructions_body.lower()
+    assert "responda como resposta a ela" in instructions_body.lower()
     assert "decisao:aceitar" in instructions_body
     assert instructions_formatted_body is not None
     assert "<h1>Instrucao de decisao medica</h1>" in instructions_formatted_body
-    assert "<pre><code>" in instructions_formatted_body
-    assert "decisao: aceitar|negar" in instructions_formatted_body
+    assert "<ol>" in instructions_formatted_body
+
+    (
+        template_room_id,
+        template_parent,
+        template_body,
+        _template_event_id,
+        template_formatted_body,
+    ) = matrix_poster.reply_calls[2]
+    assert template_room_id == "!room2:example.org"
+    assert template_parent == root_event_id
+    assert template_body.startswith("decisao: aceitar|negar\n")
+    assert "suporte: nenhum|anestesista|anestesista_uti\n" in template_body
+    assert "motivo:\n" in template_body
+    assert template_formatted_body is not None
+    assert template_formatted_body.startswith("<pre><code>")
+    assert template_formatted_body.endswith("</code></pre>")
 
     with engine.begin() as connection:
         status = connection.execute(
@@ -346,9 +336,9 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert status == "WAIT_DOCTOR"
     assert list(kinds) == [
         "room2_case_root",
-        "room2_case_pdf_attachment",
         "room2_case_summary",
         "room2_case_instructions",
+        "room2_case_template",
     ]
     assert root_case_id is not None
     assert UUID(str(root_case_id)) == current_case.case_id

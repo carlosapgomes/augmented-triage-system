@@ -93,6 +93,7 @@ def build_room2_case_pdf_message(
     extracted_text: str,
 ) -> str:
     """Build Room-2 message I body with concise context plus PDF attachment guidance."""
+    _ = extracted_text
 
     return (
         "# Solicitacao de triagem - contexto original\n\n"
@@ -109,6 +110,7 @@ def build_room2_case_pdf_formatted_html(
     extracted_text: str,
 ) -> str:
     """Build Room-2 message I HTML payload with concise PDF attachment guidance."""
+    _ = extracted_text
 
     return (
         "<h1>Solicitacao de triagem - contexto original</h1>"
@@ -291,46 +293,62 @@ def _format_scalar(value: object) -> str:
 
 
 def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
-    """Build Room-2 message III body with strict doctor decision reply template."""
+    """Build Room-2 guidance message that points doctors to the copy template."""
 
     return (
         "# Instrucao de decisao medica\n\n"
-        "Responda como resposta a ESTA mensagem.\n"
-        "Copie o modelo abaixo, preencha e envie mantendo uma linha por campo:\n\n"
-        "```text\n"
-        "decisao: aceitar|negar\n"
-        "suporte: nenhum|anestesista|anestesista_uti\n"
-        "motivo: <texto livre ou vazio>\n"
-        f"caso: {case_id}\n"
-        "```\n\n"
+        "1. Copie a PROXIMA mensagem (modelo puro).\n"
+        "2. Responda como resposta a ela, preenchendo os campos.\n"
+        "3. Mantenha exatamente uma linha por campo.\n\n"
         "Regras:\n"
         "- Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)\n"
         "- decisao=negar exige suporte=nenhum\n"
-        "- Nao adicione linhas fora do modelo"
+        "- Nao adicione linhas fora do modelo\n"
+        f"- caso esperado: {case_id}"
     )
 
 
 def build_room2_case_decision_instructions_formatted_html(*, case_id: UUID) -> str:
-    """Build Room-2 message III HTML payload with copy-paste friendly template block."""
+    """Build Room-2 guidance HTML payload that points doctors to template message."""
 
-    template_block = (
-        "decisao: aceitar|negar\n"
-        "suporte: nenhum|anestesista|anestesista_uti\n"
-        "motivo: &lt;texto livre ou vazio&gt;\n"
-        f"caso: {escape(str(case_id))}"
-    )
     return (
         "<h1>Instrucao de decisao medica</h1>"
-        "<p>Responda como resposta a <strong>ESTA mensagem</strong>.</p>"
-        "<p>Copie o modelo abaixo, preencha e envie mantendo uma linha por campo:</p>"
-        f"<pre><code>{template_block}</code></pre>"
+        "<ol>"
+        "<li>Copie a <strong>PROXIMA mensagem</strong> (modelo puro).</li>"
+        "<li>Responda como resposta a ela, preenchendo os campos.</li>"
+        "<li>Mantenha exatamente uma linha por campo.</li>"
+        "</ol>"
         "<h2>Regras:</h2>"
         "<ul>"
         "<li>Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)</li>"
         "<li>decisao=negar exige suporte=nenhum</li>"
         "<li>Nao adicione linhas fora do modelo</li>"
+        f"<li>caso esperado: {escape(str(case_id))}</li>"
         "</ul>"
     )
+
+
+def build_room2_case_decision_template_message(*, case_id: UUID) -> str:
+    """Build Room-2 pure template message intended for doctor copy/paste reply."""
+
+    return (
+        "decisao: aceitar|negar\n"
+        "suporte: nenhum|anestesista|anestesista_uti\n"
+        "motivo:\n"
+        f"caso: {case_id}"
+    )
+
+
+def build_room2_case_decision_template_formatted_html(*, case_id: UUID) -> str:
+    """Build Room-2 pure template HTML payload for easier copy on supporting clients."""
+
+    template_block = (
+        "decisao: aceitar|negar\n"
+        "suporte: nenhum|anestesista|anestesista_uti\n"
+        "motivo:\n"
+        f"caso: {escape(str(case_id))}"
+    )
+    return f"<pre><code>{template_block}</code></pre>"
 
 
 def build_room2_ack_message(*, case_id: UUID) -> str:

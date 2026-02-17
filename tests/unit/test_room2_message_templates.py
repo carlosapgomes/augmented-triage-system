@@ -5,6 +5,8 @@ from uuid import UUID
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_formatted_html,
     build_room2_case_decision_instructions_message,
+    build_room2_case_decision_template_formatted_html,
+    build_room2_case_decision_template_message,
     build_room2_case_pdf_attachment_filename,
     build_room2_case_pdf_formatted_html,
     build_room2_case_pdf_message,
@@ -92,26 +94,47 @@ def test_build_room2_case_decision_instructions_message_has_strict_template() ->
 
     body = build_room2_case_decision_instructions_message(case_id=case_id)
 
-    assert "copie o modelo" in body.lower()
-    assert "```text" in body
-    assert "decisao: aceitar|negar" in body
-    assert "suporte: nenhum|anestesista|anestesista_uti" in body
-    assert "motivo:" in body
+    assert "copie a proxima mensagem" in body.lower()
+    assert "responda como resposta a ela" in body.lower()
     assert "decisao:aceitar" in body
-    assert f"caso: {case_id}" in body
+    assert "caso esperado" in body
+    assert f"caso esperado: {case_id}" in body
 
 
-def test_build_room2_case_decision_instructions_formatted_html_has_copy_block() -> None:
+def test_build_room2_case_decision_instructions_formatted_html_has_guidance() -> None:
     case_id = UUID("33333333-3333-3333-3333-333333333333")
 
     body = build_room2_case_decision_instructions_formatted_html(case_id=case_id)
 
     assert "<h1>Instrucao de decisao medica</h1>" in body
-    assert "<pre><code>" in body
+    assert "<ol>" in body
+    assert "Copie a <strong>PROXIMA mensagem</strong>" in body
+    assert f"caso esperado: {case_id}" in body
+    assert "decisao:aceitar" in body
+
+
+def test_build_room2_case_decision_template_message_is_copy_paste_ready() -> None:
+    case_id = UUID("33333333-3333-3333-3333-333333333333")
+
+    body = build_room2_case_decision_template_message(case_id=case_id)
+
+    assert body.startswith("decisao: aceitar|negar\n")
+    assert "suporte: nenhum|anestesista|anestesista_uti\n" in body
+    assert "motivo:\n" in body
+    assert body.endswith(f"caso: {case_id}")
+
+
+def test_build_room2_case_decision_template_formatted_html_has_only_pre_block() -> None:
+    case_id = UUID("33333333-3333-3333-3333-333333333333")
+
+    body = build_room2_case_decision_template_formatted_html(case_id=case_id)
+
+    assert body.startswith("<pre><code>")
     assert "decisao: aceitar|negar" in body
     assert "suporte: nenhum|anestesista|anestesista_uti" in body
+    assert "motivo:" in body
     assert f"caso: {case_id}" in body
-    assert "decisao:aceitar" in body
+    assert body.endswith("</code></pre>")
 
 
 def test_build_room2_case_summary_formatted_html_includes_sections() -> None:

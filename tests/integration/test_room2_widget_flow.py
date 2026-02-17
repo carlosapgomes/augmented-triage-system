@@ -39,7 +39,7 @@ SUBMIT_PATH = "/widget/room2/submit"
 class FakeMatrixPoster:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
-        self.file_calls: list[tuple[str, str, str, str, str]] = []
+        self.file_calls: list[tuple[str, str, str, str]] = []
         self._counter = 0
 
     async def send_text(
@@ -51,6 +51,19 @@ class FakeMatrixPoster:
     ) -> str:
         _ = formatted_body
         self.calls.append((room_id, body))
+        self._counter += 1
+        return f"$room2-{self._counter}"
+
+    async def send_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        _ = room_id
+        self.file_calls.append((filename, mxc_url, mimetype, room_id))
         self._counter += 1
         return f"$room2-{self._counter}"
 
@@ -67,20 +80,6 @@ class FakeMatrixPoster:
         self.calls.append((room_id, body))
         self._counter += 1
         return f"$room2-{self._counter}"
-
-    async def reply_file_from_mxc(
-        self,
-        *,
-        room_id: str,
-        event_id: str,
-        filename: str,
-        mxc_url: str,
-        mimetype: str,
-    ) -> str:
-        self.file_calls.append((room_id, event_id, filename, mxc_url, mimetype))
-        self._counter += 1
-        return f"$room2-{self._counter}"
-
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
     db_path = tmp_path / filename

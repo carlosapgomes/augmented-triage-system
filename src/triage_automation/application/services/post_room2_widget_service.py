@@ -28,9 +28,9 @@ from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_formatted_html,
     build_room2_case_decision_instructions_message,
+    build_room2_case_decision_template_formatted_html,
+    build_room2_case_decision_template_message,
     build_room2_case_pdf_attachment_filename,
-    build_room2_case_pdf_formatted_html,
-    build_room2_case_pdf_message,
     build_room2_case_summary_formatted_html,
     build_room2_case_summary_message,
 )
@@ -49,6 +49,16 @@ class MatrixRoomPosterPort(Protocol):
         formatted_body: str | None = None,
     ) -> str:
         """Post text body to a room and return generated matrix event id."""
+
+    async def send_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        """Post a file event in room referencing an existing MXC URL."""
 
     async def reply_text(
         self,
@@ -84,7 +94,7 @@ class PostRoom2WidgetRetriableError(RuntimeError):
 
 
 class PostRoom2WidgetService:
-    """Build Room-2 payload, post root + reply context messages, and advance case status."""
+    """Post Room-2 PDF root, summary, guidance, and reply template messages."""
 
     def __init__(
         self,
@@ -106,7 +116,7 @@ class PostRoom2WidgetService:
         self._matrix_poster = matrix_poster
 
     async def post_widget(self, *, case_id: UUID) -> dict[str, object]:
-        """Post Room-2 root message and two context replies for doctor review."""
+        """Post Room-2 root message plus doctor-facing review/reply context messages."""
 
         logger.info("room2_widget_post_started case_id=%s", case_id)
         case = await self._case_repository.get_case_room2_widget_snapshot(case_id=case_id)
@@ -186,20 +196,12 @@ class PostRoom2WidgetService:
             )
         )
 
-        root_body = build_room2_case_pdf_message(
-            case_id=case.case_id,
-            agency_record_number=case.agency_record_number,
-            extracted_text=case.extracted_text,
-        )
-        root_formatted_body = build_room2_case_pdf_formatted_html(
-            case_id=case.case_id,
-            agency_record_number=case.agency_record_number,
-            extracted_text=case.extracted_text,
-        )
-        root_event_id = await self._matrix_poster.send_text(
+        root_filename = build_room2_case_pdf_attachment_filename(case_id=case.case_id)
+        root_event_id = await self._matrix_poster.send_file_from_mxc(
             room_id=self._room2_id,
-            body=root_body,
-            formatted_body=root_formatted_body,
+            filename=root_filename,
+            mxc_url=case.pdf_mxc_url,
+            mimetype="application/pdf",
         )
         logger.info(
             "room2_widget_posted case_id=%s room_id=%s event_id=%s",
@@ -228,51 +230,7 @@ class PostRoom2WidgetService:
                 payload={
                     "case_id": str(case.case_id),
                     "record_number": case.agency_record_number,
-                },
-            )
-        )
-
-        pdf_attachment_filename = build_room2_case_pdf_attachment_filename(
-            case_id=case.case_id
-        )
-        pdf_attachment_event_id = await self._matrix_poster.reply_file_from_mxc(
-            room_id=self._room2_id,
-            event_id=root_event_id,
-            filename=pdf_attachment_filename,
-            mxc_url=case.pdf_mxc_url,
-            mimetype="application/pdf",
-        )
-        logger.info(
-            (
-                "room2_context_attachment_posted case_id=%s room_id=%s event_id=%s "
-                "parent_event_id=%s"
-            ),
-            case.case_id,
-            self._room2_id,
-            pdf_attachment_event_id,
-            root_event_id,
-        )
-
-        await self._message_repository.add_message(
-            CaseMessageCreateInput(
-                case_id=case.case_id,
-                room_id=self._room2_id,
-                event_id=pdf_attachment_event_id,
-                sender_user_id=None,
-                kind="room2_case_pdf_attachment",
-            )
-        )
-
-        await self._audit_repository.append_event(
-            AuditEventCreateInput(
-                case_id=case.case_id,
-                actor_type="bot",
-                room_id=self._room2_id,
-                matrix_event_id=pdf_attachment_event_id,
-                event_type="ROOM2_CASE_PDF_ATTACHMENT_POSTED",
-                payload={
-                    "reply_to_event_id": root_event_id,
-                    "filename": pdf_attachment_filename,
+                    "filename": root_filename,
                     "pdf_mxc_url": case.pdf_mxc_url,
                 },
             )
@@ -365,6 +323,48 @@ class PostRoom2WidgetService:
                 room_id=self._room2_id,
                 matrix_event_id=instructions_event_id,
                 event_type="ROOM2_CASE_INSTRUCTIONS_POSTED",
+                payload={"reply_to_event_id": root_event_id},
+            )
+        )
+
+        template_body = build_room2_case_decision_template_message(case_id=case.case_id)
+        template_formatted_body = build_room2_case_decision_template_formatted_html(
+            case_id=case.case_id
+        )
+        template_event_id = await self._matrix_poster.reply_text(
+            room_id=self._room2_id,
+            event_id=root_event_id,
+            body=template_body,
+            formatted_body=template_formatted_body,
+        )
+        logger.info(
+            (
+                "room2_template_posted case_id=%s room_id=%s event_id=%s "
+                "parent_event_id=%s"
+            ),
+            case.case_id,
+            self._room2_id,
+            template_event_id,
+            root_event_id,
+        )
+
+        await self._message_repository.add_message(
+            CaseMessageCreateInput(
+                case_id=case.case_id,
+                room_id=self._room2_id,
+                event_id=template_event_id,
+                sender_user_id=None,
+                kind="room2_case_template",
+            )
+        )
+
+        await self._audit_repository.append_event(
+            AuditEventCreateInput(
+                case_id=case.case_id,
+                actor_type="bot",
+                room_id=self._room2_id,
+                matrix_event_id=template_event_id,
+                event_type="ROOM2_CASE_TEMPLATE_POSTED",
                 payload={"reply_to_event_id": root_event_id},
             )
         )
