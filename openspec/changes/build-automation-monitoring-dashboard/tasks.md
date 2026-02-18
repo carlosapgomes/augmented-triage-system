@@ -37,7 +37,7 @@
 
 ## 6. Compatibilidade de runtime Matrix-only
 
-- [ ] 6.1 Garantir que o runtime `bot-api` exponha as rotas de monitoramento e de administracao de prompts no mesmo processo.
+- [x] 6.1 Garantir que o runtime `bot-api` exponha as rotas de monitoramento e de administracao de prompts no mesmo processo.
 - [ ] 6.2 Garantir que o runtime de decisao medica permaneca Matrix-only (sem reintroduzir fallback HTTP de decisao).
 
 ## 7. Validacao e prontidao manual
