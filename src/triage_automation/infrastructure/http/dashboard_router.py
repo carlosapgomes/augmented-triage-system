@@ -51,7 +51,7 @@ def build_dashboard_router(
         request: Request,
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=10, ge=1, le=15),
-        status: CaseStatus | None = None,
+        status: str | None = None,
         from_date: date | None = None,
         to_date: date | None = None,
     ) -> Response:
@@ -60,12 +60,13 @@ def build_dashboard_router(
         authenticated_user = await _require_audit_user(auth_guard=auth_guard, request=request)
         if isinstance(authenticated_user, RedirectResponse):
             return authenticated_user
+        status_filter = _parse_case_status_filter(status)
         try:
             result = await monitoring_service.list_cases(
                 CaseMonitoringListQuery(
                     page=page,
                     page_size=page_size,
-                    status=status,
+                    status=status_filter,
                     from_date=from_date,
                     to_date=to_date,
                 )
@@ -78,7 +79,7 @@ def build_dashboard_router(
         next_page = result.page + 1 if result.page < total_pages else None
 
         shared_filters = {
-            "status": status.value if status is not None else "",
+            "status": status_filter.value if status_filter is not None else "",
             "from_date": from_date.isoformat() if from_date is not None else "",
             "to_date": to_date.isoformat() if to_date is not None else "",
             "page_size": result.page_size,
@@ -101,7 +102,7 @@ def build_dashboard_router(
                     _build_cases_url(
                         page=prev_page,
                         page_size=result.page_size,
-                        status=status,
+                        status=status_filter,
                         from_date=from_date,
                         to_date=to_date,
                     )
@@ -112,7 +113,7 @@ def build_dashboard_router(
                     _build_cases_url(
                         page=next_page,
                         page_size=result.page_size,
-                        status=status,
+                        status=status_filter,
                         from_date=from_date,
                         to_date=to_date,
                     )
@@ -215,6 +216,20 @@ def _build_cases_url(
     if to_date is not None:
         params["to_date"] = to_date.isoformat()
     return f"/dashboard/cases?{urlencode(params)}"
+
+
+def _parse_case_status_filter(raw_status: str | None) -> CaseStatus | None:
+    """Parse optional case status query value, treating blank as absent."""
+
+    if raw_status is None:
+        return None
+    normalized = raw_status.strip()
+    if not normalized:
+        return None
+    try:
+        return CaseStatus(normalized)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"invalid status filter: {normalized}") from exc
 
 
 def _source_badge_class(source: str) -> str:

@@ -356,6 +356,50 @@ async def test_dashboard_case_list_requires_bearer_token(tmp_path: Path) -> None
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_list_accepts_blank_status_query_parameter(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_list_blank_status.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-blank-status"
+    now = datetime.now(tz=UTC)
+    case_id = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(minutes=15),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id="$evt-blank-status",
+            captured_at=now - timedelta(minutes=5),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?status=&from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert str(case_id) in response.text
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("role", "token"),
     [
