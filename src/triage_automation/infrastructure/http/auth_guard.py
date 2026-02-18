@@ -7,6 +7,8 @@ from triage_automation.application.ports.user_repository_port import UserRecord,
 from triage_automation.application.services.access_guard_service import AccessGuardService
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
 
+SESSION_COOKIE_NAME = "ta_session"
+
 
 class MissingAuthTokenError(PermissionError):
     """Raised when a bearer token is required but not provided."""
@@ -45,24 +47,48 @@ class WidgetAuthGuard:
         self._user_repository = user_repository
         self._access_guard = access_guard or AccessGuardService()
 
-    async def require_admin_user(self, *, authorization_header: str | None) -> UserRecord:
+    async def require_admin_user(
+        self,
+        *,
+        authorization_header: str | None,
+        session_token: str | None = None,
+    ) -> UserRecord:
         """Resolve active caller from bearer token and require explicit `admin` role."""
 
-        user = await self._resolve_active_user(authorization_header=authorization_header)
+        user = await self._resolve_active_user(
+            authorization_header=authorization_header,
+            session_token=session_token,
+        )
         self._access_guard.require_admin(role=user.role)
         return user
 
-    async def require_audit_user(self, *, authorization_header: str | None) -> UserRecord:
+    async def require_audit_user(
+        self,
+        *,
+        authorization_header: str | None,
+        session_token: str | None = None,
+    ) -> UserRecord:
         """Resolve active caller and require dashboard audit-read permission."""
 
-        user = await self._resolve_active_user(authorization_header=authorization_header)
+        user = await self._resolve_active_user(
+            authorization_header=authorization_header,
+            session_token=session_token,
+        )
         self._access_guard.require_audit_read(role=user.role)
         return user
 
-    async def _resolve_active_user(self, *, authorization_header: str | None) -> UserRecord:
+    async def _resolve_active_user(
+        self,
+        *,
+        authorization_header: str | None,
+        session_token: str | None,
+    ) -> UserRecord:
         """Resolve bearer token to an active persisted user record."""
 
-        token = extract_bearer_token(authorization_header)
+        token = _resolve_request_token(
+            authorization_header=authorization_header,
+            session_token=session_token,
+        )
         token_hash = self._token_service.hash_token(token)
         token_record = await self._auth_token_repository.get_active_by_hash(token_hash=token_hash)
         if token_record is None:
@@ -73,3 +99,15 @@ class WidgetAuthGuard:
             raise InvalidAuthTokenError("invalid or expired auth token")
 
         return user
+
+
+def _resolve_request_token(*, authorization_header: str | None, session_token: str | None) -> str:
+    """Resolve request token with precedence for explicit Authorization header."""
+
+    if authorization_header is not None and authorization_header.strip():
+        return extract_bearer_token(authorization_header)
+
+    if session_token is not None and session_token.strip():
+        return session_token.strip()
+
+    raise MissingAuthTokenError("missing bearer token")

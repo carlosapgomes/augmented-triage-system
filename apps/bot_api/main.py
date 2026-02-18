@@ -40,6 +40,7 @@ from triage_automation.infrastructure.http.monitoring_router import build_monito
 from triage_automation.infrastructure.http.prompt_management_router import (
     build_prompt_management_router,
 )
+from triage_automation.infrastructure.http.web_session_router import build_web_session_router
 from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
@@ -181,6 +182,14 @@ def create_app(
 
         app = FastAPI(lifespan=_lifespan)
 
+    app.include_router(
+        build_web_session_router(
+            auth_service=auth_service,
+            auth_token_repository=auth_token_repository,
+            token_service=token_service,
+            auth_guard=auth_guard,
+        )
+    )
     app.include_router(
         build_auth_router(
             auth_service=auth_service,

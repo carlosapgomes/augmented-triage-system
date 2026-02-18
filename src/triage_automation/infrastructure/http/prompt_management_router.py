@@ -19,6 +19,7 @@ from triage_automation.application.services.prompt_management_service import (
     PromptVersionNotFoundError,
 )
 from triage_automation.infrastructure.http.auth_guard import (
+    SESSION_COOKIE_NAME,
     InvalidAuthTokenError,
     MissingAuthTokenError,
     WidgetAuthGuard,
@@ -88,7 +89,8 @@ async def _require_admin_user(*, auth_guard: WidgetAuthGuard, request: Request) 
 
     try:
         return await auth_guard.require_admin_user(
-            authorization_header=request.headers.get("authorization")
+            authorization_header=request.headers.get("authorization"),
+            session_token=request.cookies.get(SESSION_COOKIE_NAME),
         )
     except MissingAuthTokenError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc

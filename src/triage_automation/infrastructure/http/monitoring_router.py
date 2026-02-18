@@ -25,6 +25,7 @@ from triage_automation.application.services.case_monitoring_service import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.http.auth_guard import (
+    SESSION_COOKIE_NAME,
     InvalidAuthTokenError,
     MissingAuthTokenError,
     WidgetAuthGuard,
@@ -51,7 +52,8 @@ def build_monitoring_router(
     ) -> MonitoringCaseListResponse:
         try:
             await auth_guard.require_audit_user(
-                authorization_header=request.headers.get("authorization")
+                authorization_header=request.headers.get("authorization"),
+                session_token=request.cookies.get(SESSION_COOKIE_NAME),
             )
         except MissingAuthTokenError as exc:
             raise HTTPException(status_code=401, detail=str(exc)) from exc
@@ -100,7 +102,8 @@ def build_monitoring_router(
     async def get_case_detail(request: Request, case_id: UUID) -> MonitoringCaseDetailResponse:
         try:
             await auth_guard.require_audit_user(
-                authorization_header=request.headers.get("authorization")
+                authorization_header=request.headers.get("authorization"),
+                session_token=request.cookies.get(SESSION_COOKIE_NAME),
             )
         except MissingAuthTokenError as exc:
             raise HTTPException(status_code=401, detail=str(exc)) from exc

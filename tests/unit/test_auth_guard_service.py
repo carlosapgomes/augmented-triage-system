@@ -11,6 +11,7 @@ from triage_automation.application.ports.user_repository_port import UserRecord
 from triage_automation.application.services.access_guard_service import RoleNotAuthorizedError
 from triage_automation.domain.auth.roles import Role
 from triage_automation.infrastructure.http.auth_guard import (
+    SESSION_COOKIE_NAME,
     InvalidAuthTokenError,
     MissingAuthTokenError,
     WidgetAuthGuard,
@@ -186,3 +187,92 @@ async def test_widget_auth_guard_accepts_valid_reader_for_audit_access() -> None
 
     assert authenticated_user.user_id == reader.user_id
     assert authenticated_user.role is Role.READER
+
+
+@pytest.mark.asyncio
+async def test_widget_auth_guard_accepts_valid_cookie_session_token_for_audit_access() -> None:
+    token_service = OpaqueTokenService()
+    reader = _user(role=Role.READER)
+    session_token = "reader-cookie-token"
+    reader_hash = token_service.hash_token(session_token)
+    token_record = _token_record(user=reader)
+
+    guard = WidgetAuthGuard(
+        token_service=token_service,
+        auth_token_repository=FakeAuthTokenRepository(
+            records_by_hash={
+                reader_hash: AuthTokenRecord(
+                    id=token_record.id,
+                    user_id=token_record.user_id,
+                    token_hash=reader_hash,
+                    issued_at=token_record.issued_at,
+                    expires_at=token_record.expires_at,
+                    revoked_at=token_record.revoked_at,
+                    last_used_at=token_record.last_used_at,
+                )
+            }
+        ),
+        user_repository=FakeUserRepository(users_by_id={reader.user_id: reader}),
+    )
+
+    authenticated_user = await guard.require_audit_user(
+        authorization_header=None,
+        session_token=session_token,
+    )
+
+    assert authenticated_user.user_id == reader.user_id
+    assert authenticated_user.role is Role.READER
+
+
+@pytest.mark.asyncio
+async def test_widget_auth_guard_prefers_authorization_header_over_cookie_session() -> None:
+    token_service = OpaqueTokenService()
+    admin = _user(role=Role.ADMIN)
+    reader = _user(role=Role.READER)
+    admin_token = "admin-header-token"
+    reader_cookie_token = "reader-cookie-token"
+    admin_hash = token_service.hash_token(admin_token)
+    reader_hash = token_service.hash_token(reader_cookie_token)
+    admin_record = _token_record(user=admin)
+    reader_record = _token_record(user=reader)
+
+    guard = WidgetAuthGuard(
+        token_service=token_service,
+        auth_token_repository=FakeAuthTokenRepository(
+            records_by_hash={
+                admin_hash: AuthTokenRecord(
+                    id=admin_record.id,
+                    user_id=admin_record.user_id,
+                    token_hash=admin_hash,
+                    issued_at=admin_record.issued_at,
+                    expires_at=admin_record.expires_at,
+                    revoked_at=admin_record.revoked_at,
+                    last_used_at=admin_record.last_used_at,
+                ),
+                reader_hash: AuthTokenRecord(
+                    id=reader_record.id + 1,
+                    user_id=reader_record.user_id,
+                    token_hash=reader_hash,
+                    issued_at=reader_record.issued_at,
+                    expires_at=reader_record.expires_at,
+                    revoked_at=reader_record.revoked_at,
+                    last_used_at=reader_record.last_used_at,
+                ),
+            }
+        ),
+        user_repository=FakeUserRepository(
+            users_by_id={
+                admin.user_id: admin,
+                reader.user_id: reader,
+            }
+        ),
+    )
+
+    authenticated_user = await guard.require_admin_user(
+        authorization_header=f"Bearer {admin_token}",
+        session_token=reader_cookie_token,
+    )
+
+    assert SESSION_COOKIE_NAME == "ta_session"
+    assert authenticated_user.user_id == admin.user_id
+    assert authenticated_user.role is Role.ADMIN

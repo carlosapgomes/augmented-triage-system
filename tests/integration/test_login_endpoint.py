@@ -222,6 +222,9 @@ async def test_route_paths_include_login_and_monitoring_list(tmp_path: Path) -> 
         paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
 
     assert paths == {
+        "/",
+        "/login",
+        "/logout",
         "/auth/login",
         "/monitoring/cases",
         "/monitoring/cases/{case_id}",

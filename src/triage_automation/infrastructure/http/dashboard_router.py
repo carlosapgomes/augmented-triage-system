@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from triage_automation.application.ports.user_repository_port import UserRecord
@@ -26,6 +26,7 @@ from triage_automation.application.services.case_monitoring_service import (
 from triage_automation.domain.auth.roles import Role
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.http.auth_guard import (
+    SESSION_COOKIE_NAME,
     InvalidAuthTokenError,
     MissingAuthTokenError,
     WidgetAuthGuard,
@@ -52,10 +53,12 @@ def build_dashboard_router(
         status: CaseStatus | None = None,
         from_date: date | None = None,
         to_date: date | None = None,
-    ) -> HTMLResponse:
+    ) -> Response:
         """Render dashboard list page with filters and paginated case rows."""
 
-        await _require_audit_user(auth_guard=auth_guard, request=request)
+        authenticated_user = await _require_audit_user(auth_guard=auth_guard, request=request)
+        if isinstance(authenticated_user, RedirectResponse):
+            return authenticated_user
         try:
             result = await monitoring_service.list_cases(
                 CaseMonitoringListQuery(
@@ -128,10 +131,12 @@ def build_dashboard_router(
         )
 
     @router.get("/dashboard/cases/{case_id}", response_class=HTMLResponse)
-    async def render_case_detail_page(request: Request, case_id: UUID) -> HTMLResponse:
+    async def render_case_detail_page(request: Request, case_id: UUID) -> Response:
         """Render dashboard detail page with chronological timeline by case."""
 
         authenticated_user = await _require_audit_user(auth_guard=auth_guard, request=request)
+        if isinstance(authenticated_user, RedirectResponse):
+            return authenticated_user
 
         can_view_full_content = authenticated_user.role is Role.ADMIN
         detail = await monitoring_service.get_case_detail(case_id=case_id)
@@ -261,17 +266,22 @@ def _build_excerpt(full_text: str) -> str:
     return f"{normalized[:limit].rstrip()}..."
 
 
-async def _require_audit_user(*, auth_guard: WidgetAuthGuard, request: Request) -> UserRecord:
+async def _require_audit_user(
+    *,
+    auth_guard: WidgetAuthGuard,
+    request: Request,
+) -> UserRecord | RedirectResponse:
     """Resolve and authorize dashboard caller for audit-read operations."""
 
     try:
         return await auth_guard.require_audit_user(
-            authorization_header=request.headers.get("authorization")
+            authorization_header=request.headers.get("authorization"),
+            session_token=request.cookies.get(SESSION_COOKIE_NAME),
         )
-    except MissingAuthTokenError as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
-    except InvalidAuthTokenError as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    except MissingAuthTokenError:
+        return RedirectResponse(url="/login", status_code=303)
+    except InvalidAuthTokenError:
+        return RedirectResponse(url="/login", status_code=303)
     except UnknownRoleAuthorizationError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except RoleNotAuthorizedError as exc:

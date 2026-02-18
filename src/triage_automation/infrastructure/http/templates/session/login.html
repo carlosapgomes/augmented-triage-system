@@ -1,0 +1,45 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+  <section class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h2 class="h5 mb-3">Acesso ao Portal Operacional</h2>
+          <p class="text-secondary mb-4">Entre com as credenciais da equipe para continuar.</p>
+
+          {% if error_message %}
+            <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+          {% endif %}
+
+          <form method="post" action="/login">
+            <div class="mb-3">
+              <label class="form-label" for="email">Email</label>
+              <input
+                class="form-control"
+                id="email"
+                name="email"
+                type="email"
+                value="{{ email_value }}"
+                autocomplete="username"
+                required
+              >
+            </div>
+            <div class="mb-4">
+              <label class="form-label" for="password">Senha</label>
+              <input
+                class="form-control"
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+              >
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Entrar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

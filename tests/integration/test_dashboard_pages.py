@@ -349,10 +349,10 @@ async def test_dashboard_case_list_requires_bearer_token(tmp_path: Path) -> None
     _, async_url = _upgrade_head(tmp_path, "dashboard_page_list_auth_required.db")
 
     with _build_client(async_url, token_service=OpaqueTokenService()) as client:
-        response = client.get("/dashboard/cases")
+        response = client.get("/dashboard/cases", follow_redirects=False)
 
-    assert response.status_code == 401
-    assert response.json() == {"detail": "missing bearer token"}
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
 
 
 @pytest.mark.asyncio

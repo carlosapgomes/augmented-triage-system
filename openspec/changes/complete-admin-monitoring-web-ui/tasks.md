@@ -7,16 +7,16 @@
 
 ## 1. Web session foundation
 
-- [ ] 1.1 Implement `GET /` redirect behavior based on authenticated session state.
-- [ ] 1.2 Implement `GET /login` HTML page and `POST /login` form flow using existing `AuthService`.
-- [ ] 1.3 Implement `POST /logout` to clear session cookie and redirect to login.
-- [ ] 1.4 Add integration tests for success, invalid credentials, and logout behavior.
+- [x] 1.1 Implement `GET /` redirect behavior based on authenticated session state.
+- [x] 1.2 Implement `GET /login` HTML page and `POST /login` form flow using existing `AuthService`.
+- [x] 1.3 Implement `POST /logout` to clear session cookie and redirect to login.
+- [x] 1.4 Add integration tests for success, invalid credentials, and logout behavior.
 
 ## 2. Session and guard integration
 
-- [ ] 2.1 Add cookie-based token resolution in auth guard while preserving Bearer support.
-- [ ] 2.2 Define deterministic precedence between Authorization header and session cookie.
-- [ ] 2.3 Add tests covering cookie-only, Bearer-only, and mixed request authentication cases.
+- [x] 2.1 Add cookie-based token resolution in auth guard while preserving Bearer support.
+- [x] 2.2 Define deterministic precedence between Authorization header and session cookie.
+- [x] 2.3 Add tests covering cookie-only, Bearer-only, and mixed request authentication cases.
 
 ## 3. Shared operations shell
 
