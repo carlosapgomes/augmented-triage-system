@@ -39,6 +39,18 @@ Provider mode optional variables:
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
 
+Optional first-admin bootstrap variables:
+
+- `BOOTSTRAP_ADMIN_EMAIL`
+- `BOOTSTRAP_ADMIN_PASSWORD` or `BOOTSTRAP_ADMIN_PASSWORD_FILE` (set only one)
+
+Bootstrap behavior:
+
+- Executed by `bot-api` on startup
+- Creates initial `admin` user only when `users` table is empty
+- If users already exist, bootstrap is skipped
+- `BOOTSTRAP_ADMIN_PASSWORD_FILE` is recommended in production-like environments
+
 ## 3. Run database migrations
 
 ```bash

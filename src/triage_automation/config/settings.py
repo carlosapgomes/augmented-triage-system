@@ -58,6 +58,18 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="OPENAI_TEMPERATURE",
     )
+    bootstrap_admin_email: NonEmptyStr | None = Field(
+        default=None,
+        validation_alias="BOOTSTRAP_ADMIN_EMAIL",
+    )
+    bootstrap_admin_password: NonEmptyStr | None = Field(
+        default=None,
+        validation_alias="BOOTSTRAP_ADMIN_PASSWORD",
+    )
+    bootstrap_admin_password_file: NonEmptyStr | None = Field(
+        default=None,
+        validation_alias="BOOTSTRAP_ADMIN_PASSWORD_FILE",
+    )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
 

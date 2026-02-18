@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
@@ -16,6 +18,13 @@ from triage_automation.application.services.auth_service import AuthService
 from triage_automation.application.services.case_monitoring_service import CaseMonitoringService
 from triage_automation.application.services.prompt_management_service import PromptManagementService
 from triage_automation.config.settings import load_settings
+from triage_automation.infrastructure.db.admin_bootstrap import (
+    AdminBootstrapConfig,
+    AdminBootstrapConfigError,
+    AdminBootstrapOutcome,
+    ensure_initial_admin_user,
+    resolve_admin_bootstrap_config,
+)
 from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
 from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
@@ -96,11 +105,20 @@ def create_app(
 ) -> FastAPI:
     """Create FastAPI app for runtime routes."""
 
+    bootstrap_admin_config: AdminBootstrapConfig | None = None
     if database_url is None or auth_service is None or auth_token_repository is None:
         settings = load_settings()
         if database_url is None:
             database_url = settings.database_url
         configure_logging(level=settings.log_level)
+        try:
+            bootstrap_admin_config = resolve_admin_bootstrap_config(
+                email=settings.bootstrap_admin_email,
+                password=settings.bootstrap_admin_password,
+                password_file=settings.bootstrap_admin_password_file,
+            )
+        except AdminBootstrapConfigError as exc:
+            raise RuntimeError(f"invalid admin bootstrap configuration: {exc}") from exc
 
     if auth_service is None:
         assert database_url is not None
@@ -137,6 +155,32 @@ def create_app(
     assert database_url is not None
 
     app = FastAPI()
+    if bootstrap_admin_config is not None:
+        bootstrap_session_factory = create_session_factory(database_url)
+        password_hasher = BcryptPasswordHasher()
+
+        @asynccontextmanager
+        async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+            result = await ensure_initial_admin_user(
+                session_factory=bootstrap_session_factory,
+                password_hasher=password_hasher,
+                config=bootstrap_admin_config,
+            )
+            if result.outcome is AdminBootstrapOutcome.CREATED:
+                logger.warning(
+                    "initial admin user created from bootstrap env for email=%s",
+                    result.email,
+                )
+            else:
+                logger.info(
+                    "admin bootstrap skipped (%s) for email=%s",
+                    result.outcome,
+                    result.email,
+                )
+            yield
+
+        app = FastAPI(lifespan=_lifespan)
+
     app.include_router(
         build_auth_router(
             auth_service=auth_service,

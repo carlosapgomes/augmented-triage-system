@@ -26,8 +26,11 @@ This repo is implemented with strict TDD and OpenSpec slice history under `opens
 ## Current Scope
 
 - Triage workflow foundation is implemented and covered by automated tests.
-- Admin foundation exists in backend only (prompt templates, users/roles, auth/login).
-- No admin UI is included.
+- Admin and monitoring surface is available in `bot-api`:
+  - login/auth (`/auth/login`)
+  - monitoring API (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+  - server-rendered dashboard (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
+  - admin prompt-management API (`/admin/prompts/*`)
 
 ## Runtime Topology
 
@@ -39,7 +42,14 @@ Login/Auth ----------> bot-api ----> PostgreSQL <---- worker
 
 ## Public API Surface (Current)
 
-- `POST /auth/login` (opaque-token login endpoint)
+- `POST /auth/login`
+- `GET /monitoring/cases`
+- `GET /monitoring/cases/{case_id}`
+- `GET /dashboard/cases`
+- `GET /dashboard/cases/{case_id}`
+- `GET /admin/prompts/versions`
+- `GET /admin/prompts/{prompt_name}/active`
+- `POST /admin/prompts/{prompt_name}/activate`
 
 ## Project Docs
 
@@ -79,6 +89,15 @@ cp .env.example .env
 ```bash
 uv run alembic upgrade head
 ```
+
+1. Optional: bootstrap first admin at startup (one-time when `users` is empty):
+
+```bash
+export BOOTSTRAP_ADMIN_EMAIL=admin@example.org
+export BOOTSTRAP_ADMIN_PASSWORD='change-me-now'
+```
+
+For production-like environments, prefer `BOOTSTRAP_ADMIN_PASSWORD_FILE`.
 
 1. Run local quality gates:
 

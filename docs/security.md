@@ -5,6 +5,7 @@
 - Never commit real secrets, production room IDs, or production homeserver values.
 - Keep local runtime secrets in `.env` only.
 - Keep `.env.example` sanitized placeholders only.
+- For first-admin bootstrap, prefer `BOOTSTRAP_ADMIN_PASSWORD_FILE` over plain env password.
 
 ## Auth model (current)
 

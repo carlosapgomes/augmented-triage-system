@@ -37,8 +37,8 @@ Rules:
 - The triage lifecycle is state-machine driven (see `PROJECT_CONTEXT.md` for canonical states).
 - Room-2 medical decision path is Matrix structured reply only.
 - Cleanup is triggered by first Room-1 thumbs-up reaction on final reply.
-- Admin foundation exists only at backend level (prompt templates + users/roles + auth infra).
-- No admin UI is included in this repository.
+- Monitoring includes both API and server-rendered dashboard pages in `bot-api`.
+- Prompt management remains API-only and requires `admin` role.
 
 ## Persistence model (high level)
 

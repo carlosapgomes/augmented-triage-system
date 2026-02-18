@@ -27,6 +27,9 @@ def _set_required_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LLM_RUNTIME_MODE", raising=False)
     monkeypatch.delenv("LOG_LEVEL", raising=False)
     monkeypatch.delenv("WIDGET_PUBLIC_URL", raising=False)
+    monkeypatch.delenv("BOOTSTRAP_ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("BOOTSTRAP_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("BOOTSTRAP_ADMIN_PASSWORD_FILE", raising=False)
 
 
 def test_required_env_var_missing_raises_validation_error(
@@ -53,6 +56,9 @@ def test_defaults_are_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.openai_model_llm1 == "gpt-4o-mini"
     assert settings.openai_model_llm2 == "gpt-4o-mini"
     assert settings.openai_temperature is None
+    assert settings.bootstrap_admin_email is None
+    assert settings.bootstrap_admin_password is None
+    assert settings.bootstrap_admin_password_file is None
     assert str(settings.widget_public_url) == "https://webhook.example.org/"
 
 
