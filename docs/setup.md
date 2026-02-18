@@ -140,6 +140,74 @@ PY
 - `POST /auth/login` with the same `ADMIN_EMAIL` and new password
 - expected result: `200` and a token payload
 
+### 7.2 Reset admin password (Docker Compose)
+
+Use this flow when the stack runs in containers and you prefer not to use host Python tooling.
+
+1. Ensure `bot-api` is running:
+
+```bash
+docker compose up -d postgres bot-api
+```
+
+1. Set target admin identity and new password:
+
+```bash
+export ADMIN_EMAIL=admin@example.org
+export ADMIN_NEW_PASSWORD='change-me-now'
+```
+
+1. Apply reset from inside `bot-api` container:
+
+```bash
+docker compose exec -T \
+  -e ADMIN_EMAIL="$ADMIN_EMAIL" \
+  -e ADMIN_NEW_PASSWORD="$ADMIN_NEW_PASSWORD" \
+  bot-api \
+  uv run python - <<'PY'
+import asyncio
+import os
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import create_async_engine
+from triage_automation.config.settings import load_settings
+from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
+
+email = os.environ["ADMIN_EMAIL"].strip().lower()
+new_password = os.environ["ADMIN_NEW_PASSWORD"]
+if not email:
+    raise SystemExit("ADMIN_EMAIL cannot be blank")
+if not new_password.strip():
+    raise SystemExit("ADMIN_NEW_PASSWORD cannot be blank")
+
+settings = load_settings()
+engine = create_async_engine(settings.database_url)
+hasher = BcryptPasswordHasher()
+password_hash = hasher.hash_password(new_password)
+
+async def main() -> None:
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            sa.text(
+                "UPDATE users "
+                "SET password_hash = :password_hash, updated_at = CURRENT_TIMESTAMP "
+                "WHERE lower(email) = :email AND role = 'admin' AND is_active = true"
+            ),
+            {"password_hash": password_hash, "email": email},
+        )
+    await engine.dispose()
+    if result.rowcount == 0:
+        raise SystemExit("No active admin user found for ADMIN_EMAIL")
+    print("Admin password updated successfully")
+
+asyncio.run(main())
+PY
+```
+
+1. Verify with login:
+
+- `POST /auth/login` with the same `ADMIN_EMAIL` and new password
+- expected result: `200` and a token payload
+
 ## Common commands
 
 - Create migration:
