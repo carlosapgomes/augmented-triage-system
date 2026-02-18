@@ -83,6 +83,6 @@ Rollback strategy:
 
 ## Open Questions
 
-- Definir política operacional de retenção de conteúdo integral (prazo e procedimento de expurgo).
-- Definir se respostas de API do dashboard devem aplicar mascaramento parcial por campo sensível já na primeira versão.
-- Definir limites de paginação e filtros mínimos obrigatórios para evitar consultas pesadas em produção.
+- Definir política operacional de retenção de conteúdo integral (prazo e procedimento de expurgo). - Resposta: retenção permanente neste momento
+- Definir se respostas de API do dashboard devem aplicar mascaramento parcial por campo sensível já na primeira versão. Resposta: não aplicar nenhum mascaramento
+- Definir limites de paginação e filtros mínimos obrigatórios para evitar consultas pesadas em produção. Resposta: mostrar 10-15 casos por página, usar a data atual como  filtro default.
