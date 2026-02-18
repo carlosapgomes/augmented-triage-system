@@ -8,12 +8,13 @@ Define runtime process startup requirements and parity constraints for local and
 
 ### Requirement: Bot API Runtime Serving
 
-The system SHALL run `bot-api` as a long-lived ASGI process that serves compatibility callback routes, while standard Room-2 doctor decisions are executed through Matrix structured replies.
+The system SHALL run `bot-api` as a long-lived ASGI process that serves compatibility callback routes, monitoring dashboard APIs, and admin prompt-management APIs, while standard Room-2 doctor decisions are executed through Matrix structured replies.
 
 #### Scenario: Bot API process starts in runtime mode
 
 - **WHEN** the `bot-api` runtime entrypoint is launched with valid settings
 - **THEN** the process MUST remain running and serve `/callbacks/triage-decision` for emergency compatibility usage
+- **AND** the process MUST expose monitoring/admin API routes required by the dashboard feature
 
 #### Scenario: Callback route remains compatibility path
 
