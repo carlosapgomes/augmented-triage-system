@@ -6,12 +6,6 @@ from apps.bot_api import main as bot_api_main
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
 
 
-class _DummyDecisionService:
-    async def handle(self, payload: object) -> object:
-        _ = payload
-        raise RuntimeError("not used in route-shape test")
-
-
 class _DummyAuthService:
     async def authenticate(
         self,
@@ -53,7 +47,6 @@ def test_main_starts_uvicorn_with_factory(monkeypatch) -> None:
 
 def test_build_runtime_app_exposes_existing_route_paths() -> None:
     app = bot_api_main.build_runtime_app(
-        decision_service=_DummyDecisionService(),
         auth_service=_DummyAuthService(),
         auth_token_repository=_DummyAuthTokenRepository(),
         token_service=OpaqueTokenService(),
@@ -61,11 +54,4 @@ def test_build_runtime_app_exposes_existing_route_paths() -> None:
     )
 
     paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
-    assert paths == {
-        "/auth/login",
-        "/widget/room2",
-        "/widget/room2/app.js",
-        "/widget/room2/bootstrap",
-        "/widget/room2/styles.css",
-        "/widget/room2/submit",
-    }
+    assert paths == {"/auth/login"}
