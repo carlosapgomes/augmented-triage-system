@@ -225,3 +225,54 @@ async def test_admin_activates_prompt_version(tmp_path: Path) -> None:
     assert versions[3] is False
     assert versions[4] is True
     assert sum(1 for is_active in versions.values() if is_active) == 1
+
+
+@pytest.mark.asyncio
+async def test_reader_cannot_activate_prompt_version_and_state_remains_unchanged(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_reader_rejected.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-prompt-activate-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm2_user",
+            version=4,
+            content="inactive llm2_user v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.post(
+            "/admin/prompts/llm2_user/activate",
+            headers={"Authorization": f"Bearer {reader_token}"},
+            json={"version": 4},
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "admin role required"}
+
+    with sa.create_engine(sync_url).begin() as connection:
+        rows = connection.execute(
+            sa.text(
+                "SELECT version, is_active FROM prompt_templates "
+                "WHERE name = :name ORDER BY version"
+            ),
+            {"name": "llm2_user"},
+        ).mappings()
+        versions = {int(row["version"]): bool(row["is_active"]) for row in rows}
+
+    assert versions[3] is True
+    assert versions[4] is False
+    assert sum(1 for is_active in versions.values() if is_active) == 1
