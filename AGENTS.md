@@ -58,6 +58,16 @@ If a command cannot be run, report why explicitly.
 2. Do not bundle unrelated changes in the same commit.
 3. Do not rewrite history unless explicitly requested.
 
+## Markdown Formatting for OpenSpec Artifacts
+
+When creating or editing `proposal.md`, `design.md`, `tasks.md`, and `specs/**/spec.md`:
+
+1. Start each file with a single H1 title (`# ...`), not `##`.
+2. Keep a blank line after every heading and before/after lists.
+3. Use consistent heading hierarchy (`#` -> `##` -> `###`) without skipping levels.
+4. For nested list items, indent child bullets by two spaces.
+5. Prefer clean Markdown that renders without linter warnings in common editors.
+
 ## Default Session Prompt (User Re-entry)
 
 Use this when restarting work:
@@ -69,4 +79,3 @@ Task file: <task-file>
 Implement only this task slice, following AGENTS.md constraints.
 Use TDD, add/update docstrings and type hints, run verification, update task checklist, commit, push, then stop.
 ```
-
