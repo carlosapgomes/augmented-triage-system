@@ -21,7 +21,18 @@
             {% for item in cases %}
               <tr>
                 <td>
-                  <a href="/dashboard/cases/{{ item.case_id }}">{{ item.case_id }}</a>
+                  <a href="/dashboard/cases/{{ item.case_id }}">
+                    {% if item.patient_name and item.agency_record_number %}
+                      {{ item.patient_name }} · {{ item.agency_record_number }}
+                    {% elif item.patient_name %}
+                      {{ item.patient_name }}
+                    {% elif item.agency_record_number %}
+                      Registro {{ item.agency_record_number }}
+                    {% else %}
+                      Caso {{ item.case_id }}
+                    {% endif %}
+                  </a>
+                  <div class="small text-secondary">{{ item.case_id }}</div>
                 </td>
                 <td><code>{{ item.status.value }}</code></td>
                 <td>{{ item.latest_activity_at.isoformat() }}</td>

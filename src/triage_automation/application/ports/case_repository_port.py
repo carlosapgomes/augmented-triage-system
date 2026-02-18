@@ -158,6 +158,8 @@ class CaseMonitoringListItem:
     case_id: UUID
     status: CaseStatus
     latest_activity_at: datetime
+    patient_name: str | None = None
+    agency_record_number: str | None = None
 
 
 @dataclass(frozen=True)

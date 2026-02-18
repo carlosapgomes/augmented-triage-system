@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -98,21 +99,29 @@ def _insert_case(
     case_id: UUID,
     status: str,
     updated_at: datetime,
+    agency_record_number: str | None = None,
+    structured_data_json: dict[str, object] | None = None,
 ) -> None:
     connection.execute(
         sa.text(
             "INSERT INTO cases ("
             "case_id, status, room1_origin_room_id, room1_origin_event_id, room1_sender_user_id, "
-            "created_at, updated_at"
+            "agency_record_number, structured_data_json, created_at, updated_at"
             ") VALUES ("
             ":case_id, :status, '!room1:example.org', :origin_event_id, '@reader:example.org', "
-            ":created_at, :updated_at"
+            ":agency_record_number, :structured_data_json, :created_at, :updated_at"
             ")"
         ),
         {
             "case_id": case_id.hex,
             "status": status,
             "origin_event_id": f"$origin-{case_id.hex}",
+            "agency_record_number": agency_record_number,
+            "structured_data_json": (
+                json.dumps(structured_data_json, ensure_ascii=False)
+                if structured_data_json is not None
+                else None
+            ),
             "created_at": updated_at,
             "updated_at": updated_at,
         },
@@ -275,6 +284,59 @@ async def test_dashboard_case_list_page_renders_filters_and_paginated_rows_with_
     assert str(case_b) in response.text
     assert str(case_c) not in response.text
     assert "status" in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_list_prefers_patient_name_and_record_number_identifier(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_patient_identifier.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-patient-id-token"
+    now = datetime.now(tz=UTC)
+    case_id = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(minutes=20),
+            agency_record_number="123456",
+            structured_data_json={
+                "patient": {
+                    "name": "Maria Souza",
+                    "age": 54,
+                }
+            },
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id="$evt-patient-id",
+            captured_at=now - timedelta(minutes=5),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "Maria Souza · 123456" in response.text
+    assert f'href="/dashboard/cases/{case_id}"' in response.text
 
 
 @pytest.mark.asyncio

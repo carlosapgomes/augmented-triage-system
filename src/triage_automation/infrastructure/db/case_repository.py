@@ -88,6 +88,29 @@ def _to_case_record(row: RowMapping) -> CaseRecord:
     )
 
 
+def _extract_patient_name_from_structured_data(
+    structured_data_json: dict[str, Any] | None,
+) -> str | None:
+    """Extract normalized patient name from structured case payload."""
+
+    if not isinstance(structured_data_json, dict):
+        return None
+    patient_raw = structured_data_json.get("patient")
+    if not isinstance(patient_raw, dict):
+        patient_raw = structured_data_json.get("paciente")
+    if not isinstance(patient_raw, dict):
+        return None
+    candidate = patient_raw.get("name")
+    if not isinstance(candidate, str) or not candidate.strip():
+        candidate = patient_raw.get("nome")
+    if not isinstance(candidate, str):
+        return None
+    normalized = candidate.strip()
+    if not normalized:
+        return None
+    return normalized
+
+
 class SqlAlchemyCaseRepository(CaseRepositoryPort):
     """Case repository backed by SQLAlchemy async sessions."""
 
@@ -576,6 +599,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 cases.c.case_id,
                 cases.c.status,
                 latest_activity.c.latest_activity_at,
+                cases.c.agency_record_number,
+                cases.c.structured_data_json,
             )
             .select_from(from_clause)
             .order_by(
@@ -595,11 +620,14 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         total = int(total_result.scalar_one())
         items: list[CaseMonitoringListItem] = []
         for row in result.mappings().all():
+            structured_data_json = cast(dict[str, Any] | None, row["structured_data_json"])
             items.append(
                 CaseMonitoringListItem(
                     case_id=cast("Any", row["case_id"]),
                     status=CaseStatus(cast(str, row["status"])),
                     latest_activity_at=cast(datetime, row["latest_activity_at"]),
+                    patient_name=_extract_patient_name_from_structured_data(structured_data_json),
+                    agency_record_number=cast(str | None, row["agency_record_number"]),
                 )
             )
         return CaseMonitoringListPage(
