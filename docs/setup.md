@@ -18,21 +18,20 @@ uv sync
 cp .env.example .env
 ```
 
-Required variables (from `.env.example`):
+Core variables for Matrix-only decision runtime:
 
 - `ROOM1_ID`
 - `ROOM2_ID`
 - `ROOM3_ID`
 - `MATRIX_HOMESERVER_URL`
-- `WEBHOOK_PUBLIC_URL`
-- `WIDGET_PUBLIC_URL` (optional override for widget launch links; falls back to `WEBHOOK_PUBLIC_URL`)
 - `DATABASE_URL`
-- `WEBHOOK_HMAC_SECRET`
 - `LLM_RUNTIME_MODE`
 - `LOG_LEVEL`
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
+
+For the complete environment contract, review `.env.example`.
 
 Provider mode optional variables:
 

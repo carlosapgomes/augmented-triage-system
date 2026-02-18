@@ -12,6 +12,9 @@ def test_setup_doc_runtime_section_is_matrix_only() -> None:
 
     assert "webhook HMAC validation" not in setup
     assert "Cloudflare tunnel callback reachability" not in setup
+    assert "WEBHOOK_PUBLIC_URL" not in setup
+    assert "WIDGET_PUBLIC_URL" not in setup
+    assert "WEBHOOK_HMAC_SECRET" not in setup
     assert "Matrix structured reply" in setup
 
 
