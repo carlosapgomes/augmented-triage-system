@@ -246,7 +246,7 @@ async def test_monitoring_case_list_orders_by_latest_activity_with_pagination(
 
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(
-            "/monitoring/cases?page=1&page_size=2",
+            "/monitoring/cases?page=1&page_size=2&from_date=2026-02-17&to_date=2026-02-18",
             headers={"Authorization": f"Bearer {reader_token}"},
         )
 
@@ -332,3 +332,62 @@ async def test_monitoring_case_list_applies_status_and_period_filters(tmp_path: 
     assert payload["items"][0]["case_id"] == str(included_case)
     assert payload["items"][0]["status"] == "WAIT_DOCTOR"
 
+
+@pytest.mark.asyncio
+async def test_monitoring_case_list_defaults_to_today_filter_and_default_page_size(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_list_defaults.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-defaults-token"
+
+    today_case = uuid4()
+    yesterday_case = uuid4()
+    now = datetime.now(tz=UTC)
+    today = datetime(now.year, now.month, now.day, 9, 0, 0, tzinfo=UTC)
+    yesterday = today - timedelta(days=1)
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=today_case,
+            status="WAIT_DOCTOR",
+            updated_at=today,
+        )
+        _insert_case(
+            connection,
+            case_id=yesterday_case,
+            status="WAIT_DOCTOR",
+            updated_at=yesterday,
+        )
+        _insert_case_report_transcript(
+            connection,
+            case_id=today_case,
+            captured_at=today + timedelta(hours=2),
+        )
+        _insert_case_report_transcript(
+            connection,
+            case_id=yesterday_case,
+            captured_at=yesterday + timedelta(hours=2),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/monitoring/cases",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["page"] == 1
+    assert payload["page_size"] == 10
+    assert payload["total"] == 1
+    assert [entry["case_id"] for entry in payload["items"]] == [str(today_case)]

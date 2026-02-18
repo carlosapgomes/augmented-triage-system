@@ -41,7 +41,7 @@ def build_monitoring_router(
     async def list_cases(
         request: Request,
         page: int = Query(default=1, ge=1),
-        page_size: int = Query(default=20, ge=1),
+        page_size: int = Query(default=10, ge=1),
         status: CaseStatus | None = None,
         from_date: date | None = None,
         to_date: date | None = None,

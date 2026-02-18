@@ -40,8 +40,15 @@ class CaseMonitoringService:
         if query.from_date and query.to_date and query.to_date < query.from_date:
             raise InvalidMonitoringPeriodError("to_date must be greater than or equal to from_date")
 
-        activity_from = _day_start(query.from_date) if query.from_date is not None else None
-        activity_to = _next_day_start(query.to_date) if query.to_date is not None else None
+        resolved_from_date = query.from_date
+        resolved_to_date = query.to_date
+        if resolved_from_date is None and resolved_to_date is None:
+            default_date = datetime.now(tz=UTC).date()
+            resolved_from_date = default_date
+            resolved_to_date = default_date
+
+        activity_from = _day_start(resolved_from_date) if resolved_from_date is not None else None
+        activity_to = _next_day_start(resolved_to_date) if resolved_to_date is not None else None
         return await self._case_repository.list_cases_for_monitoring(
             filters=CaseMonitoringListFilter(
                 status=query.status,
