@@ -8,7 +8,7 @@ TBD - created by archiving change build-automation-monitoring-dashboard. Update 
 
 ### Requirement: Admin SHALL Manage Prompt Versions
 
-The system SHALL provide prompt-management operations for authenticated `admin` users to list prompt versions, inspect active version state, and activate a selected version.
+The system SHALL provide prompt-management operations for authenticated `admin` users to list prompt versions, inspect active version state, and activate a selected version through both API endpoints and authenticated web pages.
 
 #### Scenario: Admin lists prompt versions
 
@@ -23,13 +23,18 @@ The system SHALL provide prompt-management operations for authenticated `admin` 
 
 ### Requirement: Reader SHALL Have Read-Only Monitoring Access
 
-The system SHALL restrict prompt-management mutation operations to `admin` and MUST reject mutation attempts by `reader`.
+The system SHALL restrict prompt-management operations to `admin` and MUST reject prompt-management page/API access attempts by `reader`.
 
 #### Scenario: Reader attempts prompt activation
 
 - **WHEN** an authenticated `reader` submits a prompt activation request
 - **THEN** the system MUST reject the operation with authorization failure
 - **AND** no prompt active-version state MUST change
+
+#### Scenario: Reader requests prompt admin page
+
+- **WHEN** an authenticated `reader` requests the prompt-management HTML page
+- **THEN** the system MUST reject access with authorization failure
 
 ### Requirement: Prompt Management Actions SHALL Be Auditable
 
@@ -40,3 +45,12 @@ The system SHALL create audit records for prompt-management actions containing a
 - **WHEN** an `admin` activation operation completes
 - **THEN** the system MUST append an audit event describing the change
 - **AND** the event MUST include actor id and target prompt metadata
+
+### Requirement: Prompt Management SHALL Have An Authenticated HTML Admin Surface
+
+The system SHALL provide server-rendered prompt-management pages for `admin` users inside the operations web shell.
+
+#### Scenario: Admin opens prompt management page
+
+- **WHEN** an authenticated `admin` requests the prompt-management page
+- **THEN** the system MUST render prompt names, versions, active state, and activation controls
