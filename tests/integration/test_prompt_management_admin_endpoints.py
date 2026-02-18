@@ -280,6 +280,87 @@ async def test_reader_cannot_activate_prompt_version_and_state_remains_unchanged
 
 
 @pytest.mark.asyncio
+async def test_authorization_matrix_reader_read_only_and_admin_prompt_mutation(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_authz_matrix.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-authz-matrix-token"
+    admin_id = uuid4()
+    admin_token = "admin-authz-matrix-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm2_system",
+            version=4,
+            content="inactive llm2_system v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        reader_monitoring = client.get(
+            "/monitoring/cases",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+        reader_versions = client.get(
+            "/admin/prompts/versions",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+        reader_active = client.get(
+            "/admin/prompts/llm2_system/active",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+        reader_activate = client.post(
+            "/admin/prompts/llm2_system/activate",
+            headers={"Authorization": f"Bearer {reader_token}"},
+            json={"version": 4},
+        )
+        admin_activate = client.post(
+            "/admin/prompts/llm2_system/activate",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"version": 4},
+        )
+
+    assert reader_monitoring.status_code == 200
+    assert reader_versions.status_code == 403
+    assert reader_active.status_code == 403
+    assert reader_activate.status_code == 403
+    assert admin_activate.status_code == 200
+    assert admin_activate.json() == {"name": "llm2_system", "version": 4, "is_active": True}
+
+    with sa.create_engine(sync_url).begin() as connection:
+        rows = connection.execute(
+            sa.text(
+                "SELECT version, is_active FROM prompt_templates "
+                "WHERE name = :name ORDER BY version"
+            ),
+            {"name": "llm2_system"},
+        ).mappings()
+        versions = {int(row["version"]): bool(row["is_active"]) for row in rows}
+
+    assert versions[3] is False
+    assert versions[4] is True
+    assert sum(1 for is_active in versions.values() if is_active) == 1
+
+
+@pytest.mark.asyncio
 async def test_admin_activation_appends_prompt_audit_event(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_audit.db")
     token_service = OpaqueTokenService()
