@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from triage_automation.application.ports.auth_event_repository_port import (
+    AuthEventCreateInput,
+    AuthEventRepositoryPort,
+)
 from triage_automation.application.ports.prompt_management_repository_port import (
     PromptManagementRepositoryPort,
     PromptVersionRecord,
@@ -22,8 +26,14 @@ class PromptVersionNotFoundError(LookupError):
 class PromptManagementService:
     """Expose prompt version catalog and activation use-cases."""
 
-    def __init__(self, *, prompt_management: PromptManagementRepositoryPort) -> None:
+    def __init__(
+        self,
+        *,
+        prompt_management: PromptManagementRepositoryPort,
+        auth_events: AuthEventRepositoryPort,
+    ) -> None:
         self._prompt_management = prompt_management
+        self._auth_events = auth_events
 
     async def list_versions(self) -> list[PromptVersionRecord]:
         """Return all available prompt versions with active-state markers."""
@@ -51,4 +61,16 @@ class PromptManagementService:
         )
         if activated is None:
             raise PromptVersionNotFoundError(name=prompt_name, version=version)
+
+        await self._auth_events.append_event(
+            AuthEventCreateInput(
+                user_id=actor_user_id,
+                event_type="prompt_version_activated",
+                payload={
+                    "action": "activate_prompt_version",
+                    "prompt_name": prompt_name,
+                    "version": version,
+                },
+            )
+        )
         return activated

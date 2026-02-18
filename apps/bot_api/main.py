@@ -77,7 +77,8 @@ def build_prompt_management_service(database_url: str) -> PromptManagementServic
 
     session_factory = create_session_factory(database_url)
     return PromptManagementService(
-        prompt_management=SqlAlchemyPromptTemplateRepository(session_factory)
+        prompt_management=SqlAlchemyPromptTemplateRepository(session_factory),
+        auth_events=SqlAlchemyAuthEventRepository(session_factory),
     )
 
 

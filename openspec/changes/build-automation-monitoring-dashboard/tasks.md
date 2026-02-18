@@ -33,7 +33,7 @@
 - [x] 5.1 Reutilizar papeis `reader` e `admin` no backend do dashboard sem alterar o mecanismo atual de autenticacao/token.
 - [x] 5.2 Implementar endpoints de prompt management para `admin`: listar versoes, consultar ativa e ativar versao.
 - [x] 5.3 Garantir rejeicao de operacoes mutaveis de prompt para `reader`.
-- [ ] 5.4 Registrar auditoria das acoes de prompt (ator, acao, alvo, timestamp).
+- [x] 5.4 Registrar auditoria das acoes de prompt (ator, acao, alvo, timestamp).
 
 ## 6. Compatibilidade de runtime Matrix-only
 
