@@ -1,0 +1,227 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from uuid import UUID, uuid4
+
+import pytest
+import sqlalchemy as sa
+from alembic.config import Config
+from fastapi.testclient import TestClient
+
+from alembic import command
+from apps.bot_api.main import create_app
+from triage_automation.application.services.auth_service import AuthService
+from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
+from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
+from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
+from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
+from triage_automation.infrastructure.security.token_service import OpaqueTokenService
+
+
+def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
+    db_path = tmp_path / filename
+    sync_url = f"sqlite+pysqlite:///{db_path}"
+    async_url = f"sqlite+aiosqlite:///{db_path}"
+
+    alembic_config = Config("alembic.ini")
+    alembic_config.set_main_option("sqlalchemy.url", sync_url)
+    command.upgrade(alembic_config, "head")
+    return sync_url, async_url
+
+
+def _insert_user(
+    connection: sa.Connection,
+    *,
+    user_id: UUID,
+    email: str,
+    role: str,
+) -> None:
+    hasher = BcryptPasswordHasher()
+    connection.execute(
+        sa.text(
+            "INSERT INTO users (id, email, password_hash, role, is_active) "
+            "VALUES (:id, :email, :password_hash, :role, 1)"
+        ),
+        {
+            "id": user_id.hex,
+            "email": email,
+            "password_hash": hasher.hash_password("unused-password"),
+            "role": role,
+        },
+    )
+
+
+def _insert_token(
+    connection: sa.Connection,
+    *,
+    token_service: OpaqueTokenService,
+    user_id: UUID,
+    token: str,
+) -> None:
+    expires_at = datetime(2026, 2, 20, 0, 0, 0, tzinfo=UTC)
+    connection.execute(
+        sa.text(
+            "INSERT INTO auth_tokens (user_id, token_hash, expires_at, issued_at) "
+            "VALUES (:user_id, :token_hash, :expires_at, :issued_at)"
+        ),
+        {
+            "user_id": user_id.hex,
+            "token_hash": token_service.hash_token(token),
+            "expires_at": expires_at,
+            "issued_at": expires_at - timedelta(hours=1),
+        },
+    )
+
+
+def _insert_prompt_template(
+    connection: sa.Connection,
+    *,
+    prompt_name: str,
+    version: int,
+    content: str,
+    is_active: bool,
+) -> None:
+    connection.execute(
+        sa.text(
+            "INSERT INTO prompt_templates (id, name, version, content, is_active) "
+            "VALUES (:id, :name, :version, :content, :is_active)"
+        ),
+        {
+            "id": uuid4().hex,
+            "name": prompt_name,
+            "version": version,
+            "content": content,
+            "is_active": is_active,
+        },
+    )
+
+
+def _build_client(async_url: str, *, token_service: OpaqueTokenService) -> TestClient:
+    session_factory = create_session_factory(async_url)
+    auth_service = AuthService(
+        users=SqlAlchemyUserRepository(session_factory),
+        auth_events=SqlAlchemyAuthEventRepository(session_factory),
+        password_hasher=BcryptPasswordHasher(),
+    )
+    token_repository = SqlAlchemyAuthTokenRepository(session_factory)
+    app = create_app(
+        auth_service=auth_service,
+        auth_token_repository=token_repository,
+        token_service=token_service,
+        database_url=async_url,
+    )
+    return TestClient(app)
+
+
+@pytest.mark.asyncio
+async def test_admin_lists_prompt_versions_with_active_flags(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_list_versions.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-list-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm1_system",
+            version=4,
+            content="inactive llm1_system v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/admin/prompts/versions",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0] == {"name": "llm1_system", "version": 4, "is_active": False}
+    assert {"name": "llm1_system", "version": 3, "is_active": True} in payload["items"]
+
+
+@pytest.mark.asyncio
+async def test_admin_gets_active_prompt_version_by_name(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_get_active.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-active-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/admin/prompts/llm1_system/active",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"name": "llm1_system", "version": 3, "is_active": True}
+
+
+@pytest.mark.asyncio
+async def test_admin_activates_prompt_version(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_activate.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-activate-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm2_system",
+            version=4,
+            content="inactive llm2_system v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.post(
+            "/admin/prompts/llm2_system/activate",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"version": 4},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"name": "llm2_system", "version": 4, "is_active": True}
+
+    with sa.create_engine(sync_url).begin() as connection:
+        rows = connection.execute(
+            sa.text(
+                "SELECT version, is_active FROM prompt_templates "
+                "WHERE name = :name ORDER BY version"
+            ),
+            {"name": "llm2_system"},
+        ).mappings()
+        versions = {int(row["version"]): bool(row["is_active"]) for row in rows}
+
+    assert versions[3] is False
+    assert versions[4] is True
+    assert sum(1 for is_active in versions.values() if is_active) == 1

@@ -14,16 +14,23 @@ from triage_automation.application.ports.case_repository_port import CaseReposit
 from triage_automation.application.ports.user_repository_port import UserRepositoryPort
 from triage_automation.application.services.auth_service import AuthService
 from triage_automation.application.services.case_monitoring_service import CaseMonitoringService
+from triage_automation.application.services.prompt_management_service import PromptManagementService
 from triage_automation.config.settings import load_settings
 from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
 from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
+from triage_automation.infrastructure.db.prompt_template_repository import (
+    SqlAlchemyPromptTemplateRepository,
+)
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
 from triage_automation.infrastructure.http.auth_guard import WidgetAuthGuard
 from triage_automation.infrastructure.http.auth_router import build_auth_router
 from triage_automation.infrastructure.http.dashboard_router import build_dashboard_router
 from triage_automation.infrastructure.http.monitoring_router import build_monitoring_router
+from triage_automation.infrastructure.http.prompt_management_router import (
+    build_prompt_management_router,
+)
 from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
@@ -65,6 +72,15 @@ def build_case_repository(database_url: str) -> CaseRepositoryPort:
     return SqlAlchemyCaseRepository(session_factory)
 
 
+def build_prompt_management_service(database_url: str) -> PromptManagementService:
+    """Build prompt-management service with SQLAlchemy-backed repository."""
+
+    session_factory = create_session_factory(database_url)
+    return PromptManagementService(
+        prompt_management=SqlAlchemyPromptTemplateRepository(session_factory)
+    )
+
+
 def create_app(
     *,
     auth_service: AuthService | None = None,
@@ -72,6 +88,7 @@ def create_app(
     user_repository: UserRepositoryPort | None = None,
     case_repository: CaseRepositoryPort | None = None,
     monitoring_service: CaseMonitoringService | None = None,
+    prompt_management_service: PromptManagementService | None = None,
     auth_guard: WidgetAuthGuard | None = None,
     token_service: OpaqueTokenService | None = None,
     database_url: str | None = None,
@@ -100,6 +117,9 @@ def create_app(
         token_service = OpaqueTokenService()
     if monitoring_service is None:
         monitoring_service = CaseMonitoringService(case_repository=case_repository)
+    if prompt_management_service is None:
+        assert database_url is not None
+        prompt_management_service = build_prompt_management_service(database_url)
     if auth_guard is None:
         auth_guard = WidgetAuthGuard(
             token_service=token_service,
@@ -110,6 +130,7 @@ def create_app(
     assert auth_service is not None
     assert auth_token_repository is not None
     assert monitoring_service is not None
+    assert prompt_management_service is not None
     assert auth_guard is not None
     assert token_service is not None
     assert database_url is not None
@@ -134,6 +155,12 @@ def create_app(
             auth_guard=auth_guard,
         )
     )
+    app.include_router(
+        build_prompt_management_router(
+            prompt_management_service=prompt_management_service,
+            auth_guard=auth_guard,
+        )
+    )
 
     return app
 
@@ -145,6 +172,7 @@ def build_runtime_app(
     user_repository: UserRepositoryPort | None = None,
     case_repository: CaseRepositoryPort | None = None,
     monitoring_service: CaseMonitoringService | None = None,
+    prompt_management_service: PromptManagementService | None = None,
     auth_guard: WidgetAuthGuard | None = None,
     token_service: OpaqueTokenService | None = None,
     database_url: str | None = None,
@@ -157,6 +185,7 @@ def build_runtime_app(
         user_repository=user_repository,
         case_repository=case_repository,
         monitoring_service=monitoring_service,
+        prompt_management_service=prompt_management_service,
         auth_guard=auth_guard,
         token_service=token_service,
         database_url=database_url,
