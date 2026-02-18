@@ -47,6 +47,6 @@
 
 ## 7. Verification gates
 
-- [ ] 7.1 Run targeted tests for login/session, dashboard pages, and prompt admin pages.
-- [ ] 7.2 Run `uv run ruff check` and `uv run mypy` on changed paths.
-- [ ] 7.3 Run `markdownlint-cli2` on changed OpenSpec/docs markdown files.
+- [x] 7.1 Run targeted tests for login/session, dashboard pages, and prompt admin pages.
+- [x] 7.2 Run `uv run ruff check` and `uv run mypy` on changed paths.
+- [x] 7.3 Run `markdownlint-cli2` on changed OpenSpec/docs markdown files.
