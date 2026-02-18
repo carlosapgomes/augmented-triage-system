@@ -20,6 +20,6 @@
 
 ## 4. Verify and Closeout
 
-- [ ] 4.1 Executar quality gates do slice (`uv run pytest <targeted>`, `uv run ruff check <changed-paths>`, `uv run mypy <changed-paths>`).
+- [x] 4.1 Executar quality gates do slice (`uv run pytest <targeted>`, `uv run ruff check <changed-paths>`, `uv run mypy <changed-paths>`).
 - [ ] 4.2 Executar validação de Markdown (`markdownlint-cli2 "<changed-markdown-paths>"`) nos artefatos alterados.
 - [ ] 4.3 Validar bootstrap do runtime (`bot-api` + `bot-matrix` + `worker`) com checklist Matrix-only e registrar notas de rollback/impacto no fechamento da change.
