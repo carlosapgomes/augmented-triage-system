@@ -109,10 +109,21 @@ async def test_record_number_persisted_and_stripped_from_text(tmp_path: Path) ->
                 "FROM cases ORDER BY created_at DESC LIMIT 1"
             )
         ).mappings().one()
+        transcript_row = connection.execute(
+            sa.text(
+                "SELECT extracted_text, captured_at "
+                "FROM case_report_transcripts "
+                "WHERE case_id = :case_id "
+                "ORDER BY id DESC LIMIT 1"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
 
     assert row["agency_record_number"] == "12345"
     assert row["agency_record_extracted_at"] is not None
     assert row["extracted_text"] == "RELATORIO DE OCORRENCIAS patient data details 99999"
+    assert transcript_row["extracted_text"] == text
+    assert transcript_row["captured_at"] is not None
 
 
 @pytest.mark.asyncio

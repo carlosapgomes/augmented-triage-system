@@ -30,6 +30,12 @@ from triage_automation.infrastructure.db.metadata import cases
 
 logger = logging.getLogger(__name__)
 
+case_report_transcripts = sa.table(
+    "case_report_transcripts",
+    sa.column("case_id", sa.Uuid()),
+    sa.column("extracted_text", sa.Text()),
+)
+
 
 def _is_duplicate_origin_error(error: IntegrityError) -> bool:
     message = str(error.orig).lower()
@@ -537,6 +543,28 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             agency_record_number,
             len(extracted_text),
             int(result.rowcount or 0),
+        )
+
+    async def append_case_report_transcript(
+        self,
+        *,
+        case_id: UUID,
+        extracted_text: str,
+    ) -> None:
+        """Append full extracted report text for audit timeline reconstruction."""
+
+        statement = sa.insert(case_report_transcripts).values(
+            case_id=case_id,
+            extracted_text=extracted_text,
+        )
+
+        async with self._session_factory() as session:
+            await session.execute(statement)
+            await session.commit()
+        logger.info(
+            "case_report_transcript_appended case_id=%s extracted_text_chars=%s",
+            case_id,
+            len(extracted_text),
         )
 
     async def store_llm1_artifacts(

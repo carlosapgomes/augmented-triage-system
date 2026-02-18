@@ -210,6 +210,14 @@ class CaseRepositoryPort(Protocol):
     ) -> None:
         """Persist PDF source, extracted/cleaned text, and optional record extraction fields."""
 
+    async def append_case_report_transcript(
+        self,
+        *,
+        case_id: UUID,
+        extracted_text: str,
+    ) -> None:
+        """Append full extracted report text for audit retrieval by case."""
+
     async def store_llm1_artifacts(
         self,
         *,
