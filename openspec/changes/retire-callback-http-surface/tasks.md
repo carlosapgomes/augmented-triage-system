@@ -4,7 +4,7 @@
 
 - [x] 1.1 Remover a rota `POST /callbacks/triage-decision` de `apps/bot_api/main.py` e limpar imports/dependências de callback HMAC vinculadas a decisão médica.
 - [x] 1.2 Remover o `build_widget_router` do wiring do `bot-api` e eliminar dependências exclusivas do fluxo widget HTTP de decisão.
-- [ ] 1.3 Remover endpoints e assets estáticos legados de widget Room-2 (`/widget/room2*`) que não fazem mais parte da superfície operacional.
+- [x] 1.3 Remover endpoints e assets estáticos legados de widget Room-2 (`/widget/room2*`) que não fazem mais parte da superfície operacional.
 
 ## 2. Align Runtime Documentation
 
