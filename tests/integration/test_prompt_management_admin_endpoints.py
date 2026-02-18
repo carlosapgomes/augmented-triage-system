@@ -280,6 +280,154 @@ async def test_reader_cannot_activate_prompt_version_and_state_remains_unchanged
 
 
 @pytest.mark.asyncio
+async def test_admin_renders_prompt_management_html_page_with_versions(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_html_page.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-html-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm1_system",
+            version=4,
+            content="inactive llm1_system v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/admin/prompts",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Gestao de Prompts" in response.text
+    assert "llm1_system" in response.text
+    assert '<form method="post" action="/logout"' in response.text
+    assert 'href="/dashboard/cases"' in response.text
+    assert 'href="/admin/prompts"' in response.text
+
+
+@pytest.mark.asyncio
+async def test_admin_activation_form_updates_prompt_version_and_redirects(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_html_activate.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-html-activate-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm2_system",
+            version=4,
+            content="inactive llm2_system v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.post(
+            "/admin/prompts/llm2_system/activate-form",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            data={"version": "4"},
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/admin/prompts?")
+    assert "activated_name=llm2_system" in response.headers["location"]
+    assert "activated_version=4" in response.headers["location"]
+
+    with sa.create_engine(sync_url).begin() as connection:
+        rows = connection.execute(
+            sa.text(
+                "SELECT version, is_active FROM prompt_templates "
+                "WHERE name = :name ORDER BY version"
+            ),
+            {"name": "llm2_system"},
+        ).mappings()
+        versions = {int(row["version"]): bool(row["is_active"]) for row in rows}
+
+    assert versions[3] is False
+    assert versions[4] is True
+    assert sum(1 for is_active in versions.values() if is_active) == 1
+
+
+@pytest.mark.asyncio
+async def test_reader_prompt_management_html_is_forbidden_and_does_not_mutate_state(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_reader_html_forbidden.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-prompt-html-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm2_user",
+            version=4,
+            content="inactive llm2_user v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        page_response = client.get(
+            "/admin/prompts",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+        activate_response = client.post(
+            "/admin/prompts/llm2_user/activate-form",
+            headers={"Authorization": f"Bearer {reader_token}"},
+            data={"version": "4"},
+        )
+
+    assert page_response.status_code == 403
+    assert page_response.json() == {"detail": "admin role required"}
+    assert activate_response.status_code == 403
+    assert activate_response.json() == {"detail": "admin role required"}
+
+    with sa.create_engine(sync_url).begin() as connection:
+        rows = connection.execute(
+            sa.text(
+                "SELECT version, is_active FROM prompt_templates "
+                "WHERE name = :name ORDER BY version"
+            ),
+            {"name": "llm2_user"},
+        ).mappings()
+        versions = {int(row["version"]): bool(row["is_active"]) for row in rows}
+
+    assert versions[3] is True
+    assert versions[4] is False
+    assert sum(1 for is_active in versions.values() if is_active) == 1
+
+
+@pytest.mark.asyncio
 async def test_authorization_matrix_reader_read_only_and_admin_prompt_mutation(
     tmp_path: Path,
 ) -> None:

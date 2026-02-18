@@ -27,10 +27,10 @@
 
 ## 4. Prompt admin HTML pages
 
-- [ ] 4.1 Add server-rendered admin prompts list page (name, versions, active state).
-- [ ] 4.2 Add server-rendered activation flow for admin prompt version change.
-- [ ] 4.3 Keep existing `/admin/prompts/*` APIs as source of behavior and authorization.
-- [ ] 4.4 Add integration tests for admin happy path and reader forbidden access.
+- [x] 4.1 Add server-rendered admin prompts list page (name, versions, active state).
+- [x] 4.2 Add server-rendered activation flow for admin prompt version change.
+- [x] 4.3 Keep existing `/admin/prompts/*` APIs as source of behavior and authorization.
+- [x] 4.4 Add integration tests for admin happy path and reader forbidden access.
 
 ## 5. Authorization matrix hardening
 

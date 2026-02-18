@@ -1,0 +1,63 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+  <section class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h2 class="h5 mb-2">Gestao de Prompts</h2>
+      <p class="text-secondary mb-0">Selecione a versao ativa por prompt com trilha de auditoria.</p>
+    </div>
+  </section>
+
+  {% if activated_name and activated_version %}
+    <div class="alert alert-success" role="alert">
+      Prompt <strong>{{ activated_name }}</strong> ativado na versao <strong>{{ activated_version }}</strong>.
+    </div>
+  {% endif %}
+
+  {% if error_message %}
+    <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+  {% endif %}
+
+  {% for prompt_name, versions in prompts_by_name|dictsort %}
+    <section class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h3 class="h6 mb-3">{{ prompt_name }}</h3>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Versao</th>
+                <th scope="col">Estado</th>
+                <th scope="col" class="text-end">Acao</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in versions %}
+                <tr>
+                  <td>{{ item.version }}</td>
+                  <td>
+                    {% if item.is_active %}
+                      <span class="badge text-bg-success">Ativa</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary">Inativa</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if item.is_active %}
+                      <span class="text-secondary small">Sem acao</span>
+                    {% else %}
+                      <form method="post" action="/admin/prompts/{{ prompt_name }}/activate-form">
+                        <input type="hidden" name="version" value="{{ item.version }}">
+                        <button type="submit" class="btn btn-sm btn-primary">Ativar</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endfor %}
+{% endblock %}
