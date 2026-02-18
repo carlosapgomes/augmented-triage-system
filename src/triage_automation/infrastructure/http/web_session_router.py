@@ -26,6 +26,7 @@ from triage_automation.infrastructure.http.auth_guard import (
     MissingAuthTokenError,
     WidgetAuthGuard,
 )
+from triage_automation.infrastructure.http.shell_context import build_shell_context
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
@@ -70,7 +71,15 @@ def build_web_session_router(
         response = templates.TemplateResponse(
             request=request,
             name="session/login.html",
-            context={"page_title": "Login Operacional", "error_message": None, "email_value": ""},
+            context={
+                **build_shell_context(
+                    page_title="Login Operacional",
+                    active_nav="",
+                    user=None,
+                ),
+                "error_message": None,
+                "email_value": "",
+            },
         )
         if should_clear_cookie:
             _delete_session_cookie(response=response, request=request)
@@ -92,7 +101,11 @@ def build_web_session_router(
                 request=request,
                 name="session/login.html",
                 context={
-                    "page_title": "Login Operacional",
+                    **build_shell_context(
+                        page_title="Login Operacional",
+                        active_nav="",
+                        user=None,
+                    ),
                     "error_message": "Informe email e senha.",
                     "email_value": email,
                 },
@@ -114,7 +127,11 @@ def build_web_session_router(
                 request=request,
                 name="session/login.html",
                 context={
-                    "page_title": "Login Operacional",
+                    **build_shell_context(
+                        page_title="Login Operacional",
+                        active_nav="",
+                        user=None,
+                    ),
                     "error_message": "Credenciais invalidas.",
                     "email_value": email,
                 },
@@ -126,7 +143,11 @@ def build_web_session_router(
                 request=request,
                 name="session/login.html",
                 context={
-                    "page_title": "Login Operacional",
+                    **build_shell_context(
+                        page_title="Login Operacional",
+                        active_nav="",
+                        user=None,
+                    ),
                     "error_message": "Usuario inativo.",
                     "email_value": email,
                 },
@@ -139,7 +160,11 @@ def build_web_session_router(
                 request=request,
                 name="session/login.html",
                 context={
-                    "page_title": "Login Operacional",
+                    **build_shell_context(
+                        page_title="Login Operacional",
+                        active_nav="",
+                        user=None,
+                    ),
                     "error_message": "Falha interna de autenticacao.",
                     "email_value": email,
                 },

@@ -31,6 +31,7 @@ from triage_automation.infrastructure.http.auth_guard import (
     MissingAuthTokenError,
     WidgetAuthGuard,
 )
+from triage_automation.infrastructure.http.shell_context import build_shell_context
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -83,7 +84,11 @@ def build_dashboard_router(
             "page_size": result.page_size,
         }
         context = {
-            "page_title": "Dashboard de Monitoramento",
+            **build_shell_context(
+                page_title="Dashboard de Monitoramento",
+                active_nav="dashboard",
+                user=authenticated_user,
+            ),
             "cases": result.items,
             "status_options": [value.value for value in CaseStatus],
             "filters": shared_filters,
@@ -168,7 +173,11 @@ def build_dashboard_router(
             request=request,
             name="dashboard/case_detail.html",
             context={
-                "page_title": "Detalhe do Caso",
+                **build_shell_context(
+                    page_title="Detalhe do Caso",
+                    active_nav="dashboard",
+                    user=authenticated_user,
+                ),
                 "case_id": str(case_id),
                 "status": detail.status.value,
                 "timeline_rows": timeline_rows,

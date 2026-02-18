@@ -20,10 +20,10 @@
 
 ## 3. Shared operations shell
 
-- [ ] 3.1 Create shared base template for authenticated pages (header, nav, logout).
-- [ ] 3.2 Migrate dashboard list/detail pages to shared shell without regressions.
-- [ ] 3.3 Implement role-aware navigation: `admin` sees prompts nav, `reader` does not.
-- [ ] 3.4 Add integration tests asserting layout reuse and role-conditioned menu rendering.
+- [x] 3.1 Create shared base template for authenticated pages (header, nav, logout).
+- [x] 3.2 Migrate dashboard list/detail pages to shared shell without regressions.
+- [x] 3.3 Implement role-aware navigation: `admin` sees prompts nav, `reader` does not.
+- [x] 3.4 Add integration tests asserting layout reuse and role-conditioned menu rendering.
 
 ## 4. Prompt admin HTML pages
 

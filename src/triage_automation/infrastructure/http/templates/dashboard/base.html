@@ -70,6 +70,28 @@
         color: rgba(255, 255, 255, 0.86);
       }
 
+      .app-nav .nav-link {
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.86);
+        font-weight: 600;
+      }
+
+      .app-nav .nav-link:hover,
+      .app-nav .nav-link:focus {
+        color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.12);
+      }
+
+      .app-nav .nav-link.active {
+        color: var(--hospital-primary);
+        background-color: #ffffff;
+      }
+
+      .app-session-meta {
+        font-size: 0.86rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
       .app-shell {
         animation: shell-fade-in 220ms ease-out;
       }
@@ -126,8 +148,46 @@
   <body class="hospital-shell">
     <header class="app-header text-white py-3 mb-4">
       <div class="container">
-        <h1 class="app-header__title">Dashboard de Monitoramento Hospitalar</h1>
-        <p class="app-header__subtitle">Monitoramento hospitalar e trilha auditável de casos</p>
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-start">
+          <div>
+            <h1 class="app-header__title">Dashboard de Monitoramento Hospitalar</h1>
+            <p class="app-header__subtitle">Monitoramento hospitalar e trilha auditável de casos</p>
+          </div>
+          {% if shell_authenticated %}
+            <div class="text-lg-end">
+              <p class="app-session-meta mb-2">
+                {{ shell_user_email }} · {{ shell_user_role }}
+              </p>
+              <form method="post" action="/logout" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-light">Sair</button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+        {% if shell_authenticated %}
+          <nav class="app-nav mt-3" aria-label="Navegacao operacional">
+            <ul class="nav nav-pills gap-2">
+              <li class="nav-item">
+                <a
+                  href="/dashboard/cases"
+                  class="nav-link {% if active_nav == 'dashboard' %}active{% endif %}"
+                >
+                  Dashboard
+                </a>
+              </li>
+              {% if shell_can_access_prompts %}
+                <li class="nav-item">
+                  <a
+                    href="/admin/prompts"
+                    class="nav-link {% if active_nav == 'prompts' %}active{% endif %}"
+                  >
+                    Prompts
+                  </a>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        {% endif %}
       </div>
     </header>
     <main class="app-shell container pb-5">

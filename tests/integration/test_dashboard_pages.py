@@ -414,6 +414,101 @@ async def test_dashboard_case_list_accepts_reader_and_admin_roles(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("role", "token", "shows_prompt_nav"),
+    [
+        ("reader", "reader-dashboard-shell-nav", False),
+        ("admin", "admin-dashboard-shell-nav", True),
+    ],
+)
+async def test_dashboard_shell_navigation_is_role_aware(
+    tmp_path: Path,
+    role: str,
+    token: str,
+    shows_prompt_nav: bool,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, f"dashboard_shell_nav_{role}.db")
+    token_service = OpaqueTokenService()
+    user_id = uuid4()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(
+            connection,
+            user_id=user_id,
+            email=f"{role}@example.org",
+            role=role,
+        )
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=user_id,
+            token=token,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    assert '<form method="post" action="/logout"' in response.text
+    assert 'href="/dashboard/cases"' in response.text
+    if shows_prompt_nav:
+        assert 'href="/admin/prompts"' in response.text
+    else:
+        assert 'href="/admin/prompts"' not in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_shell_layout_reuse.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-dashboard-shell-layout-token"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=base - timedelta(minutes=10),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        list_response = client.get(
+            "/dashboard/cases",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        detail_response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert '<header class="app-header' in list_response.text
+    assert '<header class="app-header' in detail_response.text
+    assert '<form method="post" action="/logout"' in list_response.text
+    assert '<form method="post" action="/logout"' in detail_response.text
+    assert 'href="/dashboard/cases"' in list_response.text
+    assert 'href="/dashboard/cases"' in detail_response.text
+    assert 'href="/admin/prompts"' in detail_response.text
+    assert "Detalhe do Caso" in detail_response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin(
     tmp_path: Path,
 ) -> None:
