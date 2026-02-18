@@ -22,6 +22,7 @@ from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
 from triage_automation.infrastructure.http.auth_guard import WidgetAuthGuard
 from triage_automation.infrastructure.http.auth_router import build_auth_router
+from triage_automation.infrastructure.http.dashboard_router import build_dashboard_router
 from triage_automation.infrastructure.http.monitoring_router import build_monitoring_router
 from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
@@ -127,6 +128,7 @@ def create_app(
             auth_guard=auth_guard,
         )
     )
+    app.include_router(build_dashboard_router())
 
     return app
 
