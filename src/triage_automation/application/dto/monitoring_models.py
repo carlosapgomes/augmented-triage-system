@@ -48,6 +48,7 @@ class MonitoringCaseTimelineItem(StrictModel):
     """One unified timeline event in case-detail responses."""
 
     source: str
+    channel: str
     timestamp: datetime
     room_id: str | None
     actor: str | None

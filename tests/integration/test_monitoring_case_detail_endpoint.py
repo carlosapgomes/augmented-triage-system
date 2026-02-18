@@ -198,11 +198,22 @@ async def test_monitoring_case_detail_returns_unified_chronological_timeline(
     assert payload["case_id"] == str(case_id)
     assert payload["status"] == "WAIT_DOCTOR"
     assert [item["source"] for item in payload["timeline"]] == ["pdf", "llm", "matrix"]
+    assert [item["channel"] for item in payload["timeline"]] == [
+        "pdf",
+        "llm",
+        "!room2:example.org",
+    ]
     assert [item["event_type"] for item in payload["timeline"]] == [
         "pdf_report_extracted",
         "LLM1",
         "room2_doctor_reply",
     ]
+    assert [item["actor"] for item in payload["timeline"]] == [
+        "system",
+        "llm",
+        "@doctor:example.org",
+    ]
+    assert all(isinstance(item["timestamp"], str) for item in payload["timeline"])
 
 
 @pytest.mark.asyncio
@@ -231,3 +242,65 @@ async def test_monitoring_case_detail_returns_not_found_for_unknown_case(tmp_pat
 
     assert response.status_code == 404
     assert response.json() == {"detail": "case not found"}
+
+
+@pytest.mark.asyncio
+async def test_monitoring_case_detail_includes_ack_and_human_reply_as_distinct_events(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_detail_ack_human.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-detail-ack-human"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 11, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=base - timedelta(minutes=30),
+        )
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_matrix_message_transcripts ("
+                "case_id, room_id, event_id, sender, message_type, message_text, captured_at"
+                ") VALUES "
+                "(:case_id, '!room1:example.org', '$evt-ack', 'bot', 'bot_processing', "
+                "'processando...', :ack_ts), "
+                "(:case_id, '!room2:example.org', '$evt-reply', '@doctor:example.org', "
+                "'room2_doctor_reply', 'decisao: aceitar', :reply_ts)"
+            ),
+            {
+                "case_id": case_id.hex,
+                "ack_ts": base,
+                "reply_ts": base + timedelta(minutes=5),
+            },
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/monitoring/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["event_type"] for item in payload["timeline"]] == [
+        "bot_processing",
+        "room2_doctor_reply",
+    ]
+    assert [item["actor"] for item in payload["timeline"]] == ["bot", "@doctor:example.org"]
+    assert [item["channel"] for item in payload["timeline"]] == [
+        "!room1:example.org",
+        "!room2:example.org",
+    ]

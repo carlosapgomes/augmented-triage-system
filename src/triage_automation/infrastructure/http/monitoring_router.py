@@ -121,6 +121,7 @@ def build_monitoring_router(
             timeline=[
                 MonitoringCaseTimelineItem(
                     source=item.source,
+                    channel=item.channel,
                     timestamp=item.timestamp,
                     room_id=item.room_id,
                     actor=item.actor,

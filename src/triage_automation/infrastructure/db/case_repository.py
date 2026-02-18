@@ -685,6 +685,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                     int(row["id"]),
                     CaseMonitoringTimelineItem(
                         source="pdf",
+                        channel="pdf",
                         timestamp=cast(datetime, row["captured_at"]),
                         room_id=None,
                         actor="system",
@@ -702,6 +703,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                     int(row["id"]),
                     CaseMonitoringTimelineItem(
                         source="llm",
+                        channel="llm",
                         timestamp=cast(datetime, row["captured_at"]),
                         room_id=None,
                         actor="llm",
@@ -729,6 +731,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                     int(row["id"]),
                     CaseMonitoringTimelineItem(
                         source="matrix",
+                        channel=cast(str, row["room_id"]),
                         timestamp=cast(datetime, row["captured_at"]),
                         room_id=cast(str, row["room_id"]),
                         actor=cast(str, row["sender"]),

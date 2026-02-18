@@ -175,6 +175,7 @@ class CaseMonitoringTimelineItem:
     """Unified timeline event projection for monitoring case detail."""
 
     source: Literal["pdf", "llm", "matrix"]
+    channel: str
     timestamp: datetime
     room_id: str | None
     actor: str | None
