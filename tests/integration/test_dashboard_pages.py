@@ -339,24 +339,25 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
 
 
 @pytest.mark.asyncio
-async def test_dashboard_case_detail_page_renders_chronological_timeline_with_visual_badges(
+async def test_dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin(
     tmp_path: Path,
 ) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail.db")
     token_service = OpaqueTokenService()
-    reader_id = uuid4()
-    reader_token = "reader-dashboard-detail-token"
+    admin_id = uuid4()
+    admin_token = "admin-dashboard-detail-token"
     case_id = uuid4()
     base = datetime(2026, 2, 18, 10, 0, 0, tzinfo=UTC)
+    long_pdf_text = ("trecho " * 40) + "SEGREDO_FULL_ADMIN_ONLY_123"
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
-        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
         _insert_token(
             connection,
             token_service=token_service,
-            user_id=reader_id,
-            token=reader_token,
+            user_id=admin_id,
+            token=admin_token,
         )
         _insert_case(
             connection,
@@ -367,7 +368,7 @@ async def test_dashboard_case_detail_page_renders_chronological_timeline_with_vi
         _insert_report_transcript(
             connection,
             case_id=case_id,
-            extracted_text="texto do pdf",
+            extracted_text=long_pdf_text,
             captured_at=base,
         )
         _insert_matrix_transcript(
@@ -398,7 +399,10 @@ async def test_dashboard_case_detail_page_renders_chronological_timeline_with_vi
         )
 
     with _build_client(async_url, token_service=token_service) as client:
-        response = client.get(f"/dashboard/cases/{case_id}")
+        response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
@@ -413,8 +417,55 @@ async def test_dashboard_case_detail_page_renders_chronological_timeline_with_vi
     assert "badge text-bg-info" in response.text
     assert "badge text-bg-warning" in response.text
     assert "badge text-bg-primary" in response.text
+    assert "SEGREDO_FULL_ADMIN_ONLY_123" in response.text
+    assert "data-toggle-full" in response.text
+    assert "document.addEventListener(\"click\"" in response.text
 
     html = response.text
     assert html.index("pdf_report_extracted") < html.index("bot_processing")
     assert html.index("bot_processing") < html.index("LLM1")
     assert html.index("LLM1") < html.index("room2_doctor_reply")
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_reader_excerpt.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-detail-token"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 11, 0, 0, tzinfo=UTC)
+    long_pdf_text = ("trecho " * 40) + "SEGREDO_FULL_ADMIN_ONLY_123"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=base - timedelta(minutes=10),
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text=long_pdf_text,
+            captured_at=base,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "SEGREDO_FULL_ADMIN_ONLY_123" not in response.text
+    assert "data-toggle-full=" not in response.text
+    assert "trecho" in response.text

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from math import ceil
 from pathlib import Path
@@ -17,12 +18,22 @@ from triage_automation.application.services.case_monitoring_service import (
     CaseMonitoringService,
     InvalidMonitoringPeriodError,
 )
+from triage_automation.domain.auth.roles import Role
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.infrastructure.http.auth_guard import (
+    InvalidAuthTokenError,
+    MissingAuthTokenError,
+    WidgetAuthGuard,
+)
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
 
-def build_dashboard_router(*, monitoring_service: CaseMonitoringService) -> APIRouter:
+def build_dashboard_router(
+    *,
+    monitoring_service: CaseMonitoringService,
+    auth_guard: WidgetAuthGuard,
+) -> APIRouter:
     """Build router exposing Jinja2 server-rendered dashboard pages."""
 
     templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
@@ -114,12 +125,24 @@ def build_dashboard_router(*, monitoring_service: CaseMonitoringService) -> APIR
     async def render_case_detail_page(request: Request, case_id: UUID) -> HTMLResponse:
         """Render dashboard detail page with chronological timeline by case."""
 
+        try:
+            authenticated_user = await auth_guard.require_audit_user(
+                authorization_header=request.headers.get("authorization")
+            )
+        except MissingAuthTokenError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+        except InvalidAuthTokenError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+        can_view_full_content = authenticated_user.role is Role.ADMIN
         detail = await monitoring_service.get_case_detail(case_id=case_id)
         if detail is None:
             raise HTTPException(status_code=404, detail="case not found")
 
         timeline_rows: list[dict[str, object]] = []
         for item in detail.timeline:
+            full_text = _extract_full_text(content_text=item.content_text, payload=item.payload)
+            excerpt_text = _build_excerpt(full_text)
             timeline_rows.append(
                 {
                     "timestamp": item.timestamp.isoformat(),
@@ -130,7 +153,10 @@ def build_dashboard_router(*, monitoring_service: CaseMonitoringService) -> APIR
                     "actor": item.actor or "system",
                     "event_type": item.event_type,
                     "event_badge_class": _event_badge_class(item.event_type),
-                    "content_text": item.content_text,
+                    "excerpt_text": excerpt_text,
+                    "full_text": full_text if can_view_full_content else None,
+                    "can_show_full_content": can_view_full_content,
+                    "is_truncated": len(excerpt_text) < len(full_text),
                 }
             )
 
@@ -214,3 +240,23 @@ def _event_badge_class(event_type: str) -> str:
     if event_type.startswith("LLM"):
         return "text-bg-info"
     return "text-bg-secondary"
+
+
+def _extract_full_text(*, content_text: str | None, payload: dict[str, object] | None) -> str:
+    """Return full event content text, using payload fallback when needed."""
+
+    if content_text is not None and content_text.strip():
+        return content_text
+    if payload is None:
+        return ""
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+def _build_excerpt(full_text: str) -> str:
+    """Return fixed-size excerpt text for timeline cards."""
+
+    limit = 180
+    normalized = " ".join(full_text.split())
+    if len(normalized) <= limit:
+        return normalized
+    return f"{normalized[:limit].rstrip()}..."

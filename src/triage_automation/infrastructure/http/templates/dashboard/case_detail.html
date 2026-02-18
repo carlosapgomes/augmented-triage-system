@@ -27,8 +27,26 @@
                 <small class="text-secondary">{{ row.timestamp }}</small>
               </div>
               <p class="mb-1"><strong>Ator:</strong> {{ row.actor }}</p>
-              {% if row.content_text %}
-                <p class="mb-0">{{ row.content_text }}</p>
+              {% if row.excerpt_text %}
+                <p class="mb-2">{{ row.excerpt_text }}</p>
+              {% endif %}
+              {% if row.can_show_full_content and row.full_text and row.is_truncated %}
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  data-toggle-full="timeline-full-{{ loop.index }}"
+                  aria-expanded="false"
+                >
+                  Exibir conteudo completo
+                </button>
+                <pre
+                  id="timeline-full-{{ loop.index }}"
+                  class="mt-2 p-2 bg-light border rounded small d-none"
+                >{{ row.full_text }}</pre>
+              {% elif row.is_truncated %}
+                <p class="small text-secondary mb-0">
+                  Conteudo completo restrito ao perfil autorizado.
+                </p>
               {% endif %}
             </li>
           {% endfor %}
@@ -38,4 +56,30 @@
       {% endif %}
     </div>
   </section>
+  <script>
+    document.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-toggle-full]");
+      if (!button) {
+        return;
+      }
+      const targetId = button.getAttribute("data-toggle-full");
+      if (!targetId) {
+        return;
+      }
+      const target = document.getElementById(targetId);
+      if (!target) {
+        return;
+      }
+      const isExpanded = button.getAttribute("aria-expanded") === "true";
+      if (isExpanded) {
+        target.classList.add("d-none");
+        button.setAttribute("aria-expanded", "false");
+        button.textContent = "Exibir conteudo completo";
+      } else {
+        target.classList.remove("d-none");
+        button.setAttribute("aria-expanded", "true");
+        button.textContent = "Ocultar conteudo completo";
+      }
+    });
+  </script>
 {% endblock %}
