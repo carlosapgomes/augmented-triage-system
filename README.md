@@ -27,9 +27,11 @@ This repo is implemented with strict TDD and OpenSpec slice history under `opens
 
 - Triage workflow foundation is implemented and covered by automated tests.
 - Admin and monitoring surface is available in `bot-api`:
+  - web session flow (`GET /`, `GET /login`, `POST /login`, `POST /logout`)
   - login/auth (`/auth/login`)
   - monitoring API (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
   - server-rendered dashboard (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
+  - server-rendered prompt admin (`GET /admin/prompts`, `POST /admin/prompts/{prompt_name}/activate-form`)
   - admin prompt-management API (`/admin/prompts/*`)
 
 ## Runtime Topology
@@ -40,16 +42,44 @@ Matrix Rooms ---> bot-matrix ----\
 Login/Auth ----------> bot-api ----> PostgreSQL <---- worker
 ```
 
-## Public API Surface (Current)
+## Public Surface (Current)
+
+Web pages and session routes:
+
+- `GET /`
+- `GET /login`
+- `POST /login`
+- `POST /logout`
+- `GET /dashboard/cases`
+- `GET /dashboard/cases/{case_id}`
+- `GET /admin/prompts`
+- `POST /admin/prompts/{prompt_name}/activate-form`
+
+JSON API routes:
 
 - `POST /auth/login`
 - `GET /monitoring/cases`
 - `GET /monitoring/cases/{case_id}`
-- `GET /dashboard/cases`
-- `GET /dashboard/cases/{case_id}`
 - `GET /admin/prompts/versions`
 - `GET /admin/prompts/{prompt_name}/active`
 - `POST /admin/prompts/{prompt_name}/activate`
+
+## Web Access and Roles
+
+Browser-first access flow:
+
+1. Open `/` in a browser.
+2. Anonymous access is redirected to `/login`.
+3. Submit email and password in the login form.
+4. On success, the app redirects to `/dashboard/cases`.
+5. Use `Sair` (`POST /logout`) to end the session.
+
+Role matrix:
+
+| Role | Dashboard pages | Prompt admin pages | Prompt admin APIs |
+| --- | --- | --- | --- |
+| `reader` | allowed | forbidden (`403`) | forbidden (`403`) |
+| `admin` | allowed | allowed | allowed |
 
 ## Project Docs
 

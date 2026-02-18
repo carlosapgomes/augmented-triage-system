@@ -41,9 +41,9 @@
 
 ## 6. Documentation and runbooks
 
-- [ ] 6.1 Update `README.md` with landing/login and role matrix navigation summary.
-- [ ] 6.2 Update `docs/setup.md` with browser-first login flow and logout notes.
-- [ ] 6.3 Update `docs/manual_e2e_runbook.md` with end-to-end checks for web login and role-based menu visibility.
+- [x] 6.1 Update `README.md` with landing/login and role matrix navigation summary.
+- [x] 6.2 Update `docs/setup.md` with browser-first login flow and logout notes.
+- [x] 6.3 Update `docs/manual_e2e_runbook.md` with end-to-end checks for web login and role-based menu visibility.
 
 ## 7. Verification gates
 

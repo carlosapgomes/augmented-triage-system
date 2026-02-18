@@ -15,6 +15,34 @@ uv run python -m apps.worker.main
 
 1. Use a test case already moved to `WAIT_DOCTOR` with Room-2 case context posted by bot.
 
+## Web Login and Role Menu Checks
+
+1. Anonymous browser access:
+
+- open `GET /`
+- expected: redirect to `/login`
+
+1. Reader session checks:
+
+- login as a `reader` user via `POST /login` form
+- verify `GET /dashboard/cases` returns `200`
+- verify shell nav contains `Dashboard`
+- verify shell nav does not contain `Prompts`
+- verify `GET /admin/prompts` returns `403`
+
+1. Admin session checks:
+
+- login as an `admin` user via `POST /login` form
+- verify `GET /dashboard/cases` returns `200`
+- verify shell nav contains both `Dashboard` and `Prompts`
+- verify `GET /admin/prompts` returns `200` with prompt list and activation controls
+
+1. Logout:
+
+- submit `POST /logout` from shell header
+- expected: redirect to `/login`
+- verify a new `GET /` request redirects to `/login`
+
 ## Room-2 Structured Reply Positive Path
 
 1. Validate the three-message Room-2 combo for the target case in desktop and mobile clients:
@@ -121,3 +149,10 @@ uv run python -m apps.worker.main
 
 - exactly one active version remains for the prompt name
 - auth audit includes `prompt_version_activated` with actor and target prompt/version
+
+1. Validate prompt activation via HTML form (`admin` session):
+
+- open `GET /admin/prompts`
+- submit activation form `POST /admin/prompts/{prompt_name}/activate-form`
+- expected: redirect back to `/admin/prompts` with activation feedback
+- validate `auth_events` last row has `event_type=prompt_version_activated`

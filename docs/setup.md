@@ -65,13 +65,38 @@ uv run mypy src apps
 uv run pytest -q
 ```
 
-## 5. Run local stack (optional)
+## 5. Browser-first login/logout flow
+
+After migrations and service startup, use the portal directly in a browser.
+
+1. Open root page:
+
+- URL: `http://localhost:8000/`
+- expected for anonymous user: redirect to `/login`
+
+1. Login:
+
+- submit `email` + `password` on `GET /login`
+- expected success: redirect to `/dashboard/cases`
+- expected invalid credentials: HTML error on login page, no session cookie
+
+1. Authorization by role:
+
+- `reader`: can access dashboard pages, cannot access prompt-admin pages
+- `admin`: can access dashboard pages and prompt-admin pages
+
+1. Logout:
+
+- submit `POST /logout` (button `Sair` in header)
+- expected result: redirect to `/login` and session cookie cleared
+
+## 6. Run local stack (optional)
 
 ```bash
 docker compose up --build
 ```
 
-## 6. Runtime smoke validation (recommended before manual E2E)
+## 7. Runtime smoke validation (recommended before manual E2E)
 
 Follow `docs/runtime-smoke.md` to validate:
 
@@ -79,9 +104,9 @@ Follow `docs/runtime-smoke.md` to validate:
 - Matrix structured reply readiness for Room-2 decisions
 - deterministic LLM runtime mode for provider-unavailable testing
 
-## 7. Admin operations
+## 8. Admin operations
 
-### 7.1 Reset admin password (CLI)
+### 8.1 Reset admin password (CLI)
 
 Use this flow when an admin password needs rotation or recovery.
 It updates the bcrypt hash directly in `users` using the configured `DATABASE_URL`.
@@ -140,7 +165,7 @@ PY
 - `POST /auth/login` with the same `ADMIN_EMAIL` and new password
 - expected result: `200` and a token payload
 
-### 7.2 Reset admin password (Docker Compose)
+### 8.2 Reset admin password (Docker Compose)
 
 Use this flow when the stack runs in containers and you prefer not to use host Python tooling.
 
