@@ -1,3 +1,5 @@
+# Proposal
+
 ## Why
 
 A rota HTTP de callback e a superfície de widget HTTP não são mais o caminho padrão de decisão médica e hoje adicionam complexidade operacional sem uso real. Como o sistema ainda não foi provisionado em produção, este é o momento mais seguro para remover diretamente essa superfície legada.
@@ -14,9 +16,11 @@ A rota HTTP de callback e a superfície de widget HTTP não são mais o caminho 
 ## Capabilities
 
 ### New Capabilities
+
 - `room2-decision-matrix-only-runtime`: define explicitamente que o runtime de decisão médica usa apenas respostas estruturadas no Matrix, sem fallback HTTP operacional.
 
 ### Modified Capabilities
+
 - `runtime-orchestration`: remover requisitos que mantêm callback como compatibilidade de emergência e refletir runtime Matrix-only.
 - `manual-e2e-readiness`: substituir validações de callback assinado por validações equivalentes do fluxo Matrix-only.
 
