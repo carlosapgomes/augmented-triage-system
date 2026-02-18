@@ -22,4 +22,14 @@
 
 - [x] 4.1 Executar quality gates do slice (`uv run pytest <targeted>`, `uv run ruff check <changed-paths>`, `uv run mypy <changed-paths>`).
 - [x] 4.2 Executar validação de Markdown (`markdownlint-cli2 "<changed-markdown-paths>"`) nos artefatos alterados.
-- [ ] 4.3 Validar bootstrap do runtime (`bot-api` + `bot-matrix` + `worker`) com checklist Matrix-only e registrar notas de rollback/impacto no fechamento da change.
+- [x] 4.3 Validar bootstrap do runtime (`bot-api` + `bot-matrix` + `worker`) com checklist Matrix-only e registrar notas de rollback/impacto no fechamento da change.
+
+### 4.3 Closeout Notes
+
+- Runtime bootstrap checklist (Matrix-only) executado com:
+  `uv run pytest tests/integration/test_bot_api_runtime.py tests/integration/test_bot_matrix_room1_listener_runtime.py tests/integration/test_worker_runtime_service_wiring.py tests/integration/test_worker_boot_reconciliation.py -q`
+  (`9 passed`).
+- Room-2 structured reply readiness revalidado com:
+  `uv run pytest tests/integration/test_room2_reply_flow.py -q` (`16 passed`).
+- Impacto operacional confirmado: decisão médica via HTTP callback/widget não existe mais na superfície runtime; apenas resposta estruturada Matrix permanece suportada.
+- Rollback definido: reverter commits da change `retire-callback-http-surface` restaura rota callback/widget e contratos legados sem migração de dados (rollback apenas de código/docs).
