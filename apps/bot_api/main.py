@@ -5,19 +5,13 @@ from __future__ import annotations
 import logging
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import ValidationError
+from fastapi import FastAPI
 
-from triage_automation.application.dto.webhook_models import (
-    TriageDecisionWebhookPayload,
-    TriageDecisionWebhookResponse,
-)
 from triage_automation.application.ports.auth_token_repository_port import (
     AuthTokenRepositoryPort,
 )
 from triage_automation.application.services.auth_service import AuthService
 from triage_automation.application.services.handle_doctor_decision_service import (
-    HandleDoctorDecisionOutcome,
     HandleDoctorDecisionService,
 )
 from triage_automation.config.settings import load_settings
@@ -31,7 +25,6 @@ from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
 from triage_automation.infrastructure.http.auth_guard import WidgetAuthGuard
 from triage_automation.infrastructure.http.auth_router import build_auth_router
-from triage_automation.infrastructure.http.hmac_auth import verify_hmac_signature
 from triage_automation.infrastructure.http.widget_router import build_widget_router
 from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
@@ -83,23 +76,20 @@ def build_auth_token_repository(database_url: str) -> AuthTokenRepositoryPort:
 
 def create_app(
     *,
-    webhook_hmac_secret: str | None = None,
     decision_service: HandleDoctorDecisionService | None = None,
     auth_service: AuthService | None = None,
     auth_token_repository: AuthTokenRepositoryPort | None = None,
     token_service: OpaqueTokenService | None = None,
     database_url: str | None = None,
 ) -> FastAPI:
-    """Create FastAPI app for webhook callbacks and login foundation routes."""
+    """Create FastAPI app for runtime routes."""
 
     settings = None
-    should_load_settings = webhook_hmac_secret is None or decision_service is None
+    should_load_settings = decision_service is None
     if should_load_settings or (
         database_url is None and (auth_service is None or auth_token_repository is None)
     ):
         settings = load_settings()
-        if webhook_hmac_secret is None:
-            webhook_hmac_secret = settings.webhook_hmac_secret
         if database_url is None:
             database_url = settings.database_url
         if decision_service is None:
@@ -126,7 +116,6 @@ def create_app(
         token_service = OpaqueTokenService()
 
     assert decision_service is not None
-    assert webhook_hmac_secret is not None
     assert auth_service is not None
     assert auth_token_repository is not None
     assert token_service is not None
@@ -157,53 +146,11 @@ def create_app(
         )
     )
 
-    @app.post(
-        "/callbacks/triage-decision",
-        response_model=TriageDecisionWebhookResponse,
-    )
-    async def triage_decision_callback(request: Request) -> TriageDecisionWebhookResponse:
-        raw_body = await request.body()
-        signature = request.headers.get("x-signature")
-
-        if not verify_hmac_signature(
-            secret=webhook_hmac_secret,
-            body=raw_body,
-            provided_signature=signature,
-        ):
-            raise HTTPException(status_code=401, detail="invalid signature")
-
-        try:
-            payload = TriageDecisionWebhookPayload.model_validate_json(raw_body)
-        except ValidationError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        logger.info(
-            "webhook_triage_decision_received case_id=%s doctor_user_id=%s decision=%s",
-            payload.case_id,
-            payload.doctor_user_id,
-            payload.decision,
-        )
-        result = await decision_service.handle(payload)
-        logger.info(
-            "webhook_triage_decision_result case_id=%s outcome=%s",
-            payload.case_id,
-            result.outcome.value,
-        )
-
-        if result.outcome is HandleDoctorDecisionOutcome.NOT_FOUND:
-            raise HTTPException(status_code=404, detail="case not found")
-
-        if result.outcome is HandleDoctorDecisionOutcome.WRONG_STATE:
-            raise HTTPException(status_code=409, detail="case not in WAIT_DOCTOR")
-
-        return TriageDecisionWebhookResponse(ok=True)
-
     return app
 
 
 def build_runtime_app(
     *,
-    webhook_hmac_secret: str | None = None,
     decision_service: HandleDoctorDecisionService | None = None,
     auth_service: AuthService | None = None,
     auth_token_repository: AuthTokenRepositoryPort | None = None,
@@ -213,7 +160,6 @@ def build_runtime_app(
     """Build runtime FastAPI application preserving existing endpoint contracts."""
 
     return create_app(
-        webhook_hmac_secret=webhook_hmac_secret,
         decision_service=decision_service,
         auth_service=auth_service,
         auth_token_repository=auth_token_repository,

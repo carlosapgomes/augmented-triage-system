@@ -53,7 +53,6 @@ def test_main_starts_uvicorn_with_factory(monkeypatch) -> None:
 
 def test_build_runtime_app_exposes_existing_route_paths() -> None:
     app = bot_api_main.build_runtime_app(
-        webhook_hmac_secret="runtime-secret",
         decision_service=_DummyDecisionService(),
         auth_service=_DummyAuthService(),
         auth_token_repository=_DummyAuthTokenRepository(),
@@ -64,7 +63,6 @@ def test_build_runtime_app_exposes_existing_route_paths() -> None:
     paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
     assert paths == {
         "/auth/login",
-        "/callbacks/triage-decision",
         "/widget/room2",
         "/widget/room2/app.js",
         "/widget/room2/bootstrap",
