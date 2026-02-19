@@ -12,6 +12,7 @@ def parse_matrix_reaction_event(
     room_id: str,
     event: dict[str, Any],
     bot_user_id: str,
+    reactor_display_name: str | None = None,
 ) -> ReactionEvent | None:
     """Parse Matrix reaction event into normalized `ReactionEvent` model."""
 
@@ -53,4 +54,5 @@ def parse_matrix_reaction_event(
         reactor_user_id=sender,
         related_event_id=related_event_id,
         reaction_key=reaction_key,
+        reactor_display_name=reactor_display_name,
     )

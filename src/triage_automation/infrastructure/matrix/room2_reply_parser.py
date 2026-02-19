@@ -19,6 +19,7 @@ class Room2DecisionReplyEvent:
     room_id: str
     event_id: str
     sender_user_id: str
+    sender_display_name: str | None
     reply_to_event_id: str
     case_id: UUID
     decision: str
@@ -33,6 +34,7 @@ def parse_room2_decision_reply_event(
     bot_user_id: str,
     active_root_event_id: str,
     expected_case_id: UUID | None = None,
+    sender_display_name: str | None = None,
 ) -> Room2DecisionReplyEvent | None:
     """Parse Matrix message event into normalized Room-2 decision reply payload."""
 
@@ -85,6 +87,7 @@ def parse_room2_decision_reply_event(
         room_id=room_id,
         event_id=event_id,
         sender_user_id=sender,
+        sender_display_name=sender_display_name,
         reply_to_event_id=reply_to_event_id,
         case_id=parsed.case_id,
         decision=parsed.decision,

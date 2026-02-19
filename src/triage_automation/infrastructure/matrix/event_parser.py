@@ -13,6 +13,7 @@ class ParsedRoom1PdfIntakeEvent:
     room_id: str
     event_id: str
     sender_user_id: str
+    sender_display_name: str | None
     mxc_url: str
     filename: str | None
     mimetype: str | None
@@ -23,6 +24,7 @@ def parse_room1_pdf_intake_event(
     room_id: str,
     event: dict[str, Any],
     bot_user_id: str,
+    sender_display_name: str | None = None,
 ) -> ParsedRoom1PdfIntakeEvent | None:
     """Parse Room-1 event, returning normalized payload if it's a valid human PDF."""
 
@@ -74,6 +76,7 @@ def parse_room1_pdf_intake_event(
         room_id=room_id,
         event_id=event_id,
         sender_user_id=sender,
+        sender_display_name=sender_display_name,
         mxc_url=url,
         filename=filename,
         mimetype=mimetype if isinstance(mimetype, str) else None,

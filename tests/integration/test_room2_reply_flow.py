@@ -123,8 +123,9 @@ def _room2_reply_event(
     sender: str,
     body: str,
     reply_to_event_id: str,
+    sender_display_name: str | None = None,
 ) -> dict[str, object]:
-    return {
+    event: dict[str, object] = {
         "type": "m.room.message",
         "event_id": event_id,
         "sender": sender,
@@ -138,6 +139,9 @@ def _room2_reply_event(
             },
         },
     }
+    if sender_display_name is not None:
+        event["sender_display_name"] = sender_display_name
+    return event
 
 
 def _room2_non_reply_message_event(
@@ -202,6 +206,7 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
                     sender="@doctor:example.org",
                     body=body,
                     reply_to_event_id=root_event_id,
+                    sender_display_name="Dra. Joana",
                 )
             ],
         )
@@ -268,7 +273,8 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
         ).scalar_one()
         transcript_rows = connection.execute(
             sa.text(
-                "SELECT message_type, sender, message_text, reply_to_event_id "
+                "SELECT message_type, sender, sender_display_name, "
+                "message_text, reply_to_event_id "
                 "FROM case_matrix_message_transcripts "
                 "WHERE case_id = :case_id "
                 "AND message_type IN ('room2_doctor_reply', 'room2_decision_ack') "
@@ -293,10 +299,12 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     assert len(transcript_rows) == 2
     assert transcript_rows[0]["message_type"] == "room2_doctor_reply"
     assert transcript_rows[0]["sender"] == "@doctor:example.org"
+    assert transcript_rows[0]["sender_display_name"] == "Dra. Joana"
     assert transcript_rows[0]["message_text"] == body
     assert transcript_rows[0]["reply_to_event_id"] == root_event_id
     assert transcript_rows[1]["message_type"] == "room2_decision_ack"
     assert transcript_rows[1]["sender"] == "bot"
+    assert transcript_rows[1]["sender_display_name"] is None
     assert transcript_rows[1]["message_text"] == ack_body
     assert transcript_rows[1]["reply_to_event_id"] == "$doctor-room2-reply-1"
     assert len(reaction_checkpoints) == 1

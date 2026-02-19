@@ -29,6 +29,7 @@ class ReactionCheckpointPositiveInput:
     reaction_event_id: str
     reactor_user_id: str
     reaction_key: str
+    reactor_display_name: str | None = None
 
 
 class ReactionCheckpointRepositoryPort(Protocol):

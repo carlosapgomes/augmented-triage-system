@@ -89,6 +89,7 @@ class SqlAlchemyReactionCheckpointRepository(ReactionCheckpointRepositoryPort):
                 outcome="POSITIVE_RECEIVED",
                 reaction_event_id=payload.reaction_event_id,
                 reactor_user_id=payload.reactor_user_id,
+                reactor_display_name=payload.reactor_display_name,
                 reaction_key=payload.reaction_key,
                 reacted_at=sa.func.current_timestamp(),
             )

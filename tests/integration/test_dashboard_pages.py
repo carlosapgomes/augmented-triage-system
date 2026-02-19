@@ -135,6 +135,7 @@ def _insert_matrix_transcript(
     room_id: str = "!room2:example.org",
     event_id: str,
     sender: str = "@doctor:example.org",
+    sender_display_name: str | None = None,
     message_type: str = "room2_doctor_reply",
     message_text: str = "ok",
     captured_at: datetime,
@@ -142,9 +143,11 @@ def _insert_matrix_transcript(
     connection.execute(
         sa.text(
             "INSERT INTO case_matrix_message_transcripts ("
-            "case_id, room_id, event_id, sender, message_type, message_text, captured_at"
+            "case_id, room_id, event_id, sender, sender_display_name, "
+            "message_type, message_text, captured_at"
             ") VALUES ("
-            ":case_id, :room_id, :event_id, :sender, :message_type, :message_text, :captured_at"
+            ":case_id, :room_id, :event_id, :sender, :sender_display_name, "
+            ":message_type, :message_text, :captured_at"
             ")"
         ),
         {
@@ -152,6 +155,7 @@ def _insert_matrix_transcript(
             "room_id": room_id,
             "event_id": event_id,
             "sender": sender,
+            "sender_display_name": sender_display_name,
             "message_type": message_type,
             "message_text": message_text,
             "captured_at": captured_at,
@@ -190,6 +194,7 @@ def _insert_reaction_checkpoint(
     outcome: str = "PENDING",
     reaction_event_id: str | None = None,
     reactor_user_id: str | None = None,
+    reactor_display_name: str | None = None,
     reaction_key: str | None = None,
     reacted_at: datetime | None = None,
 ) -> None:
@@ -197,10 +202,12 @@ def _insert_reaction_checkpoint(
         sa.text(
             "INSERT INTO case_reaction_checkpoints ("
             "case_id, stage, room_id, target_event_id, expected_at, outcome, "
-            "reaction_event_id, reactor_user_id, reaction_key, reacted_at"
+            "reaction_event_id, reactor_user_id, reactor_display_name, "
+            "reaction_key, reacted_at"
             ") VALUES ("
             ":case_id, :stage, :room_id, :target_event_id, :expected_at, :outcome, "
-            ":reaction_event_id, :reactor_user_id, :reaction_key, :reacted_at"
+            ":reaction_event_id, :reactor_user_id, :reactor_display_name, "
+            ":reaction_key, :reacted_at"
             ")"
         ),
         {
@@ -212,6 +219,7 @@ def _insert_reaction_checkpoint(
             "outcome": outcome,
             "reaction_event_id": reaction_event_id,
             "reactor_user_id": reactor_user_id,
+            "reactor_display_name": reactor_display_name,
             "reaction_key": reaction_key,
             "reacted_at": reacted_at,
         },
@@ -708,6 +716,7 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
             room_id="!room2:example.org",
             event_id="$evt-reply",
             sender="@doctor:example.org",
+            sender_display_name="Dra. Joana",
             message_type="room2_doctor_reply",
             message_text="decisao: aceitar",
             captured_at=base + timedelta(minutes=15),
@@ -730,6 +739,7 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
     assert "bot_processing" in response.text
     assert "LLM1" in response.text
     assert "room2_doctor_reply" in response.text
+    assert "Dra. Joana" in response.text
     assert "badge text-bg-secondary" in response.text
     assert "badge text-bg-info" in response.text
     assert "badge text-bg-warning" in response.text
@@ -832,6 +842,7 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
             outcome="POSITIVE_RECEIVED",
             reaction_event_id="$reaction-room3-1",
             reactor_user_id="@scheduler:example.org",
+            reactor_display_name="Enf. Maria",
             reaction_key="✅",
             reacted_at=base + timedelta(minutes=3),
         )
@@ -845,5 +856,5 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
     assert response.status_code == 200
     assert "ROOM3_ACK_POSITIVE_EXPECTED" in response.text
     assert "ROOM3_ACK_POSITIVE_RECEIVED" in response.text
-    assert "@scheduler:example.org" in response.text
+    assert "Enf. Maria" in response.text
     assert "!room3:example.org" in response.text

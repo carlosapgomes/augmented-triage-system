@@ -113,6 +113,7 @@ def _insert_reaction_checkpoint(
     outcome: str = "PENDING",
     reaction_event_id: str | None = None,
     reactor_user_id: str | None = None,
+    reactor_display_name: str | None = None,
     reaction_key: str | None = None,
     reacted_at: datetime | None = None,
 ) -> None:
@@ -120,10 +121,12 @@ def _insert_reaction_checkpoint(
         sa.text(
             "INSERT INTO case_reaction_checkpoints ("
             "case_id, stage, room_id, target_event_id, expected_at, outcome, "
-            "reaction_event_id, reactor_user_id, reaction_key, reacted_at"
+            "reaction_event_id, reactor_user_id, reactor_display_name, "
+            "reaction_key, reacted_at"
             ") VALUES ("
             ":case_id, :stage, :room_id, :target_event_id, :expected_at, :outcome, "
-            ":reaction_event_id, :reactor_user_id, :reaction_key, :reacted_at"
+            ":reaction_event_id, :reactor_user_id, :reactor_display_name, "
+            ":reaction_key, :reacted_at"
             ")"
         ),
         {
@@ -135,6 +138,7 @@ def _insert_reaction_checkpoint(
             "outcome": outcome,
             "reaction_event_id": reaction_event_id,
             "reactor_user_id": reactor_user_id,
+            "reactor_display_name": reactor_display_name,
             "reaction_key": reaction_key,
             "reacted_at": reacted_at,
         },
@@ -214,9 +218,11 @@ async def test_monitoring_case_detail_returns_unified_chronological_timeline(
         connection.execute(
             sa.text(
                 "INSERT INTO case_matrix_message_transcripts ("
-                "case_id, room_id, event_id, sender, message_type, message_text, captured_at"
+                "case_id, room_id, event_id, sender, sender_display_name, "
+                "message_type, message_text, captured_at"
                 ") VALUES ("
                 ":case_id, '!room2:example.org', '$evt-1', '@doctor:example.org', "
+                "'Dra. Joana', "
                 "'room2_doctor_reply', 'ok', :captured_at"
                 ")"
             ),
@@ -250,7 +256,7 @@ async def test_monitoring_case_detail_returns_unified_chronological_timeline(
     assert [item["actor"] for item in payload["timeline"]] == [
         "system",
         "llm",
-        "@doctor:example.org",
+        "Dra. Joana",
     ]
     assert all(isinstance(item["timestamp"], str) for item in payload["timeline"])
 
@@ -327,6 +333,7 @@ async def test_monitoring_case_detail_includes_reaction_checkpoint_events(
             outcome="POSITIVE_RECEIVED",
             reaction_event_id="$reaction-room2-1",
             reactor_user_id="@doctor:example.org",
+            reactor_display_name="Dra. Joana",
             reaction_key="👍",
             reacted_at=base + timedelta(minutes=4),
         )
@@ -349,7 +356,7 @@ async def test_monitoring_case_detail_includes_reaction_checkpoint_events(
     assert [item["actor"] for item in payload["timeline"]] == [
         "system",
         "system",
-        "@doctor:example.org",
+        "Dra. Joana",
     ]
     assert [item["channel"] for item in payload["timeline"]] == [
         "!room2:example.org",

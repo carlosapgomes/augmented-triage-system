@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -77,6 +78,7 @@ _ROOM2_AUTOMATION_MESSAGE_KINDS = {
     "room2_decision_ack",
 }
 logger = logging.getLogger(__name__)
+_RoomMemberDisplayNameCache = dict[tuple[str, str], str]
 
 
 class MatrixRoom1ListenerClientPort(Protocol):
@@ -188,12 +190,20 @@ async def poll_room1_intake_once(
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
+    display_name_cache: _RoomMemberDisplayNameCache | None = None,
 ) -> tuple[str | None, int]:
     """Poll Matrix once and route valid Room-1 PDF events through intake service."""
 
     sync_payload = await matrix_client.sync(
         since=since_token,
         timeout_ms=sync_timeout_ms,
+    )
+    runtime_display_name_cache = (
+        display_name_cache if display_name_cache is not None else {}
+    )
+    _update_member_display_name_cache(
+        sync_payload=sync_payload,
+        display_name_cache=runtime_display_name_cache,
     )
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
 
@@ -202,6 +212,7 @@ async def poll_room1_intake_once(
         intake_service=intake_service,
         room1_id=room1_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
 
     return next_since, routed_count
@@ -217,10 +228,18 @@ async def poll_reaction_events_once(
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
+    display_name_cache: _RoomMemberDisplayNameCache | None = None,
 ) -> tuple[str | None, int]:
     """Poll Matrix once and route supported reactions through reaction service."""
 
     sync_payload = await matrix_client.sync(since=since_token, timeout_ms=sync_timeout_ms)
+    runtime_display_name_cache = (
+        display_name_cache if display_name_cache is not None else {}
+    )
+    _update_member_display_name_cache(
+        sync_payload=sync_payload,
+        display_name_cache=runtime_display_name_cache,
+    )
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
     routed_count = await _route_reactions_from_sync(
         sync_payload=sync_payload,
@@ -229,6 +248,7 @@ async def poll_reaction_events_once(
         room2_id=room2_id,
         room3_id=room3_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     return next_since, routed_count
 
@@ -244,16 +264,25 @@ async def poll_room1_and_reactions_once(
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
+    display_name_cache: _RoomMemberDisplayNameCache | None = None,
 ) -> tuple[str | None, int, int]:
     """Poll Matrix once and route both Room-1 intake and reaction events."""
 
     sync_payload = await matrix_client.sync(since=since_token, timeout_ms=sync_timeout_ms)
+    runtime_display_name_cache = (
+        display_name_cache if display_name_cache is not None else {}
+    )
+    _update_member_display_name_cache(
+        sync_payload=sync_payload,
+        display_name_cache=runtime_display_name_cache,
+    )
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
     intake_count = await _route_room1_intake_from_sync(
         sync_payload=sync_payload,
         intake_service=intake_service,
         room1_id=room1_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     reaction_count = await _route_reactions_from_sync(
         sync_payload=sync_payload,
@@ -262,6 +291,7 @@ async def poll_room1_and_reactions_once(
         room2_id=room2_id,
         room3_id=room3_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     return next_since, intake_count, reaction_count
 
@@ -274,16 +304,25 @@ async def poll_room3_reply_events_once(
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
+    display_name_cache: _RoomMemberDisplayNameCache | None = None,
 ) -> tuple[str | None, int]:
     """Poll Matrix once and route supported Room-3 reply events."""
 
     sync_payload = await matrix_client.sync(since=since_token, timeout_ms=sync_timeout_ms)
+    runtime_display_name_cache = (
+        display_name_cache if display_name_cache is not None else {}
+    )
+    _update_member_display_name_cache(
+        sync_payload=sync_payload,
+        display_name_cache=runtime_display_name_cache,
+    )
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
     routed_count = await _route_room3_replies_from_sync(
         sync_payload=sync_payload,
         room3_reply_service=room3_reply_service,
         room3_id=room3_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     return next_since, routed_count
 
@@ -297,10 +336,18 @@ async def poll_room2_reply_events_once(
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
+    display_name_cache: _RoomMemberDisplayNameCache | None = None,
 ) -> tuple[str | None, int]:
     """Poll Matrix once and route supported Room-2 decision reply events."""
 
     sync_payload = await matrix_client.sync(since=since_token, timeout_ms=sync_timeout_ms)
+    runtime_display_name_cache = (
+        display_name_cache if display_name_cache is not None else {}
+    )
+    _update_member_display_name_cache(
+        sync_payload=sync_payload,
+        display_name_cache=runtime_display_name_cache,
+    )
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
     routed_count = await _route_room2_replies_from_sync(
         sync_payload=sync_payload,
@@ -309,6 +356,7 @@ async def poll_room2_reply_events_once(
         message_repository=message_repository,
         room2_id=room2_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     return next_since, routed_count
 
@@ -327,16 +375,25 @@ async def poll_room1_reactions_and_room3_once(
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
+    display_name_cache: _RoomMemberDisplayNameCache | None = None,
 ) -> tuple[str | None, int, int, int, int]:
     """Poll Matrix once and route Room-1 intake, reactions, Room-2, and Room-3 replies."""
 
     sync_payload = await matrix_client.sync(since=since_token, timeout_ms=sync_timeout_ms)
+    runtime_display_name_cache = (
+        display_name_cache if display_name_cache is not None else {}
+    )
+    _update_member_display_name_cache(
+        sync_payload=sync_payload,
+        display_name_cache=runtime_display_name_cache,
+    )
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
     intake_count = await _route_room1_intake_from_sync(
         sync_payload=sync_payload,
         intake_service=intake_service,
         room1_id=room1_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     reaction_count = await _route_reactions_from_sync(
         sync_payload=sync_payload,
@@ -345,6 +402,7 @@ async def poll_room1_reactions_and_room3_once(
         room2_id=room2_id,
         room3_id=room3_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     room2_reply_count = await _route_room2_replies_from_sync(
         sync_payload=sync_payload,
@@ -353,12 +411,14 @@ async def poll_room1_reactions_and_room3_once(
         message_repository=message_repository,
         room2_id=room2_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     room3_reply_count = await _route_room3_replies_from_sync(
         sync_payload=sync_payload,
         room3_reply_service=room3_reply_service,
         room3_id=room3_id,
         bot_user_id=bot_user_id,
+        display_name_cache=runtime_display_name_cache,
     )
     return next_since, intake_count, reaction_count, room2_reply_count, room3_reply_count
 
@@ -394,6 +454,7 @@ async def run_room1_intake_listener(
         poll_interval_seconds,
     )
     since_token = initial_since_token
+    display_name_cache: _RoomMemberDisplayNameCache = {}
     while not stop_event.is_set():
         try:
             since_token, intake_count, reaction_count, room2_reply_count, room3_reply_count = (
@@ -410,6 +471,7 @@ async def run_room1_intake_listener(
                     bot_user_id=bot_user_id,
                     since_token=since_token,
                     sync_timeout_ms=sync_timeout_ms,
+                    display_name_cache=display_name_cache,
                 )
             )
             if intake_count or reaction_count or room2_reply_count or room3_reply_count:
@@ -537,15 +599,24 @@ async def _route_room1_intake_from_sync(
     intake_service: Room1IntakeService,
     room1_id: str,
     bot_user_id: str,
+    display_name_cache: _RoomMemberDisplayNameCache,
 ) -> int:
     routed_count = 0
     for timeline_event in iter_joined_room_timeline_events(sync_payload):
         if timeline_event.room_id != room1_id:
             continue
+        sender_user_id = _extract_sender_user_id(timeline_event.event)
+        sender_display_name = _resolve_sender_display_name(
+            event=timeline_event.event,
+            room_id=timeline_event.room_id,
+            sender_user_id=sender_user_id,
+            display_name_cache=display_name_cache,
+        )
         parsed = parse_room1_pdf_intake_event(
             room_id=timeline_event.room_id,
             event=timeline_event.event,
             bot_user_id=bot_user_id,
+            sender_display_name=sender_display_name,
         )
         if parsed is None:
             continue
@@ -564,17 +635,26 @@ async def _route_reactions_from_sync(
     room2_id: str,
     room3_id: str,
     bot_user_id: str,
+    display_name_cache: _RoomMemberDisplayNameCache,
 ) -> int:
     routed_count = 0
     supported_rooms = {room1_id, room2_id, room3_id}
     for timeline_event in iter_joined_room_timeline_events(sync_payload):
         if timeline_event.room_id not in supported_rooms:
             continue
+        sender_user_id = _extract_sender_user_id(timeline_event.event)
+        reactor_display_name = _resolve_sender_display_name(
+            event=timeline_event.event,
+            room_id=timeline_event.room_id,
+            sender_user_id=sender_user_id,
+            display_name_cache=display_name_cache,
+        )
 
         parsed = parse_matrix_reaction_event(
             room_id=timeline_event.room_id,
             event=timeline_event.event,
             bot_user_id=bot_user_id,
+            reactor_display_name=reactor_display_name,
         )
         if parsed is None:
             continue
@@ -593,6 +673,7 @@ async def _route_room2_replies_from_sync(
     message_repository: SqlAlchemyMessageRepository,
     room2_id: str,
     bot_user_id: str,
+    display_name_cache: _RoomMemberDisplayNameCache,
 ) -> int:
     routed_count = 0
     for timeline_event in iter_joined_room_timeline_events(sync_payload):
@@ -615,6 +696,13 @@ async def _route_room2_replies_from_sync(
 
         if _extract_sender_user_id(timeline_event.event) == bot_user_id:
             continue
+        sender_user_id = _extract_sender_user_id(timeline_event.event)
+        sender_display_name = _resolve_sender_display_name(
+            event=timeline_event.event,
+            room_id=timeline_event.room_id,
+            sender_user_id=sender_user_id,
+            display_name_cache=display_name_cache,
+        )
 
         timeline_event_id = _extract_event_id(timeline_event.event)
         if timeline_event_id is not None:
@@ -634,6 +722,7 @@ async def _route_room2_replies_from_sync(
             bot_user_id=bot_user_id,
             active_root_event_id=reply_target_event_id,
             expected_case_id=mapped_case_id,
+            sender_display_name=sender_display_name,
         )
         if parsed is None:
             await _send_room2_error_feedback(
@@ -653,6 +742,7 @@ async def _route_room2_replies_from_sync(
                     room_id=room2_id,
                     event_id=parsed.event_id,
                     sender=parsed.sender_user_id,
+                    sender_display_name=parsed.sender_display_name,
                     message_type="room2_doctor_reply",
                     message_text=body,
                     reply_to_event_id=parsed.reply_to_event_id,
@@ -707,16 +797,25 @@ async def _route_room3_replies_from_sync(
     room3_reply_service: Room3ReplyService,
     room3_id: str,
     bot_user_id: str,
+    display_name_cache: _RoomMemberDisplayNameCache,
 ) -> int:
     routed_count = 0
     for timeline_event in iter_joined_room_timeline_events(sync_payload):
         if timeline_event.room_id != room3_id:
             continue
+        sender_user_id = _extract_sender_user_id(timeline_event.event)
+        sender_display_name = _resolve_sender_display_name(
+            event=timeline_event.event,
+            room_id=timeline_event.room_id,
+            sender_user_id=sender_user_id,
+            display_name_cache=display_name_cache,
+        )
 
         parsed = parse_room3_reply_event(
             room_id=timeline_event.room_id,
             event=timeline_event.event,
             bot_user_id=bot_user_id,
+            sender_display_name=sender_display_name,
         )
         if parsed is None:
             continue
@@ -725,6 +824,129 @@ async def _route_room3_replies_from_sync(
         routed_count += 1
 
     return routed_count
+
+
+def _update_member_display_name_cache(
+    *,
+    sync_payload: Mapping[str, object],
+    display_name_cache: _RoomMemberDisplayNameCache,
+) -> None:
+    """Update in-memory room-member display-name cache from `/sync` state/timeline events."""
+
+    rooms = sync_payload.get("rooms")
+    if not isinstance(rooms, Mapping):
+        return
+    joined_rooms = rooms.get("join")
+    if not isinstance(joined_rooms, Mapping):
+        return
+
+    for raw_room_id, raw_room_body in joined_rooms.items():
+        if not isinstance(raw_room_id, str) or not isinstance(raw_room_body, Mapping):
+            continue
+        for container_name in ("state", "timeline"):
+            container = raw_room_body.get(container_name)
+            if not isinstance(container, Mapping):
+                continue
+            raw_events = container.get("events")
+            if not isinstance(raw_events, list):
+                continue
+            for raw_event in raw_events:
+                if not isinstance(raw_event, dict):
+                    continue
+                _apply_member_state_event_to_display_name_cache(
+                    room_id=raw_room_id,
+                    event=raw_event,
+                    display_name_cache=display_name_cache,
+                )
+
+
+def _apply_member_state_event_to_display_name_cache(
+    *,
+    room_id: str,
+    event: dict[str, Any],
+    display_name_cache: _RoomMemberDisplayNameCache,
+) -> None:
+    """Upsert/remove one display-name cache entry based on `m.room.member` event."""
+
+    if event.get("type") != "m.room.member":
+        return
+    user_id = event.get("state_key")
+    if not isinstance(user_id, str) or not user_id:
+        return
+
+    content = event.get("content")
+    if not isinstance(content, Mapping):
+        return
+    membership = content.get("membership")
+    if isinstance(membership, str) and membership in {"leave", "ban"}:
+        display_name_cache.pop((room_id, user_id), None)
+        return
+
+    display_name = content.get("displayname")
+    if not isinstance(display_name, str):
+        if isinstance(membership, str) and membership == "join":
+            display_name_cache.pop((room_id, user_id), None)
+        return
+    normalized = display_name.strip()
+    if not normalized:
+        if isinstance(membership, str) and membership == "join":
+            display_name_cache.pop((room_id, user_id), None)
+        return
+    display_name_cache[(room_id, user_id)] = normalized
+
+
+def _resolve_sender_display_name(
+    *,
+    event: dict[str, Any],
+    room_id: str,
+    sender_user_id: str | None,
+    display_name_cache: _RoomMemberDisplayNameCache,
+) -> str | None:
+    """Resolve sender display name from event payload first, then from in-memory cache."""
+
+    event_display_name = _extract_sender_display_name_from_event(event)
+    if event_display_name is not None:
+        return event_display_name
+    if sender_user_id is None:
+        return None
+    cached = display_name_cache.get((room_id, sender_user_id))
+    if cached is None:
+        return None
+    normalized = cached.strip()
+    if not normalized:
+        return None
+    return normalized
+
+
+def _extract_sender_display_name_from_event(event: dict[str, Any]) -> str | None:
+    """Extract optional sender display name from supported Matrix event fields."""
+
+    for key in ("sender_display_name", "displayname"):
+        value = event.get(key)
+        if isinstance(value, str):
+            normalized = value.strip()
+            if normalized:
+                return normalized
+
+    unsigned = event.get("unsigned")
+    if not isinstance(unsigned, Mapping):
+        return None
+    for key in ("sender_display_name", "displayname"):
+        value = unsigned.get(key)
+        if isinstance(value, str):
+            normalized = value.strip()
+            if normalized:
+                return normalized
+    sender_profile = unsigned.get("sender_profile")
+    if not isinstance(sender_profile, Mapping):
+        return None
+    displayname = sender_profile.get("displayname")
+    if not isinstance(displayname, str):
+        return None
+    normalized = displayname.strip()
+    if not normalized:
+        return None
+    return normalized
 
 
 def _extract_reply_target_event_id(event: dict[str, object]) -> str | None:

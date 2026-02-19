@@ -34,6 +34,7 @@ def test_case_matrix_message_transcripts_table_has_required_columns(tmp_path: Pa
         "room_id",
         "event_id",
         "sender",
+        "sender_display_name",
         "message_type",
         "message_text",
         "reply_to_event_id",

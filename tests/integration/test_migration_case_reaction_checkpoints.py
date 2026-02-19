@@ -36,6 +36,7 @@ def test_case_reaction_checkpoints_table_exists_with_required_columns(tmp_path: 
         "outcome",
         "reaction_event_id",
         "reactor_user_id",
+        "reactor_display_name",
         "reaction_key",
         "reacted_at",
     }

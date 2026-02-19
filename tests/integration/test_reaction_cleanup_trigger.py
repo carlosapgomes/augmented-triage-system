@@ -55,8 +55,9 @@ def _reaction_event(
     sender: str,
     related_event_id: str,
     key: str = "👍",
+    sender_display_name: str | None = None,
 ) -> dict[str, object]:
-    return {
+    event: dict[str, object] = {
         "type": "m.reaction",
         "event_id": event_id,
         "sender": sender,
@@ -68,6 +69,9 @@ def _reaction_event(
             }
         },
     }
+    if sender_display_name is not None:
+        event["sender_display_name"] = sender_display_name
+    return event
 
 
 def _sync_payload_with_room_events(
@@ -163,6 +167,7 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
         room_id="!room1:example.org",
         reaction_event_id="$reaction-a",
         reactor_user_id="@nurse1:example.org",
+        reactor_display_name="Enf. Ana",
         related_event_id="$room1-final-1",
         reaction_key="👍",
     )
@@ -170,6 +175,7 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
         room_id="!room1:example.org",
         reaction_event_id="$reaction-b",
         reactor_user_id="@nurse2:example.org",
+        reactor_display_name="Enf. Bia",
         related_event_id="$room1-final-1",
         reaction_key="👍",
     )
@@ -196,7 +202,8 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
         ).scalar_one()
         room1_checkpoint = connection.execute(
             sa.text(
-                "SELECT outcome, reactor_user_id FROM case_reaction_checkpoints "
+                "SELECT outcome, reactor_user_id, reactor_display_name "
+                "FROM case_reaction_checkpoints "
                 "WHERE case_id = :case_id AND stage = 'ROOM1_FINAL'"
             ),
             {"case_id": case.case_id.hex},
@@ -214,6 +221,7 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
         "@nurse1:example.org",
         "@nurse2:example.org",
     }
+    assert room1_checkpoint["reactor_display_name"] in {"Enf. Ana", "Enf. Bia"}
 
 
 @pytest.mark.asyncio
@@ -667,6 +675,22 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
             kind="bot_ack",
         )
     )
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_reaction_checkpoint(
+            connection,
+            case_id_hex=case.case_id.hex,
+            stage="ROOM2_ACK",
+            room_id="!room2:example.org",
+            target_event_id="$room2-ack-runtime",
+        )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id_hex=case.case_id.hex,
+            stage="ROOM3_ACK",
+            room_id="!room3:example.org",
+            target_event_id="$room3-ack-runtime",
+        )
 
     service = ReactionService(
         room1_id="!room1:example.org",
@@ -687,6 +711,7 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
                         event_id="$reaction-runtime-room2",
                         sender="@doctor:example.org",
                         related_event_id="$room2-ack-runtime",
+                        sender_display_name="Dra. Joana",
                     )
                 ],
                 "!room3:example.org": [
@@ -694,6 +719,7 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
                         event_id="$reaction-runtime-room3",
                         sender="@scheduler:example.org",
                         related_event_id="$room3-ack-runtime",
+                        sender_display_name="Enf. Maria",
                     )
                 ],
             },
@@ -714,7 +740,6 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
     assert next_since == "s-room23"
     assert routed_count == 2
 
-    engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
         cleanup_jobs = connection.execute(
             sa.text(
@@ -737,10 +762,30 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        checkpoints = connection.execute(
+            sa.text(
+                "SELECT stage, outcome, reactor_display_name "
+                "FROM case_reaction_checkpoints "
+                "WHERE case_id = :case_id ORDER BY stage ASC"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().all()
 
     assert int(cleanup_jobs) == 0
     assert int(room2_audit) == 1
     assert int(room3_audit) == 1
+    assert checkpoints == [
+        {
+            "stage": "ROOM2_ACK",
+            "outcome": "POSITIVE_RECEIVED",
+            "reactor_display_name": "Dra. Joana",
+        },
+        {
+            "stage": "ROOM3_ACK",
+            "outcome": "POSITIVE_RECEIVED",
+            "reactor_display_name": "Enf. Maria",
+        },
+    ]
 
 
 @pytest.mark.asyncio

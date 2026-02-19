@@ -48,6 +48,7 @@ class CaseMatrixMessageTranscriptCreateInput:
     sender: str
     message_type: str
     message_text: str
+    sender_display_name: str | None = None
     reply_to_event_id: str | None = None
 
 

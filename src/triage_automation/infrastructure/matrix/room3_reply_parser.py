@@ -12,6 +12,7 @@ def parse_room3_reply_event(
     room_id: str,
     event: dict[str, Any],
     bot_user_id: str,
+    sender_display_name: str | None = None,
 ) -> Room3ReplyEvent | None:
     """Parse Matrix message event into normalized Room-3 reply payload."""
 
@@ -55,4 +56,5 @@ def parse_room3_reply_event(
         sender_user_id=sender,
         body=body,
         reply_to_event_id=reply_to_event_id,
+        sender_display_name=sender_display_name,
     )

@@ -64,6 +64,7 @@ case_matrix_message_transcripts = sa.table(
     sa.column("room_id", sa.Text()),
     sa.column("event_id", sa.Text()),
     sa.column("sender", sa.Text()),
+    sa.column("sender_display_name", sa.Text()),
     sa.column("message_type", sa.Text()),
     sa.column("message_text", sa.Text()),
     sa.column("reply_to_event_id", sa.Text()),
@@ -80,6 +81,7 @@ case_reaction_checkpoints = sa.table(
     sa.column("outcome", sa.Text()),
     sa.column("reaction_event_id", sa.Text()),
     sa.column("reactor_user_id", sa.Text()),
+    sa.column("reactor_display_name", sa.Text()),
     sa.column("reaction_key", sa.Text()),
     sa.column("reacted_at", sa.DateTime(timezone=True)),
 )
@@ -705,6 +707,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 case_matrix_message_transcripts.c.room_id,
                 case_matrix_message_transcripts.c.event_id,
                 case_matrix_message_transcripts.c.sender,
+                case_matrix_message_transcripts.c.sender_display_name,
                 case_matrix_message_transcripts.c.message_type,
                 case_matrix_message_transcripts.c.message_text,
                 case_matrix_message_transcripts.c.reply_to_event_id,
@@ -725,6 +728,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 case_reaction_checkpoints.c.outcome,
                 case_reaction_checkpoints.c.reaction_event_id,
                 case_reaction_checkpoints.c.reactor_user_id,
+                case_reaction_checkpoints.c.reactor_display_name,
                 case_reaction_checkpoints.c.reaction_key,
                 case_reaction_checkpoints.c.reacted_at,
             )
@@ -806,7 +810,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                         channel=cast(str, row["room_id"]),
                         timestamp=cast(datetime, row["captured_at"]),
                         room_id=cast(str, row["room_id"]),
-                        actor=cast(str, row["sender"]),
+                        actor=cast(str | None, row["sender_display_name"])
+                        or cast(str, row["sender"]),
                         event_type=cast(str, row["message_type"]),
                         content_text=cast(str, row["message_text"]),
                         payload={
@@ -858,7 +863,9 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                         channel=room_id,
                         timestamp=reacted_at,
                         room_id=room_id,
-                        actor=cast(str | None, row["reactor_user_id"]) or "human",
+                        actor=cast(str | None, row["reactor_display_name"])
+                        or cast(str | None, row["reactor_user_id"])
+                        or "human",
                         event_type=f"{stage}_POSITIVE_RECEIVED",
                         content_text=None,
                         payload={

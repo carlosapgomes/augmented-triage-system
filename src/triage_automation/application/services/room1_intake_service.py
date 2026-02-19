@@ -118,6 +118,7 @@ class Room1IntakeService:
                 room_id=parsed.room_id,
                 event_id=parsed.event_id,
                 sender=parsed.sender_user_id,
+                sender_display_name=parsed.sender_display_name,
                 message_type="room1_origin",
                 message_text=json.dumps(
                     {

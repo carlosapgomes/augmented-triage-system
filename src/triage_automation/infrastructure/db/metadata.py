@@ -129,6 +129,7 @@ case_reaction_checkpoints = sa.Table(
     sa.Column("outcome", sa.Text(), nullable=False, server_default=sa.text("'PENDING'")),
     sa.Column("reaction_event_id", sa.Text(), nullable=True),
     sa.Column("reactor_user_id", sa.Text(), nullable=True),
+    sa.Column("reactor_display_name", sa.Text(), nullable=True),
     sa.Column("reaction_key", sa.Text(), nullable=True),
     sa.Column("reacted_at", sa.DateTime(timezone=True), nullable=True),
     sa.CheckConstraint(

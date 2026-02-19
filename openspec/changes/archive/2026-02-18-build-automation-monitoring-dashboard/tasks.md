@@ -47,3 +47,8 @@
 - [x] 7.3 Atualizar runbook/checklist manual com validacao de APIs de dashboard, timeline auditavel e fluxo de autorizacao de prompts.
 - [x] 7.4 Executar verificacoes de qualidade para o slice implementado (`uv run pytest`, `uv run ruff check`, `uv run mypy`) e registrar qualquer limitacao.
   - Limitacao registrada (2026-02-18): `pytest` exibiu `DeprecationWarning` de adaptador `datetime` do `sqlite3` via SQLAlchemy/aiosqlite; sem falha funcional dos testes.
+
+## 8. Ajuste de ator por display name
+
+- [x] 8.1 Persistir `sender_display_name` e `reactor_display_name` nas tabelas append-only de transcript e checkpoints.
+- [x] 8.2 Priorizar display name na timeline do dashboard/API quando disponivel, com fallback para Matrix ID.

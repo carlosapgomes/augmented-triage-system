@@ -48,6 +48,7 @@ class Room3ReplyEvent:
     sender_user_id: str
     body: str
     reply_to_event_id: str | None
+    sender_display_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,7 @@ class Room3ReplyService:
                 room_id=event.room_id,
                 event_id=event.event_id,
                 sender=event.sender_user_id,
+                sender_display_name=event.sender_display_name,
                 message_type="room3_reply",
                 message_text=event.body,
                 reply_to_event_id=event.reply_to_event_id,

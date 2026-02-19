@@ -36,6 +36,7 @@ class ReactionEvent:
     reactor_user_id: str
     related_event_id: str
     reaction_key: str
+    reactor_display_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -126,6 +127,7 @@ class ReactionService:
                     reaction_event_id=event.reaction_event_id,
                     reactor_user_id=event.reactor_user_id,
                     reaction_key=event.reaction_key,
+                    reactor_display_name=event.reactor_display_name,
                 )
             )
 
@@ -218,6 +220,7 @@ class ReactionService:
                     reaction_event_id=event.reaction_event_id,
                     reactor_user_id=event.reactor_user_id,
                     reaction_key=event.reaction_key,
+                    reactor_display_name=event.reactor_display_name,
                 )
             )
         logger.info("reaction_ack_recorded case_id=%s room_id=%s", mapping.case_id, event.room_id)
