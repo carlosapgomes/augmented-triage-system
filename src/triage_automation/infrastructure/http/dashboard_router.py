@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 from math import ceil
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlencode
 from uuid import UUID
 
@@ -13,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from triage_automation.application.ports.case_repository_port import CaseMonitoringTimelineItem
 from triage_automation.application.ports.user_repository_port import UserRecord
 from triage_automation.application.services.access_guard_service import (
     RoleNotAuthorizedError,
@@ -34,6 +37,12 @@ from triage_automation.infrastructure.http.auth_guard import (
 from triage_automation.infrastructure.http.shell_context import build_shell_context
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+_CaseDetailViewMode = Literal["thread", "pure"]
+_SCHEDULE_LABEL_RE = re.compile(
+    r"(?im)^\s*(?:date[_ ]?time|data[_ ]?hora|data|date)\s*[:=]\s*(.+?)\s*$"
+)
+_SCHEDULE_ISO_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2})?\b")
+_SCHEDULE_BR_RE = re.compile(r"\b\d{2}/\d{2}/\d{4}(?:\s+\d{2}:\d{2})?\b")
 
 
 def build_dashboard_router(
@@ -137,13 +146,18 @@ def build_dashboard_router(
         )
 
     @router.get("/dashboard/cases/{case_id}", response_class=HTMLResponse)
-    async def render_case_detail_page(request: Request, case_id: UUID) -> Response:
+    async def render_case_detail_page(
+        request: Request,
+        case_id: UUID,
+        view: str = Query(default="thread"),
+    ) -> Response:
         """Render dashboard detail page with chronological timeline by case."""
 
         authenticated_user = await _require_audit_user(auth_guard=auth_guard, request=request)
         if isinstance(authenticated_user, RedirectResponse):
             return authenticated_user
 
+        view_mode = _parse_case_detail_view_mode(view)
         can_view_full_content = authenticated_user.role is Role.ADMIN
         detail = await monitoring_service.get_case_detail(case_id=case_id)
         if detail is None:
@@ -170,6 +184,8 @@ def build_dashboard_router(
                 }
             )
 
+        thread_sections = _build_thread_sections(detail.timeline)
+
         return templates.TemplateResponse(
             request=request,
             name="dashboard/case_detail.html",
@@ -181,7 +197,9 @@ def build_dashboard_router(
                 ),
                 "case_id": str(case_id),
                 "status": detail.status.value,
+                "view_mode": view_mode,
                 "timeline_rows": timeline_rows,
+                "thread_sections": thread_sections,
             },
         )
 
@@ -192,6 +210,249 @@ def _is_unpoly_fragment_request(request: Request) -> bool:
     """Return whether request asks for a fragment-targeted Unpoly update."""
 
     return bool(request.headers.get("x-up-target"))
+
+
+def _parse_case_detail_view_mode(raw_mode: str) -> _CaseDetailViewMode:
+    """Parse and validate dashboard detail visualization mode query value."""
+
+    normalized = raw_mode.strip().lower()
+    if normalized in {"", "thread"}:
+        return "thread"
+    if normalized == "pure":
+        return "pure"
+    raise HTTPException(status_code=422, detail=f"invalid detail view mode: {raw_mode}")
+
+
+def _build_thread_sections(
+    timeline_items: list[CaseMonitoringTimelineItem],
+) -> list[dict[str, object]]:
+    """Build compact thread-view sections for Room-1/2/3 with summary nodes."""
+
+    grouped: dict[str, list[dict[str, str | None]]] = {
+        "room1": [],
+        "room2": [],
+        "room3": [],
+    }
+    for item in timeline_items:
+        node = _build_thread_node(item)
+        if node is None:
+            continue
+        section, payload = node
+        grouped[section].append(payload)
+
+    sections: list[dict[str, object]] = []
+    for key, title in (
+        ("room1", "Sala 1 (ROOM1)"),
+        ("room2", "Sala 2 (ROOM2)"),
+        ("room3", "Sala 3 (ROOM3)"),
+    ):
+        sections.append(
+            {
+                "key": key,
+                "title": title,
+                "items": grouped[key],
+            }
+        )
+    return sections
+
+
+def _build_thread_node(
+    item: CaseMonitoringTimelineItem,
+) -> tuple[str, dict[str, str | None]] | None:
+    """Map one timeline event into a compact thread node when relevant."""
+
+    event_type = item.event_type
+    timestamp = item.timestamp.isoformat()
+    actor = item.actor or "system"
+    if item.source == "pdf" and event_type == "pdf_report_extracted":
+        return (
+            "room1",
+            {
+                "title": "PDF recebido (paciente + registro)",
+                "detail": None,
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "bot_processing":
+        return (
+            "room1",
+            {
+                "title": "ACK processamento (bot)",
+                "detail": None,
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "room2_doctor_reply":
+        decision = _extract_room2_decision(item.content_text)
+        return (
+            "room2",
+            {
+                "title": f"Resposta medica: DECISAO = {decision}",
+                "detail": None,
+                "actor": actor,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "room2_decision_ack":
+        return (
+            "room2",
+            {
+                "title": "ACK da decisao (room2_decision_ack) enviado pelo bot",
+                "detail": None,
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "ROOM2_ACK_POSITIVE_RECEIVED":
+        return (
+            "room2",
+            {
+                "title": _build_reaction_title(scope="ACK", item=item),
+                "detail": None,
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "room3_reply":
+        schedule_at = _extract_schedule_datetime(item.content_text)
+        return (
+            "room3",
+            {
+                "title": _build_room3_reply_title(item.content_text),
+                "detail": f"Agendado para: {schedule_at}" if schedule_at is not None else None,
+                "actor": actor,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "bot_ack":
+        return (
+            "room3",
+            {
+                "title": "ACK do bot (bot_ack)",
+                "detail": None,
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "ROOM3_ACK_POSITIVE_RECEIVED":
+        return (
+            "room3",
+            {
+                "title": _build_reaction_title(scope="ACK", item=item),
+                "detail": None,
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "room1_final":
+        return (
+            "room1",
+            {
+                "title": "Mensagem final (bot)",
+                "detail": _build_room1_final_result(item.content_text),
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    if event_type == "ROOM1_FINAL_POSITIVE_RECEIVED":
+        return (
+            "room1",
+            {
+                "title": _build_reaction_title(scope="mensagem final", item=item),
+                "detail": None,
+                "actor": None,
+                "timestamp": timestamp,
+            },
+        )
+    return None
+
+
+def _extract_room2_decision(content_text: str | None) -> str:
+    """Extract compact decision label from Room-2 doctor reply text."""
+
+    if content_text is None:
+        return "INDEFINIDA"
+    normalized = content_text.lower()
+    if "aceitar" in normalized or "accept" in normalized:
+        return "ACEITAR"
+    if "negar" in normalized or "deny" in normalized:
+        return "NEGAR"
+    return "INDEFINIDA"
+
+
+def _build_room3_reply_title(content_text: str | None) -> str:
+    """Build compact status title for Room-3 scheduler reply."""
+
+    if content_text is None:
+        return "Resposta da agenda"
+    normalized = content_text.lower()
+    if (
+        "status: confirmed" in normalized
+        or "status=confirmed" in normalized
+        or "positiv" in normalized
+        or "confirmad" in normalized
+    ):
+        return "Resposta da agenda: POSITIVA"
+    if (
+        "status: denied" in normalized
+        or "status=denied" in normalized
+        or "negad" in normalized
+        or "indefer" in normalized
+    ):
+        return "Resposta da agenda: NEGATIVA"
+    return "Resposta da agenda"
+
+
+def _build_room1_final_result(content_text: str | None) -> str:
+    """Build compact final-result line for Room-1 final bot message."""
+
+    if content_text is None:
+        return "Resultado final registrado"
+
+    normalized = content_text.lower()
+    schedule_at = _extract_schedule_datetime(content_text)
+    if "agend" in normalized and "confirm" in normalized:
+        base = "Resultado final: AGENDAMENTO CONFIRMADO"
+    elif "agend" in normalized and ("negad" in normalized or "deny" in normalized):
+        base = "Resultado final: AGENDAMENTO NEGADO"
+    elif "triagem" in normalized and ("negad" in normalized or "deny" in normalized):
+        base = "Resultado final: TRIAGEM NEGADA"
+    else:
+        base = "Resultado final registrado"
+    if schedule_at is None:
+        return base
+    return f"{base} para {schedule_at}"
+
+
+def _build_reaction_title(*, scope: str, item: CaseMonitoringTimelineItem) -> str:
+    """Build compact reaction line showing emoji and reacting user."""
+
+    payload = item.payload or {}
+    reaction_key = payload.get("reaction_key")
+    reaction = reaction_key if isinstance(reaction_key, str) and reaction_key else "👍"
+    actor = item.actor or "usuario"
+    return f"Reacao ao {scope}: {reaction} por {actor}"
+
+
+def _extract_schedule_datetime(content_text: str | None) -> str | None:
+    """Extract schedule date/time snippet from free-form scheduler/final text."""
+
+    if content_text is None:
+        return None
+    labelled = _SCHEDULE_LABEL_RE.search(content_text)
+    if labelled is not None:
+        value = labelled.group(1).strip()
+        if value:
+            return value
+    iso_match = _SCHEDULE_ISO_RE.search(content_text)
+    if iso_match is not None:
+        return iso_match.group(0)
+    br_match = _SCHEDULE_BR_RE.search(content_text)
+    if br_match is not None:
+        return br_match.group(0)
+    return None
 
 
 def _build_cases_url(

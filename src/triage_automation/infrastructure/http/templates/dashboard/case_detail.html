@@ -3,83 +3,134 @@
 {% block content %}
   <section class="card shadow-sm mb-4">
     <div class="card-body">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+        <div class="flex-grow-1">
           <h2 class="h5 mb-2">Detalhe do Caso</h2>
           <code class="small">{{ case_id }}</code>
         </div>
-        <span class="badge text-bg-dark">{{ status }}</span>
+        <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
+          <div class="btn-group btn-group-sm" role="group" aria-label="Modo de visualizacao">
+            <a
+              href="/dashboard/cases/{{ case_id }}?view=thread"
+              class="btn {% if view_mode == 'thread' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+            >
+              Visualizacao em Thread
+            </a>
+            <a
+              href="/dashboard/cases/{{ case_id }}?view=pure"
+              class="btn {% if view_mode == 'pure' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+            >
+              Visualizacao Pura
+            </a>
+          </div>
+          <span class="badge text-bg-dark">{{ status }}</span>
+        </div>
       </div>
     </div>
   </section>
 
-  <section id="case-timeline" class="card shadow-sm">
-    <div class="card-body">
-      <h3 class="h6 mb-3">Timeline Cronologica</h3>
-      {% if timeline_rows %}
-        <ol class="list-group list-group-numbered">
-          {% for row in timeline_rows %}
-            <li class="list-group-item py-3">
-              <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                <span class="badge {{ row.source_badge_class }}">{{ row.source }}</span>
-                <span class="badge {{ row.channel_badge_class }}">{{ row.channel }}</span>
-                <span class="badge {{ row.event_badge_class }}">{{ row.event_type }}</span>
-                <small class="text-secondary">{{ row.timestamp }}</small>
-              </div>
-              <p class="mb-1"><strong>Ator:</strong> {{ row.actor }}</p>
-              {% if row.excerpt_text %}
-                <p class="mb-2">{{ row.excerpt_text }}</p>
-              {% endif %}
-              {% if row.can_show_full_content and row.full_text and row.is_truncated %}
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary btn-sm"
-                  data-toggle-full="timeline-full-{{ loop.index }}"
-                  aria-expanded="false"
-                >
-                  Exibir conteudo completo
-                </button>
-                <pre
-                  id="timeline-full-{{ loop.index }}"
-                  class="mt-2 p-2 bg-light border rounded small d-none"
-                >{{ row.full_text }}</pre>
-              {% elif row.is_truncated %}
-                <p class="small text-secondary mb-0">
-                  Conteudo completo restrito ao perfil autorizado.
-                </p>
-              {% endif %}
-            </li>
+  {% if view_mode == "thread" %}
+    <section id="case-thread-view" class="card shadow-sm">
+      <div class="card-body">
+        <h3 class="h6 mb-3">Thread do Caso</h3>
+        <div class="row g-3">
+              {% for section in thread_sections %}
+                <div class="col-12 col-xl-4">
+                  <article class="border rounded-3 p-3 h-100 bg-light-subtle">
+                    <h4 class="h6 mb-3">{{ section["title"] }}</h4>
+                    {% if section["items"] %}
+                      <ul class="list-group list-group-flush">
+                        {% for item in section["items"] %}
+                          <li class="list-group-item px-0 bg-transparent">
+                        <p class="mb-1 fw-semibold">{{ item.title }}</p>
+                        {% if item.detail %}
+                          <p class="mb-1 text-secondary small">{{ item.detail }}</p>
+                        {% endif %}
+                        {% if item.actor %}
+                          <p class="mb-1 small">Autor: {{ item.actor }}</p>
+                        {% endif %}
+                        <small class="text-secondary">{{ item.timestamp }}</small>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-secondary small mb-0">Sem eventos relevantes nesta sala.</p>
+                {% endif %}
+              </article>
+            </div>
           {% endfor %}
-        </ol>
-      {% else %}
-        <p class="text-secondary mb-0">Nao ha eventos de timeline para este caso.</p>
-      {% endif %}
-    </div>
-  </section>
-  <script>
-    document.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-toggle-full]");
-      if (!button) {
-        return;
-      }
-      const targetId = button.getAttribute("data-toggle-full");
-      if (!targetId) {
-        return;
-      }
-      const target = document.getElementById(targetId);
-      if (!target) {
-        return;
-      }
-      const isExpanded = button.getAttribute("aria-expanded") === "true";
-      if (isExpanded) {
-        target.classList.add("d-none");
-        button.setAttribute("aria-expanded", "false");
-        button.textContent = "Exibir conteudo completo";
-      } else {
-        target.classList.remove("d-none");
-        button.setAttribute("aria-expanded", "true");
-        button.textContent = "Ocultar conteudo completo";
-      }
-    });
-  </script>
+        </div>
+      </div>
+    </section>
+  {% else %}
+    <section id="case-timeline" class="card shadow-sm">
+      <div class="card-body">
+        <h3 class="h6 mb-3">Timeline Cronologica</h3>
+        {% if timeline_rows %}
+          <ol class="list-group list-group-numbered">
+            {% for row in timeline_rows %}
+              <li class="list-group-item py-3">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                  <span class="badge {{ row.source_badge_class }}">{{ row.source }}</span>
+                  <span class="badge {{ row.channel_badge_class }}">{{ row.channel }}</span>
+                  <span class="badge {{ row.event_badge_class }}">{{ row.event_type }}</span>
+                  <small class="text-secondary">{{ row.timestamp }}</small>
+                </div>
+                <p class="mb-1"><strong>Ator:</strong> {{ row.actor }}</p>
+                {% if row.excerpt_text %}
+                  <p class="mb-2">{{ row.excerpt_text }}</p>
+                {% endif %}
+                {% if row.can_show_full_content and row.full_text and row.is_truncated %}
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    data-toggle-full="timeline-full-{{ loop.index }}"
+                    aria-expanded="false"
+                  >
+                    Exibir conteudo completo
+                  </button>
+                  <pre
+                    id="timeline-full-{{ loop.index }}"
+                    class="mt-2 p-2 bg-light border rounded small d-none"
+                  >{{ row.full_text }}</pre>
+                {% elif row.is_truncated %}
+                  <p class="small text-secondary mb-0">
+                    Conteudo completo restrito ao perfil autorizado.
+                  </p>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p class="text-secondary mb-0">Nao ha eventos de timeline para este caso.</p>
+        {% endif %}
+      </div>
+    </section>
+    <script>
+      document.addEventListener("click", function (event) {
+        const button = event.target.closest("[data-toggle-full]");
+        if (!button) {
+          return;
+        }
+        const targetId = button.getAttribute("data-toggle-full");
+        if (!targetId) {
+          return;
+        }
+        const target = document.getElementById(targetId);
+        if (!target) {
+          return;
+        }
+        const isExpanded = button.getAttribute("aria-expanded") === "true";
+        if (isExpanded) {
+          target.classList.add("d-none");
+          button.setAttribute("aria-expanded", "false");
+          button.textContent = "Exibir conteudo completo";
+        } else {
+          target.classList.remove("d-none");
+          button.setAttribute("aria-expanded", "true");
+          button.textContent = "Ocultar conteudo completo";
+        }
+      });
+    </script>
+  {% endif %}
 {% endblock %}

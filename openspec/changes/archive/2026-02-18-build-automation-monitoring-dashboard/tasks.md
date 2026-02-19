@@ -53,3 +53,9 @@
 - [x] 8.1 Persistir `sender_display_name` e `reactor_display_name` nas tabelas append-only de transcript e checkpoints.
 - [x] 8.2 Priorizar display name na timeline do dashboard/API quando disponivel, com fallback para Matrix ID.
 - [x] 8.3 Exibir `pdf_report_extracted` com texto limpo (sem watermark) no timeline ao persistir transcript ja sanitizado.
+
+## 9. Visualizacao de detalhe em modo thread
+
+- [x] 9.1 Adicionar seletor de visualizacao no detalhe do caso com modos `thread` e `pure`.
+- [x] 9.2 Tornar `thread` o modo padrao ao abrir `/dashboard/cases/{case_id}` e manter `pure` como opcional via query param.
+- [x] 9.3 Renderizar a visao `thread` com resumo por sala (ROOM1/ROOM2/ROOM3), incluindo decisao/resposta, ator por display name e checkpoints de reacao.

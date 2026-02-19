@@ -645,7 +645,7 @@ async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Pat
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         detail_response = client.get(
-            f"/dashboard/cases/{case_id}",
+            f"/dashboard/cases/{case_id}?view=pure",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
@@ -724,7 +724,7 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
 
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(
-            f"/dashboard/cases/{case_id}",
+            f"/dashboard/cases/{case_id}?view=pure",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
@@ -788,7 +788,7 @@ async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path
 
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(
-            f"/dashboard/cases/{case_id}",
+            f"/dashboard/cases/{case_id}?view=pure",
             headers={"Authorization": f"Bearer {reader_token}"},
         )
 
@@ -849,7 +849,7 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
 
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(
-            f"/dashboard/cases/{case_id}",
+            f"/dashboard/cases/{case_id}?view=pure",
             headers={"Authorization": f"Bearer {reader_token}"},
         )
 
@@ -858,3 +858,164 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
     assert "ROOM3_ACK_POSITIVE_RECEIVED" in response.text
     assert "Enf. Maria" in response.text
     assert "!room3:example.org" in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_reactions(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_thread_default.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-thread-default"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 15, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="CLEANED",
+            updated_at=base + timedelta(minutes=30),
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="texto limpo sem watermark",
+            captured_at=base,
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room1:example.org",
+            event_id="$evt-room1-ack",
+            sender="bot",
+            message_type="bot_processing",
+            message_text="processando...",
+            captured_at=base + timedelta(minutes=2),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room2:example.org",
+            event_id="$evt-room2-reply",
+            sender="@doctor:example.org",
+            sender_display_name="Dra. Joana",
+            message_type="room2_doctor_reply",
+            message_text="decisao: aceitar\nsuporte: nenhum\nmotivo: ok",
+            captured_at=base + timedelta(minutes=5),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room2:example.org",
+            event_id="$evt-room2-ack",
+            sender="bot",
+            message_type="room2_decision_ack",
+            message_text="resultado: sucesso",
+            captured_at=base + timedelta(minutes=6),
+        )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id=case_id,
+            stage="ROOM2_ACK",
+            room_id="!room2:example.org",
+            target_event_id="$evt-room2-ack",
+            expected_at=base + timedelta(minutes=6),
+            outcome="POSITIVE_RECEIVED",
+            reaction_event_id="$reaction-room2-1",
+            reactor_user_id="@admin:example.org",
+            reactor_display_name="Carlos Gomes",
+            reaction_key="👍",
+            reacted_at=base + timedelta(minutes=7),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room3:example.org",
+            event_id="$evt-room3-reply",
+            sender="@scheduler:example.org",
+            sender_display_name="Enf. Maria",
+            message_type="room3_reply",
+            message_text=(
+                "status: confirmed\n"
+                "date_time: 2026-02-20 14:30\n"
+                "location: Ambulatorio 3\n"
+                "instructions: jejum"
+            ),
+            captured_at=base + timedelta(minutes=8),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room3:example.org",
+            event_id="$evt-room3-ack",
+            sender="bot",
+            message_type="bot_ack",
+            message_text="ack da agenda",
+            captured_at=base + timedelta(minutes=9),
+        )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id=case_id,
+            stage="ROOM3_ACK",
+            room_id="!room3:example.org",
+            target_event_id="$evt-room3-ack",
+            expected_at=base + timedelta(minutes=9),
+            outcome="POSITIVE_RECEIVED",
+            reaction_event_id="$reaction-room3-1",
+            reactor_user_id="@admin:example.org",
+            reactor_display_name="Carlos Gomes",
+            reaction_key="✅",
+            reacted_at=base + timedelta(minutes=10),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room1:example.org",
+            event_id="$evt-room1-final",
+            sender="bot",
+            message_type="room1_final",
+            message_text="agendamento confirmado para 2026-02-20 14:30",
+            captured_at=base + timedelta(minutes=11),
+        )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id=case_id,
+            stage="ROOM1_FINAL",
+            room_id="!room1:example.org",
+            target_event_id="$evt-room1-final",
+            expected_at=base + timedelta(minutes=11),
+            outcome="POSITIVE_RECEIVED",
+            reaction_event_id="$reaction-room1-1",
+            reactor_user_id="@admin:example.org",
+            reactor_display_name="Carlos Gomes",
+            reaction_key="👍",
+            reacted_at=base + timedelta(minutes=12),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert 'id="case-thread-view"' in response.text
+    assert "Visualizacao em Thread" in response.text
+    assert "Visualizacao Pura" in response.text
+    assert "Resposta medica: DECISAO = ACEITAR" in response.text
+    assert "Autor: Dra. Joana" in response.text
+    assert "Resposta da agenda: POSITIVA" in response.text
+    assert "Agendado para: 2026-02-20 14:30" in response.text
+    assert "Autor: Enf. Maria" in response.text
+    assert "Resultado final: AGENDAMENTO CONFIRMADO para 2026-02-20 14:30" in response.text
+    assert "Reacao ao ACK: 👍 por Carlos Gomes" in response.text
