@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -103,33 +102,41 @@ def _insert_case(
     )
 
 
-def _insert_case_event(
+def _insert_reaction_checkpoint(
     connection: sa.Connection,
     *,
     case_id: UUID,
-    ts: datetime,
-    event_type: str,
-    actor_type: str,
-    actor_user_id: str | None = None,
-    room_id: str | None = None,
-    payload: dict[str, object] | None = None,
+    stage: str,
+    room_id: str,
+    target_event_id: str,
+    expected_at: datetime,
+    outcome: str = "PENDING",
+    reaction_event_id: str | None = None,
+    reactor_user_id: str | None = None,
+    reaction_key: str | None = None,
+    reacted_at: datetime | None = None,
 ) -> None:
     connection.execute(
         sa.text(
-            "INSERT INTO case_events ("
-            "case_id, ts, actor_type, actor_user_id, room_id, event_type, payload"
+            "INSERT INTO case_reaction_checkpoints ("
+            "case_id, stage, room_id, target_event_id, expected_at, outcome, "
+            "reaction_event_id, reactor_user_id, reaction_key, reacted_at"
             ") VALUES ("
-            ":case_id, :ts, :actor_type, :actor_user_id, :room_id, :event_type, :payload"
+            ":case_id, :stage, :room_id, :target_event_id, :expected_at, :outcome, "
+            ":reaction_event_id, :reactor_user_id, :reaction_key, :reacted_at"
             ")"
         ),
         {
             "case_id": case_id.hex,
-            "ts": ts,
-            "actor_type": actor_type,
-            "actor_user_id": actor_user_id,
+            "stage": stage,
             "room_id": room_id,
-            "event_type": event_type,
-            "payload": json.dumps(payload, ensure_ascii=False) if payload is not None else "{}",
+            "target_event_id": target_event_id,
+            "expected_at": expected_at,
+            "outcome": outcome,
+            "reaction_event_id": reaction_event_id,
+            "reactor_user_id": reactor_user_id,
+            "reaction_key": reaction_key,
+            "reacted_at": reacted_at,
         },
     )
 
@@ -277,13 +284,13 @@ async def test_monitoring_case_detail_returns_not_found_for_unknown_case(tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_monitoring_case_detail_falls_back_to_case_events_for_legacy_cases(
+async def test_monitoring_case_detail_includes_reaction_checkpoint_events(
     tmp_path: Path,
 ) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_detail_legacy_events.db")
+    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_detail_reactions.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
-    reader_token = "reader-detail-legacy-events"
+    reader_token = "reader-detail-reaction-events"
     case_id = uuid4()
     base = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
 
@@ -299,26 +306,29 @@ async def test_monitoring_case_detail_falls_back_to_case_events_for_legacy_cases
         _insert_case(
             connection,
             case_id=case_id,
-            status="CLEANED",
+            status="WAIT_R1_CLEANUP_THUMBS",
             updated_at=base + timedelta(minutes=5),
         )
-        _insert_case_event(
+        _insert_reaction_checkpoint(
             connection,
             case_id=case_id,
-            ts=base,
-            event_type="CASE_CREATED",
-            actor_type="system",
-            payload={"origin": "legacy"},
-        )
-        _insert_case_event(
-            connection,
-            case_id=case_id,
-            ts=base + timedelta(minutes=2),
-            event_type="ROOM2_DOCTOR_REPLY",
-            actor_type="user",
-            actor_user_id="@doctor:example.org",
+            stage="ROOM2_ACK",
             room_id="!room2:example.org",
-            payload={"decision": "accept"},
+            target_event_id="$room2-ack-1",
+            expected_at=base,
+        )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id=case_id,
+            room_id="!room2:example.org",
+            stage="ROOM2_ACK",
+            target_event_id="$room2-ack-2",
+            expected_at=base + timedelta(minutes=2),
+            outcome="POSITIVE_RECEIVED",
+            reaction_event_id="$reaction-room2-1",
+            reactor_user_id="@doctor:example.org",
+            reaction_key="👍",
+            reacted_at=base + timedelta(minutes=4),
         )
 
     with _build_client(async_url, token_service=token_service) as client:
@@ -330,13 +340,22 @@ async def test_monitoring_case_detail_falls_back_to_case_events_for_legacy_cases
     assert response.status_code == 200
     payload = response.json()
     assert payload["case_id"] == str(case_id)
-    assert payload["status"] == "CLEANED"
+    assert payload["status"] == "WAIT_R1_CLEANUP_THUMBS"
     assert [item["event_type"] for item in payload["timeline"]] == [
-        "CASE_CREATED",
-        "ROOM2_DOCTOR_REPLY",
+        "ROOM2_ACK_POSITIVE_EXPECTED",
+        "ROOM2_ACK_POSITIVE_EXPECTED",
+        "ROOM2_ACK_POSITIVE_RECEIVED",
     ]
-    assert [item["actor"] for item in payload["timeline"]] == ["system", "@doctor:example.org"]
-    assert [item["channel"] for item in payload["timeline"]] == ["audit", "!room2:example.org"]
+    assert [item["actor"] for item in payload["timeline"]] == [
+        "system",
+        "system",
+        "@doctor:example.org",
+    ]
+    assert [item["channel"] for item in payload["timeline"]] == [
+        "!room2:example.org",
+        "!room2:example.org",
+        "!room2:example.org",
+    ]
 
 
 @pytest.mark.asyncio

@@ -261,6 +261,10 @@ def _channel_badge_class(channel: str) -> str:
 def _event_badge_class(event_type: str) -> str:
     """Map event type into a Bootstrap badge class for timeline differentiation."""
 
+    if event_type.endswith("_POSITIVE_RECEIVED"):
+        return "text-bg-success"
+    if event_type.endswith("_POSITIVE_EXPECTED"):
+        return "text-bg-warning"
     if "ack" in event_type or event_type.startswith("bot_"):
         return "text-bg-info"
     if "reply" in event_type:

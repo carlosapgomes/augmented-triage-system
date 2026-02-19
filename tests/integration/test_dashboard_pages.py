@@ -179,33 +179,41 @@ def _insert_report_transcript(
     )
 
 
-def _insert_case_event(
+def _insert_reaction_checkpoint(
     connection: sa.Connection,
     *,
     case_id: UUID,
-    ts: datetime,
-    event_type: str,
-    actor_type: str,
-    actor_user_id: str | None = None,
-    room_id: str | None = None,
-    payload: dict[str, object] | None = None,
+    stage: str,
+    room_id: str,
+    target_event_id: str,
+    expected_at: datetime,
+    outcome: str = "PENDING",
+    reaction_event_id: str | None = None,
+    reactor_user_id: str | None = None,
+    reaction_key: str | None = None,
+    reacted_at: datetime | None = None,
 ) -> None:
     connection.execute(
         sa.text(
-            "INSERT INTO case_events ("
-            "case_id, ts, actor_type, actor_user_id, room_id, event_type, payload"
+            "INSERT INTO case_reaction_checkpoints ("
+            "case_id, stage, room_id, target_event_id, expected_at, outcome, "
+            "reaction_event_id, reactor_user_id, reaction_key, reacted_at"
             ") VALUES ("
-            ":case_id, :ts, :actor_type, :actor_user_id, :room_id, :event_type, :payload"
+            ":case_id, :stage, :room_id, :target_event_id, :expected_at, :outcome, "
+            ":reaction_event_id, :reactor_user_id, :reaction_key, :reacted_at"
             ")"
         ),
         {
             "case_id": case_id.hex,
-            "ts": ts,
-            "actor_type": actor_type,
-            "actor_user_id": actor_user_id,
+            "stage": stage,
             "room_id": room_id,
-            "event_type": event_type,
-            "payload": json.dumps(payload, ensure_ascii=False) if payload is not None else "{}",
+            "target_event_id": target_event_id,
+            "expected_at": expected_at,
+            "outcome": outcome,
+            "reaction_event_id": reaction_event_id,
+            "reactor_user_id": reactor_user_id,
+            "reaction_key": reaction_key,
+            "reacted_at": reacted_at,
         },
     )
 
@@ -244,7 +252,7 @@ async def test_dashboard_case_list_page_renders_filters_and_paginated_rows_with_
     token_service = OpaqueTokenService()
     reader_id = uuid4()
     reader_token = "reader-dashboard-page-token"
-    today = datetime.now(tz=UTC)
+    today = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
     case_a = uuid4()
     case_b = uuid4()
     case_c = uuid4()
@@ -325,7 +333,7 @@ async def test_dashboard_case_list_prefers_patient_name_and_record_number_identi
     token_service = OpaqueTokenService()
     reader_id = uuid4()
     reader_token = "reader-dashboard-patient-id-token"
-    now = datetime.now(tz=UTC)
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
     case_id = uuid4()
     filter_date = now.date().isoformat()
 
@@ -378,7 +386,7 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
     token_service = OpaqueTokenService()
     reader_id = uuid4()
     reader_token = "reader-dashboard-page-fragment"
-    today = datetime.now(tz=UTC)
+    today = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
     filter_date = today.date().isoformat()
     wait_case = uuid4()
     failed_case = uuid4()
@@ -454,7 +462,7 @@ async def test_dashboard_case_list_accepts_blank_status_query_parameter(tmp_path
     token_service = OpaqueTokenService()
     reader_id = uuid4()
     reader_token = "reader-dashboard-blank-status"
-    now = datetime.now(tz=UTC)
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
     case_id = uuid4()
     filter_date = now.date().isoformat()
 
@@ -509,7 +517,7 @@ async def test_dashboard_case_list_accepts_reader_and_admin_roles(
     token_service = OpaqueTokenService()
     user_id = uuid4()
     case_id = uuid4()
-    now = datetime.now(tz=UTC)
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -781,13 +789,13 @@ async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path
 
 
 @pytest.mark.asyncio
-async def test_dashboard_case_detail_falls_back_to_legacy_case_events_timeline(
+async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_events(
     tmp_path: Path,
 ) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_legacy_events.db")
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_reaction_events.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
-    reader_token = "reader-dashboard-detail-legacy-events"
+    reader_token = "reader-dashboard-detail-reactions"
     case_id = uuid4()
     base = datetime(2026, 2, 18, 14, 0, 0, tzinfo=UTC)
 
@@ -803,26 +811,29 @@ async def test_dashboard_case_detail_falls_back_to_legacy_case_events_timeline(
         _insert_case(
             connection,
             case_id=case_id,
-            status="CLEANED",
+            status="WAIT_R1_CLEANUP_THUMBS",
             updated_at=base + timedelta(minutes=4),
         )
-        _insert_case_event(
+        _insert_reaction_checkpoint(
             connection,
             case_id=case_id,
-            ts=base,
-            event_type="CASE_CREATED",
-            actor_type="system",
-            payload={"origin": "legacy"},
+            stage="ROOM3_ACK",
+            room_id="!room3:example.org",
+            target_event_id="$room3-ack-1",
+            expected_at=base,
         )
-        _insert_case_event(
+        _insert_reaction_checkpoint(
             connection,
             case_id=case_id,
-            ts=base + timedelta(minutes=3),
-            event_type="ROOM2_DOCTOR_REPLY",
-            actor_type="user",
-            actor_user_id="@doctor:example.org",
-            room_id="!room2:example.org",
-            payload={"decision": "accept"},
+            stage="ROOM3_ACK",
+            room_id="!room3:example.org",
+            target_event_id="$room3-ack-2",
+            expected_at=base + timedelta(minutes=2),
+            outcome="POSITIVE_RECEIVED",
+            reaction_event_id="$reaction-room3-1",
+            reactor_user_id="@scheduler:example.org",
+            reaction_key="✅",
+            reacted_at=base + timedelta(minutes=3),
         )
 
     with _build_client(async_url, token_service=token_service) as client:
@@ -832,7 +843,7 @@ async def test_dashboard_case_detail_falls_back_to_legacy_case_events_timeline(
         )
 
     assert response.status_code == 200
-    assert "CASE_CREATED" in response.text
-    assert "ROOM2_DOCTOR_REPLY" in response.text
-    assert "@doctor:example.org" in response.text
-    assert "!room2:example.org" in response.text
+    assert "ROOM3_ACK_POSITIVE_EXPECTED" in response.text
+    assert "ROOM3_ACK_POSITIVE_RECEIVED" in response.text
+    assert "@scheduler:example.org" in response.text
+    assert "!room3:example.org" in response.text
