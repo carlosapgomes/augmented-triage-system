@@ -49,20 +49,26 @@
                     {% endif %}
                   </td>
                   <td class="text-end">
-                    <a
-                      href="/admin/prompts/{{ prompt_name }}/versions/{{ item.version }}"
-                      class="btn btn-sm btn-outline-secondary me-1"
-                    >
-                      Ver conteudo
-                    </a>
-                    {% if item.is_active %}
-                      <span class="text-secondary small">Sem acao</span>
-                    {% else %}
-                      <form method="post" action="/admin/prompts/{{ prompt_name }}/activate-form">
-                        <input type="hidden" name="version" value="{{ item.version }}">
-                        <button type="submit" class="btn btn-sm btn-primary">Ativar</button>
-                      </form>
-                    {% endif %}
+                    <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+                      <a
+                        href="/admin/prompts/{{ prompt_name }}/versions/{{ item.version }}"
+                        class="btn btn-sm btn-outline-secondary"
+                      >
+                        Ver conteudo
+                      </a>
+                      {% if item.is_active %}
+                        <span class="badge text-bg-light border text-secondary">Sem acao</span>
+                      {% else %}
+                        <form
+                          method="post"
+                          action="/admin/prompts/{{ prompt_name }}/activate-form"
+                          class="d-inline mb-0"
+                        >
+                          <input type="hidden" name="version" value="{{ item.version }}">
+                          <button type="submit" class="btn btn-sm btn-primary">Ativar</button>
+                        </form>
+                      {% endif %}
+                    </div>
                   </td>
                 </tr>
               {% endfor %}

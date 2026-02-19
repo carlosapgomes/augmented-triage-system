@@ -66,3 +66,4 @@
 - [x] 10.2 Implementar pagina de detalhe de versao com conteudo imutavel e acao de criar nova versao derivada.
 - [x] 10.3 Implementar criacao de nova versao append-only por formulario, mantendo versao ativa inalterada.
 - [x] 10.4 Registrar auditoria de criacao de versao de prompt (`prompt_version_created`) com versao de origem e versao criada.
+- [x] 10.5 Ajustar alinhamento visual das acoes por linha (`Ver conteudo` + `Ativar/Sem acao`) para evitar quebra/desalinhamento na tabela.
