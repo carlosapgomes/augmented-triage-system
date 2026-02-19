@@ -77,6 +77,7 @@ def build_prompt_management_router(
                     user=authenticated_user,
                 ),
                 "prompts_by_name": prompts_by_name,
+                "prompt_visible_limit": 8,
                 "activated_name": request.query_params.get("activated_name", ""),
                 "activated_version": request.query_params.get("activated_version", ""),
                 "created_name": request.query_params.get("created_name", ""),

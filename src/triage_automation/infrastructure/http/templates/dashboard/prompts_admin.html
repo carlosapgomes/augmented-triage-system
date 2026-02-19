@@ -1,6 +1,20 @@
 {% extends "dashboard/base.html" %}
 
 {% block content %}
+  <style>
+    .prompt-versions-wrapper {
+      max-height: 22rem;
+      overflow-y: auto;
+    }
+
+    .prompt-versions-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--bs-card-bg, #fff);
+      z-index: 1;
+    }
+  </style>
+
   <section class="card shadow-sm mb-4">
     <div class="card-body">
       <h2 class="h5 mb-2">Gestao de Prompts</h2>
@@ -28,8 +42,10 @@
     <section class="card shadow-sm mb-4">
       <div class="card-body">
         <h3 class="h6 mb-3">{{ prompt_name }}</h3>
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
+        {% set card_id = prompt_name|replace("_", "-") %}
+        {% set ns = namespace(hidden_count=0) %}
+        <div class="table-responsive prompt-versions-wrapper">
+          <table class="table table-sm align-middle mb-0 prompt-versions-table">
             <thead>
               <tr>
                 <th scope="col">Versao</th>
@@ -39,7 +55,18 @@
             </thead>
             <tbody>
               {% for item in versions %}
-                <tr>
+                {% set is_initial_visible = (loop.index <= prompt_visible_limit) or item.is_active %}
+                {% if not is_initial_visible %}
+                  {% set ns.hidden_count = ns.hidden_count + 1 %}
+                {% endif %}
+                <tr
+                  data-row-id="{{ prompt_name }}-{{ item.version }}"
+                  data-initial-visibility="{% if is_initial_visible %}visible{% else %}hidden{% endif %}"
+                  {% if not is_initial_visible %}
+                    class="d-none prompt-extra-row"
+                    data-extra-for="{{ card_id }}"
+                  {% endif %}
+                >
                   <td>{{ item.version }}</td>
                   <td>
                     {% if item.is_active %}
@@ -73,7 +100,61 @@
             </tbody>
           </table>
         </div>
+        {% if ns.hidden_count > 0 %}
+          <div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              data-toggle-prompt-rows="{{ card_id }}"
+              data-toggle-mode="show-all"
+              data-show-all-for="{{ card_id }}"
+            >
+              Mostrar todas ({{ ns.hidden_count }})
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary d-none"
+              data-toggle-prompt-rows="{{ card_id }}"
+              data-toggle-mode="show-less"
+              data-show-less-for="{{ card_id }}"
+            >
+              Mostrar menos
+            </button>
+          </div>
+        {% endif %}
       </div>
     </section>
   {% endfor %}
+
+  <script>
+    document.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-toggle-prompt-rows]");
+      if (!button) {
+        return;
+      }
+      const target = button.getAttribute("data-toggle-prompt-rows");
+      const mode = button.getAttribute("data-toggle-mode");
+      if (!target || !mode) {
+        return;
+      }
+      const rows = document.querySelectorAll(`[data-extra-for="${target}"]`);
+      if (!rows.length) {
+        return;
+      }
+
+      const showAll = mode === "show-all";
+      rows.forEach(function (row) {
+        row.classList.toggle("d-none", !showAll);
+      });
+
+      const showAllButton = document.querySelector(`[data-show-all-for="${target}"]`);
+      const showLessButton = document.querySelector(`[data-show-less-for="${target}"]`);
+      if (showAllButton) {
+        showAllButton.classList.toggle("d-none", showAll);
+      }
+      if (showLessButton) {
+        showLessButton.classList.toggle("d-none", !showAll);
+      }
+    });
+  </script>
 {% endblock %}

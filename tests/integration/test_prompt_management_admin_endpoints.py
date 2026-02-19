@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -435,6 +436,52 @@ async def test_admin_create_form_inserts_new_prompt_version_and_audits(tmp_path:
         "version": 4,
     }
     assert event_row["occurred_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_admin_prompt_page_shows_recent_versions_with_active_visible_and_toggle(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_recent_toggle.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-recent-toggle-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        for version in range(1, 13):
+            _insert_prompt_template(
+                connection,
+                prompt_name="custom_prompt_long",
+                version=version,
+                content=f"custom prompt long v{version}",
+                is_active=version == 2,
+            )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/admin/prompts",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "prompt-versions-wrapper" in response.text
+    assert "Mostrar todas (3)" in response.text
+    assert re.search(
+        r'data-row-id="custom_prompt_long-2"[\s\S]*?data-initial-visibility="visible"',
+        response.text,
+    )
+    assert re.search(
+        r'data-row-id="custom_prompt_long-4"[\s\S]*?data-initial-visibility="hidden"',
+        response.text,
+    )
 
 
 @pytest.mark.asyncio
