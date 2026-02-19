@@ -134,6 +134,8 @@ def test_build_runtime_app_exposes_existing_route_paths() -> None:
         "/dashboard/cases/{case_id}",
         "/admin/prompts",
         "/admin/prompts/{prompt_name}/activate-form",
+        "/admin/prompts/{prompt_name}/create-form",
+        "/admin/prompts/{prompt_name}/versions/{version}",
         "/admin/prompts/versions",
         "/admin/prompts/{prompt_name}/active",
         "/admin/prompts/{prompt_name}/activate",

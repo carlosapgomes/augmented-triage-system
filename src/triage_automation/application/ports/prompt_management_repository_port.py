@@ -16,6 +16,16 @@ class PromptVersionRecord:
     is_active: bool
 
 
+@dataclass(frozen=True)
+class PromptVersionContentRecord:
+    """Prompt version metadata plus immutable content payload."""
+
+    name: str
+    version: int
+    is_active: bool
+    content: str
+
+
 class PromptManagementRepositoryPort(Protocol):
     """Prompt-management repository contract used by admin services."""
 
@@ -33,3 +43,21 @@ class PromptManagementRepositoryPort(Protocol):
         updated_by_user_id: UUID,
     ) -> PromptVersionRecord | None:
         """Set selected prompt version active and return it, or None when missing."""
+
+    async def get_prompt_version(
+        self,
+        *,
+        name: str,
+        version: int,
+    ) -> PromptVersionContentRecord | None:
+        """Return one prompt version with immutable content, or None when missing."""
+
+    async def create_prompt_version(
+        self,
+        *,
+        name: str,
+        source_version: int,
+        content: str,
+        updated_by_user_id: UUID,
+    ) -> PromptVersionRecord | None:
+        """Create next derived version, or return None when source version is missing."""

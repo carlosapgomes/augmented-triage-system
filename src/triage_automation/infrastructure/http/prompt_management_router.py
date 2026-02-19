@@ -79,6 +79,55 @@ def build_prompt_management_router(
                 "prompts_by_name": prompts_by_name,
                 "activated_name": request.query_params.get("activated_name", ""),
                 "activated_version": request.query_params.get("activated_version", ""),
+                "created_name": request.query_params.get("created_name", ""),
+                "created_version": request.query_params.get("created_version", ""),
+                "error_message": request.query_params.get("error", ""),
+            },
+        )
+
+    @router.get(
+        "/admin/prompts/{prompt_name}/versions/{version}",
+        response_class=HTMLResponse,
+        include_in_schema=False,
+        response_model=None,
+    )
+    async def render_prompt_version_content_page(
+        request: Request,
+        prompt_name: str,
+        version: int,
+    ) -> Response:
+        """Render one prompt version with immutable content and create-new-version action."""
+
+        authenticated_user = await _require_admin_user_for_html(
+            auth_guard=auth_guard,
+            request=request,
+        )
+        if isinstance(authenticated_user, RedirectResponse):
+            return authenticated_user
+
+        item = await prompt_management_service.get_version(
+            prompt_name=prompt_name,
+            version=version,
+        )
+        if item is None:
+            return RedirectResponse(
+                url=f"/admin/prompts?{urlencode({'error': 'Versao de prompt nao encontrada.'})}",
+                status_code=303,
+            )
+
+        return templates.TemplateResponse(
+            request=request,
+            name="dashboard/prompt_version_detail.html",
+            context={
+                **build_shell_context(
+                    page_title="Conteudo do Prompt",
+                    active_nav="prompts",
+                    user=authenticated_user,
+                ),
+                "prompt_name": item.name,
+                "version": item.version,
+                "is_active": item.is_active,
+                "content": item.content,
                 "error_message": request.query_params.get("error", ""),
             },
         )
@@ -99,7 +148,8 @@ def build_prompt_management_router(
         if isinstance(authenticated_user, RedirectResponse):
             return authenticated_user
 
-        version = await _read_form_version(request=request)
+        fields = await _read_form_fields(request=request)
+        version = _read_positive_int_field(fields=fields, key="version")
         if version is None:
             return RedirectResponse(
                 url=f"/admin/prompts?{urlencode({'error': 'Versao invalida.'})}",
@@ -122,6 +172,63 @@ def build_prompt_management_router(
             {
                 "activated_name": activated.name,
                 "activated_version": activated.version,
+            }
+        )
+        return RedirectResponse(url=f"/admin/prompts?{query_string}", status_code=303)
+
+    @router.post(
+        "/admin/prompts/{prompt_name}/create-form",
+        response_class=HTMLResponse,
+        include_in_schema=False,
+        response_model=None,
+    )
+    async def create_prompt_version_from_page(request: Request, prompt_name: str) -> Response:
+        """Create new immutable prompt version from HTML form content."""
+
+        authenticated_user = await _require_admin_user_for_html(
+            auth_guard=auth_guard,
+            request=request,
+        )
+        if isinstance(authenticated_user, RedirectResponse):
+            return authenticated_user
+
+        fields = await _read_form_fields(request=request)
+        source_version = _read_positive_int_field(fields=fields, key="source_version")
+        if source_version is None:
+            return RedirectResponse(
+                url=f"/admin/prompts?{urlencode({'error': 'Versao de origem invalida.'})}",
+                status_code=303,
+            )
+        content = fields.get("content", "").strip()
+        if not content:
+            return RedirectResponse(
+                url=(
+                    f"/admin/prompts/{prompt_name}/versions/{source_version}?"
+                    f"{urlencode({'error': 'Conteudo do prompt nao pode ficar vazio.'})}"
+                ),
+                status_code=303,
+            )
+
+        try:
+            created = await prompt_management_service.create_version(
+                prompt_name=prompt_name,
+                source_version=source_version,
+                content=content,
+                actor_user_id=authenticated_user.user_id,
+            )
+        except PromptVersionNotFoundError:
+            return RedirectResponse(
+                url=(
+                    f"/admin/prompts/{prompt_name}/versions/{source_version}?"
+                    f"{urlencode({'error': 'Versao de origem nao encontrada.'})}"
+                ),
+                status_code=303,
+            )
+
+        query_string = urlencode(
+            {
+                "created_name": created.name,
+                "created_version": created.version,
             }
         )
         return RedirectResponse(url=f"/admin/prompts?{query_string}", status_code=303)
@@ -215,12 +322,18 @@ async def _require_admin_user_for_html(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
-async def _read_form_version(*, request: Request) -> int | None:
-    """Parse positive integer `version` from urlencoded HTML form payload."""
+async def _read_form_fields(*, request: Request) -> dict[str, str]:
+    """Parse URL-encoded HTML form payload into first-value field mapping."""
 
     body = await request.body()
     parsed = parse_qs(body.decode("utf-8"), keep_blank_values=True)
-    raw_version = parsed.get("version", [""])[0].strip()
+    return {key: values[0] if values else "" for key, values in parsed.items()}
+
+
+def _read_positive_int_field(*, fields: dict[str, str], key: str) -> int | None:
+    """Parse one positive integer field from decoded form mapping."""
+
+    raw_version = fields.get(key, "").strip()
     if not raw_version or not raw_version.isdigit():
         return None
     version = int(raw_version)

@@ -10,6 +10,7 @@ from triage_automation.application.ports.auth_event_repository_port import (
 )
 from triage_automation.application.ports.prompt_management_repository_port import (
     PromptManagementRepositoryPort,
+    PromptVersionContentRecord,
     PromptVersionRecord,
 )
 
@@ -74,3 +75,49 @@ class PromptManagementService:
             )
         )
         return activated
+
+    async def get_version(
+        self,
+        *,
+        prompt_name: str,
+        version: int,
+    ) -> PromptVersionContentRecord | None:
+        """Return one prompt version including immutable content body."""
+
+        return await self._prompt_management.get_prompt_version(
+            name=prompt_name,
+            version=version,
+        )
+
+    async def create_version(
+        self,
+        *,
+        prompt_name: str,
+        source_version: int,
+        content: str,
+        actor_user_id: UUID,
+    ) -> PromptVersionRecord:
+        """Create next prompt version derived from source version content baseline."""
+
+        created = await self._prompt_management.create_prompt_version(
+            name=prompt_name,
+            source_version=source_version,
+            content=content,
+            updated_by_user_id=actor_user_id,
+        )
+        if created is None:
+            raise PromptVersionNotFoundError(name=prompt_name, version=source_version)
+
+        await self._auth_events.append_event(
+            AuthEventCreateInput(
+                user_id=actor_user_id,
+                event_type="prompt_version_created",
+                payload={
+                    "action": "create_prompt_version",
+                    "prompt_name": prompt_name,
+                    "source_version": source_version,
+                    "version": created.version,
+                },
+            )
+        )
+        return created

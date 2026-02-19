@@ -14,6 +14,12 @@
     </div>
   {% endif %}
 
+  {% if created_name and created_version %}
+    <div class="alert alert-success" role="alert">
+      Prompt <strong>{{ created_name }}</strong> criado na versao <strong>{{ created_version }}</strong>.
+    </div>
+  {% endif %}
+
   {% if error_message %}
     <div class="alert alert-danger" role="alert">{{ error_message }}</div>
   {% endif %}
@@ -28,7 +34,7 @@
               <tr>
                 <th scope="col">Versao</th>
                 <th scope="col">Estado</th>
-                <th scope="col" class="text-end">Acao</th>
+                <th scope="col" class="text-end">Acoes</th>
               </tr>
             </thead>
             <tbody>
@@ -43,6 +49,12 @@
                     {% endif %}
                   </td>
                   <td class="text-end">
+                    <a
+                      href="/admin/prompts/{{ prompt_name }}/versions/{{ item.version }}"
+                      class="btn btn-sm btn-outline-secondary me-1"
+                    >
+                      Ver conteudo
+                    </a>
                     {% if item.is_active %}
                       <span class="text-secondary small">Sem acao</span>
                     {% else %}

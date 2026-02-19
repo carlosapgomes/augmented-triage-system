@@ -1,0 +1,55 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+  <section class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-2">
+        <div>
+          <h2 class="h5 mb-1">Conteudo do Prompt</h2>
+          <p class="mb-0 text-secondary">
+            <strong>{{ prompt_name }}</strong> v{{ version }}
+          </p>
+        </div>
+        {% if is_active %}
+          <span class="badge text-bg-success">Ativa</span>
+        {% else %}
+          <span class="badge text-bg-secondary">Inativa</span>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if error_message %}
+    <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+  {% endif %}
+
+  <section class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h3 class="h6 mb-3">Versao selecionada</h3>
+      <pre class="bg-light border rounded p-3 mb-0" style="white-space: pre-wrap">{{ content }}</pre>
+    </div>
+  </section>
+
+  <section class="card shadow-sm">
+    <div class="card-body">
+      <h3 class="h6 mb-3">Criar nova versao a partir desta</h3>
+      <form method="post" action="/admin/prompts/{{ prompt_name }}/create-form">
+        <input type="hidden" name="source_version" value="{{ version }}">
+        <div class="mb-3">
+          <label class="form-label" for="content">Novo conteudo</label>
+          <textarea
+            id="content"
+            name="content"
+            class="form-control"
+            rows="14"
+            required
+          >{{ content }}</textarea>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Criar nova versao</button>
+          <a href="/admin/prompts" class="btn btn-outline-secondary">Voltar</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}

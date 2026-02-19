@@ -313,9 +313,124 @@ async def test_admin_renders_prompt_management_html_page_with_versions(tmp_path:
     assert response.headers["content-type"].startswith("text/html")
     assert "Gestao de Prompts" in response.text
     assert "llm1_system" in response.text
+    assert 'href="/admin/prompts/llm1_system/versions/4"' in response.text
     assert '<form method="post" action="/logout"' in response.text
     assert 'href="/dashboard/cases"' in response.text
     assert 'href="/admin/prompts"' in response.text
+
+
+@pytest.mark.asyncio
+async def test_admin_renders_prompt_version_content_page(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_version_content.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-version-content-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm1_user",
+            version=4,
+            content="PROMPT V4 CONTENT",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/admin/prompts/llm1_user/versions/4",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Conteudo do Prompt" in response.text
+    assert "llm1_user" in response.text
+    assert "PROMPT V4 CONTENT" in response.text
+    assert "Criar nova versao" in response.text
+
+
+@pytest.mark.asyncio
+async def test_admin_create_form_inserts_new_prompt_version_and_audits(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_create_form.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-create-form-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.post(
+            "/admin/prompts/llm2_user/create-form",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            data={
+                "source_version": "3",
+                "content": "NOVA VERSAO DERIVADA DA V3",
+            },
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/admin/prompts?")
+    assert "created_name=llm2_user" in response.headers["location"]
+    assert "created_version=4" in response.headers["location"]
+
+    with sa.create_engine(sync_url).begin() as connection:
+        versions_rows = connection.execute(
+            sa.text(
+                "SELECT version, is_active, content FROM prompt_templates "
+                "WHERE name = :name ORDER BY version"
+            ),
+            {"name": "llm2_user"},
+        ).mappings()
+        versions = {
+            int(row["version"]): {
+                "is_active": bool(row["is_active"]),
+                "content": str(row["content"]),
+            }
+            for row in versions_rows
+        }
+        event_row = connection.execute(
+            sa.text(
+                "SELECT user_id, event_type, payload, occurred_at "
+                "FROM auth_events ORDER BY id DESC LIMIT 1"
+            )
+        ).mappings().one()
+
+    assert versions[3]["is_active"] is True
+    assert versions[4]["is_active"] is False
+    assert versions[4]["content"] == "NOVA VERSAO DERIVADA DA V3"
+    assert sum(1 for row in versions.values() if row["is_active"]) == 1
+
+    payload = (
+        event_row["payload"]
+        if isinstance(event_row["payload"], dict)
+        else json.loads(str(event_row["payload"]))
+    )
+    assert event_row["user_id"] in {admin_id, admin_id.hex, str(admin_id)}
+    assert event_row["event_type"] == "prompt_version_created"
+    assert payload == {
+        "action": "create_prompt_version",
+        "prompt_name": "llm2_user",
+        "source_version": 3,
+        "version": 4,
+    }
+    assert event_row["occurred_at"] is not None
 
 
 @pytest.mark.asyncio

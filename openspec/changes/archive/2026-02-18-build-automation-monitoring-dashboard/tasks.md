@@ -59,3 +59,10 @@
 - [x] 9.1 Adicionar seletor de visualizacao no detalhe do caso com modos `thread` e `pure`.
 - [x] 9.2 Tornar `thread` o modo padrao ao abrir `/dashboard/cases/{case_id}` e manter `pure` como opcional via query param.
 - [x] 9.3 Renderizar a visao `thread` com resumo por sala (ROOM1/ROOM2/ROOM3), incluindo decisao/resposta, ator por display name e checkpoints de reacao.
+
+## 10. Gestao de conteudo de versoes de prompt
+
+- [x] 10.1 Exibir acao de "ver conteudo" por versao no dashboard de prompts para `admin`.
+- [x] 10.2 Implementar pagina de detalhe de versao com conteudo imutavel e acao de criar nova versao derivada.
+- [x] 10.3 Implementar criacao de nova versao append-only por formulario, mantendo versao ativa inalterada.
+- [x] 10.4 Registrar auditoria de criacao de versao de prompt (`prompt_version_created`) com versao de origem e versao criada.

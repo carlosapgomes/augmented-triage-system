@@ -232,6 +232,8 @@ async def test_route_paths_include_login_and_monitoring_list(tmp_path: Path) -> 
         "/dashboard/cases/{case_id}",
         "/admin/prompts",
         "/admin/prompts/{prompt_name}/activate-form",
+        "/admin/prompts/{prompt_name}/create-form",
+        "/admin/prompts/{prompt_name}/versions/{version}",
         "/admin/prompts/versions",
         "/admin/prompts/{prompt_name}/active",
         "/admin/prompts/{prompt_name}/activate",
