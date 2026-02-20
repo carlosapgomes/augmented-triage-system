@@ -2,6 +2,11 @@
 
 Augmented Triage System (ATS) is a backend service designed to support real-world clinical triage workflows while keeping healthcare professionals fully in control of decisions and patient care.
 
+ATS does not replace clinical judgment or automate medical decision-making.
+The system is designed to assist communication, organization, and information flow during triage, allowing professionals to work more safely and efficiently in high-demand environments.
+
+The primary goal of ATS is to improve coordination, traceability, and situational awareness during triage processes.
+
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Lint](https://img.shields.io/badge/lint-ruff-orange.svg)
