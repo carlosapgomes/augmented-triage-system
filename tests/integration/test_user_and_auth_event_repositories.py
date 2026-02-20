@@ -15,6 +15,8 @@ from triage_automation.application.ports.auth_event_repository_port import (
 from triage_automation.application.ports.auth_token_repository_port import (
     AuthTokenCreateInput,
 )
+from triage_automation.application.ports.user_repository_port import UserCreateInput
+from triage_automation.domain.auth.account_status import AccountStatus
 from triage_automation.domain.auth.roles import Role
 from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
 from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
@@ -41,11 +43,13 @@ def _insert_user(
     email: str,
     role: str,
     is_active: bool,
+    account_status: str | None = None,
 ) -> None:
+    resolved_account_status = account_status or ("active" if is_active else "blocked")
     connection.execute(
         sa.text(
-            "INSERT INTO users (id, email, password_hash, role, is_active) "
-            "VALUES (:id, :email, :password_hash, :role, :is_active)"
+            "INSERT INTO users (id, email, password_hash, role, is_active, account_status) "
+            "VALUES (:id, :email, :password_hash, :role, :is_active, :account_status)"
         ),
         {
             "id": user_id.hex,
@@ -53,6 +57,7 @@ def _insert_user(
             "password_hash": "hash",
             "role": role,
             "is_active": is_active,
+            "account_status": resolved_account_status,
         },
     )
 
@@ -183,3 +188,100 @@ async def test_auth_token_repository_persists_and_resolves_active_tokens(tmp_pat
 
     revoked = await token_repo.get_active_by_hash(token_hash="opaque-token-hash")
     assert revoked is None
+
+
+@pytest.mark.asyncio
+async def test_user_repository_lists_users_with_account_status(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "user_repo_list.db")
+    session_factory = create_session_factory(async_url)
+    repo = SqlAlchemyUserRepository(session_factory)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(
+            connection,
+            user_id=uuid4(),
+            email="removed@example.org",
+            role="reader",
+            is_active=False,
+            account_status="removed",
+        )
+        _insert_user(
+            connection,
+            user_id=uuid4(),
+            email="active@example.org",
+            role="admin",
+            is_active=True,
+            account_status="active",
+        )
+
+    users = await repo.list_users()
+    assert [user.email for user in users] == ["active@example.org", "removed@example.org"]
+    assert users[0].account_status is AccountStatus.ACTIVE
+    assert users[0].is_active is True
+    assert users[1].account_status is AccountStatus.REMOVED
+    assert users[1].is_active is False
+
+
+@pytest.mark.asyncio
+async def test_user_repository_creates_user_and_applies_status_transitions(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "user_repo_create_update.db")
+    session_factory = create_session_factory(async_url)
+    repo = SqlAlchemyUserRepository(session_factory)
+
+    created = await repo.create_user(
+        UserCreateInput(
+            user_id=uuid4(),
+            email="new-admin@example.org",
+            password_hash="hashed-password",
+            role=Role.ADMIN,
+            account_status=AccountStatus.ACTIVE,
+        )
+    )
+    assert created.email == "new-admin@example.org"
+    assert created.role is Role.ADMIN
+    assert created.account_status is AccountStatus.ACTIVE
+    assert created.is_active is True
+
+    blocked = await repo.set_account_status(
+        user_id=created.user_id,
+        account_status=AccountStatus.BLOCKED,
+    )
+    assert blocked is not None
+    assert blocked.account_status is AccountStatus.BLOCKED
+    assert blocked.is_active is False
+
+    removed = await repo.set_account_status(
+        user_id=created.user_id,
+        account_status=AccountStatus.REMOVED,
+    )
+    assert removed is not None
+    assert removed.account_status is AccountStatus.REMOVED
+    assert removed.is_active is False
+
+    reactivated = await repo.set_account_status(
+        user_id=created.user_id,
+        account_status=AccountStatus.ACTIVE,
+    )
+    assert reactivated is not None
+    assert reactivated.account_status is AccountStatus.ACTIVE
+    assert reactivated.is_active is True
+
+    engine = sa.create_engine(sync_url)
+    with engine.connect() as connection:
+        row = (
+            connection.execute(
+                sa.text(
+                    "SELECT email, role, is_active, account_status "
+                    "FROM users "
+                    "WHERE id = :id"
+                ),
+                {"id": created.user_id.hex},
+            )
+            .mappings()
+            .one()
+        )
+    assert row["email"] == "new-admin@example.org"
+    assert row["role"] == "admin"
+    assert bool(row["is_active"]) is True
+    assert row["account_status"] == "active"
