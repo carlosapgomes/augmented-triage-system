@@ -8,6 +8,16 @@
   ansible.builtin.set_fact:
     ats_deploy_xdg_runtime_dir: "/run/user/{{ ats_deploy_service_user_uid.stdout }}"
 
+- name: Validate runtime command compatibility with supported startup composition
+  ansible.builtin.assert:
+    that:
+      - ats_runtime_services.bot_api.command == ats_runtime_supported_service_commands.bot_api
+      - ats_runtime_services.bot_matrix.command == ats_runtime_supported_service_commands.bot_matrix
+      - ats_runtime_services.worker.command == ats_runtime_supported_service_commands.worker
+    fail_msg: >-
+      Configured runtime commands diverge from supported startup composition.
+      Align `ats_runtime_services` with declared supported commands before deploy.
+
 - name: Pull runtime images for configured services
   become: true
   become_user: "{{ ats_service_user }}"

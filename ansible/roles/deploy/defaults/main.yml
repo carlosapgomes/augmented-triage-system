@@ -5,3 +5,26 @@ ats_runtime_deploy_services:
   - worker
 ats_runtime_pull_policy: "missing"
 ats_runtime_up_flags: "--detach --no-recreate --no-build"
+ats_runtime_supported_service_commands:
+  bot_api:
+    - "uv"
+    - "run"
+    - "uvicorn"
+    - "apps.bot_api.main:create_app"
+    - "--factory"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+  bot_matrix:
+    - "uv"
+    - "run"
+    - "python"
+    - "-m"
+    - "apps.bot_matrix.main"
+  worker:
+    - "uv"
+    - "run"
+    - "python"
+    - "-m"
+    - "apps.worker.main"
