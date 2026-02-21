@@ -1,0 +1,93 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+  <section class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h2 class="h4 mb-1">Gestao de Usuarios</h2>
+      <p class="text-muted mb-0">Administracao de contas reader/admin para acesso ao dashboard.</p>
+    </div>
+  </section>
+
+  {% if created_email %}
+    <div class="alert alert-success" role="status">
+      Usuario criado: <strong>{{ created_email }}</strong>
+    </div>
+  {% endif %}
+  {% if updated_email and updated_status %}
+    <div class="alert alert-success" role="status">
+      Conta atualizada: <strong>{{ updated_email }}</strong> -> <strong>{{ updated_status }}</strong>
+    </div>
+  {% endif %}
+  {% if error_message %}
+    <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+  {% endif %}
+
+  <section class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h3 class="h5 mb-3">Criar usuario</h3>
+      <form method="post" action="/admin/users" class="row g-3">
+        <div class="col-12 col-lg-5">
+          <label class="form-label" for="email">Email</label>
+          <input id="email" name="email" type="email" class="form-control" required>
+        </div>
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="password">Senha</label>
+          <input id="password" name="password" type="password" class="form-control" required>
+        </div>
+        <div class="col-12 col-lg-3">
+          <label class="form-label" for="role">Perfil</label>
+          <select id="role" name="role" class="form-select">
+            <option value="reader">Reader</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">Criar</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="card shadow-sm border-0">
+    <div class="card-body">
+      <h3 class="h5 mb-3">Usuarios cadastrados</h3>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Email</th>
+              <th scope="col">Perfil</th>
+              <th scope="col">Estado</th>
+              <th scope="col" class="text-end">Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+              <tr>
+                <td>{{ user.email }}</td>
+                <td>{{ user.role.value }}</td>
+                <td>{{ user.account_status.value }}</td>
+                <td>
+                  <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+                    <form method="post" action="/admin/users/{{ user.user_id }}/block" class="d-inline mb-0">
+                      <button type="submit" class="btn btn-sm btn-outline-warning">Bloquear</button>
+                    </form>
+                    <form method="post" action="/admin/users/{{ user.user_id }}/activate" class="d-inline mb-0">
+                      <button type="submit" class="btn btn-sm btn-outline-success">Reativar</button>
+                    </form>
+                    <form method="post" action="/admin/users/{{ user.user_id }}/remove" class="d-inline mb-0">
+                      <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="4" class="text-muted">Nenhum usuario cadastrado.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+{% endblock %}

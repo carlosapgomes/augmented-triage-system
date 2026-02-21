@@ -17,7 +17,7 @@
 
 ## 3. Admin HTTP Surface And Shell Navigation
 
-- [ ] 3.1 Criar router de administração de usuários com `GET /admin/users` e ações `POST` para create/block/activate/remove.
+- [x] 3.1 Criar router de administração de usuários com `GET /admin/users` e ações `POST` para create/block/activate/remove.
 - [ ] 3.2 Implementar página server-rendered de usuários com feedback de sucesso/erro seguindo o shell operacional existente.
 - [ ] 3.3 Expandir contexto/layout do shell para exibir navegação de usuários apenas para `admin`.
 - [ ] 3.4 Garantir respostas determinísticas de autorização para `reader` (`403`) nas páginas e ações de user-admin.

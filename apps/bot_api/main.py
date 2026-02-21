@@ -17,6 +17,7 @@ from triage_automation.application.ports.user_repository_port import UserReposit
 from triage_automation.application.services.auth_service import AuthService
 from triage_automation.application.services.case_monitoring_service import CaseMonitoringService
 from triage_automation.application.services.prompt_management_service import PromptManagementService
+from triage_automation.application.services.user_management_service import UserManagementService
 from triage_automation.config.settings import load_settings
 from triage_automation.infrastructure.db.admin_bootstrap import (
     AdminBootstrapConfig,
@@ -39,6 +40,9 @@ from triage_automation.infrastructure.http.dashboard_router import build_dashboa
 from triage_automation.infrastructure.http.monitoring_router import build_monitoring_router
 from triage_automation.infrastructure.http.prompt_management_router import (
     build_prompt_management_router,
+)
+from triage_automation.infrastructure.http.user_management_router import (
+    build_user_management_router,
 )
 from triage_automation.infrastructure.http.web_session_router import build_web_session_router
 from triage_automation.infrastructure.logging import configure_logging
@@ -92,6 +96,18 @@ def build_prompt_management_service(database_url: str) -> PromptManagementServic
     )
 
 
+def build_user_management_service(database_url: str) -> UserManagementService:
+    """Build user-management service with SQLAlchemy-backed dependencies."""
+
+    session_factory = create_session_factory(database_url)
+    return UserManagementService(
+        users=SqlAlchemyUserRepository(session_factory),
+        auth_events=SqlAlchemyAuthEventRepository(session_factory),
+        auth_tokens=SqlAlchemyAuthTokenRepository(session_factory),
+        password_hasher=BcryptPasswordHasher(),
+    )
+
+
 def create_app(
     *,
     auth_service: AuthService | None = None,
@@ -100,6 +116,7 @@ def create_app(
     case_repository: CaseRepositoryPort | None = None,
     monitoring_service: CaseMonitoringService | None = None,
     prompt_management_service: PromptManagementService | None = None,
+    user_management_service: UserManagementService | None = None,
     auth_guard: WidgetAuthGuard | None = None,
     token_service: OpaqueTokenService | None = None,
     database_url: str | None = None,
@@ -140,6 +157,9 @@ def create_app(
     if prompt_management_service is None:
         assert database_url is not None
         prompt_management_service = build_prompt_management_service(database_url)
+    if user_management_service is None:
+        assert database_url is not None
+        user_management_service = build_user_management_service(database_url)
     if auth_guard is None:
         auth_guard = WidgetAuthGuard(
             token_service=token_service,
@@ -151,6 +171,7 @@ def create_app(
     assert auth_token_repository is not None
     assert monitoring_service is not None
     assert prompt_management_service is not None
+    assert user_management_service is not None
     assert auth_guard is not None
     assert token_service is not None
     assert database_url is not None
@@ -215,6 +236,12 @@ def create_app(
             auth_guard=auth_guard,
         )
     )
+    app.include_router(
+        build_user_management_router(
+            user_management_service=user_management_service,
+            auth_guard=auth_guard,
+        )
+    )
 
     return app
 
@@ -227,6 +254,7 @@ def build_runtime_app(
     case_repository: CaseRepositoryPort | None = None,
     monitoring_service: CaseMonitoringService | None = None,
     prompt_management_service: PromptManagementService | None = None,
+    user_management_service: UserManagementService | None = None,
     auth_guard: WidgetAuthGuard | None = None,
     token_service: OpaqueTokenService | None = None,
     database_url: str | None = None,
@@ -240,6 +268,7 @@ def build_runtime_app(
         case_repository=case_repository,
         monitoring_service=monitoring_service,
         prompt_management_service=prompt_management_service,
+        user_management_service=user_management_service,
         auth_guard=auth_guard,
         token_service=token_service,
         database_url=database_url,
