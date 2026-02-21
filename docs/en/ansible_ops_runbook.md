@@ -19,6 +19,21 @@ Supported baseline in this delivery:
 1. Repository cloned locally with the `ansible/` directory available.
 1. Inventory and required variables filled before playbook execution.
 
+## Dashboard Access Through a Domain
+
+For real dashboard usage, the local `bot-api` endpoint (`http://127.0.0.1:8000`)
+must be published through a hospital domain.
+
+Supported options in this phase:
+
+- reverse proxy (for example, Nginx/Caddy) forwarding to `127.0.0.1:8000`.
+- Cloudflare Tunnel targeting `http://127.0.0.1:8000`.
+
+Operational recommendation:
+
+- use HTTPS on the public domain.
+- do not expose the loopback port directly without a controlled publishing layer.
+
 ## Minimum Inventory
 
 Create `ansible/inventory/hosts.yml`:

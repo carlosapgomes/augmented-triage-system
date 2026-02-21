@@ -19,6 +19,21 @@ Baseline suportado nesta entrega:
 1. Repositório clonado localmente com o diretório `ansible/` presente.
 1. Inventário e variáveis preenchidos antes de executar playbooks.
 
+## Acesso ao dashboard por domínio
+
+Para uso real do dashboard web, é necessário publicar o endpoint local do `bot-api`
+(`http://127.0.0.1:8000`) por um domínio do hospital.
+
+Opções suportadas nesta fase:
+
+- reverse proxy (por exemplo, Nginx/Caddy) encaminhando para `127.0.0.1:8000`.
+- túnel Cloudflare (Cloudflare Tunnel) apontando para `http://127.0.0.1:8000`.
+
+Recomendação operacional:
+
+- usar HTTPS no domínio público.
+- não expor diretamente porta de loopback sem camada de publicação controlada.
+
 ## Inventário mínimo
 
 Crie `ansible/inventory/hosts.yml`:
