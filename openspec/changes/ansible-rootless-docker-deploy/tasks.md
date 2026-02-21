@@ -40,6 +40,6 @@
 
 ## 7. Verificacao do slice e fechamento do change
 
-- [ ] 7.1 Executar `ansible-playbook -i <inventory> <playbook> --syntax-check` para os playbooks principais.
+- [x] 7.1 Executar `ansible-playbook -i <inventory> <playbook> --syntax-check` para os playbooks principais.
 - [ ] 7.2 Validar lint dos artefatos markdown alterados com `markdownlint-cli2`.
 - [ ] 7.3 Atualizar checklist de progresso OpenSpec e registrar observacoes operacionais relevantes.
