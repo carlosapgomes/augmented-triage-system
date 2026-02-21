@@ -46,6 +46,13 @@ class LastActiveAdminError(PermissionError):
         super().__init__("at least one active admin must remain")
 
 
+class UserManagementAuthorizationError(PermissionError):
+    """Raised when actor is not authorized to execute user-management action."""
+
+    def __init__(self) -> None:
+        super().__init__("admin role is required for user management actions")
+
+
 class InvalidUserEmailError(ValueError):
     """Raised when create-user payload has invalid email value."""
 
@@ -93,6 +100,7 @@ class UserManagementService:
     async def create_user(self, *, actor_user_id: UUID, payload: UserCreateRequest) -> UserRecord:
         """Create one user account after applying email/password normalization."""
 
+        await self._require_admin_actor(actor_user_id=actor_user_id)
         normalized_email = self._normalize_email(payload.email)
         normalized_password = self._normalize_password(payload.password)
         created = await self._users.create_user(
@@ -116,6 +124,7 @@ class UserManagementService:
     async def block_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to blocked state and revoke active sessions."""
 
+        await self._require_admin_actor(actor_user_id=actor_user_id)
         target = await self._require_existing_user(user_id=user_id)
         self._require_not_self_action(actor_user_id=actor_user_id, user_id=user_id)
         await self._require_not_disabling_last_active_admin(target=target)
@@ -139,6 +148,7 @@ class UserManagementService:
     async def reactivate_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to active state."""
 
+        await self._require_admin_actor(actor_user_id=actor_user_id)
         target = await self._require_existing_user(user_id=user_id)
         active = await self._users.set_account_status(
             user_id=user_id,
@@ -158,6 +168,7 @@ class UserManagementService:
     async def remove_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to removed state and revoke active sessions."""
 
+        await self._require_admin_actor(actor_user_id=actor_user_id)
         target = await self._require_existing_user(user_id=user_id)
         self._require_not_self_action(actor_user_id=actor_user_id, user_id=user_id)
         await self._require_not_disabling_last_active_admin(target=target)
@@ -185,6 +196,14 @@ class UserManagementService:
         if target is None:
             raise UserNotFoundError(user_id=user_id)
         return target
+
+    async def _require_admin_actor(self, *, actor_user_id: UUID) -> UserRecord:
+        """Return actor user only when role is admin, otherwise deny action."""
+
+        actor = await self._users.get_by_id(user_id=actor_user_id)
+        if actor is None or actor.role is not Role.ADMIN:
+            raise UserManagementAuthorizationError()
+        return actor
 
     def _require_not_self_action(self, *, actor_user_id: UUID, user_id: UUID) -> None:
         """Reject self block/remove administrative actions."""
