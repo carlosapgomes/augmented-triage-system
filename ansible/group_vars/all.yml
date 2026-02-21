@@ -1,0 +1,76 @@
+---
+# Baseline for v1: single-host Ubuntu 24.04 LTS, rootless runtime, public GHCR image.
+
+# Dedicated service user for non-root runtime execution.
+ats_service_user: "ats"
+ats_service_group: "{{ ats_service_user }}"
+ats_service_home: "/home/{{ ats_service_user }}"
+
+# Runtime layout and compose metadata.
+ats_runtime_root: "{{ ats_service_home }}/augmented-triage-system"
+ats_runtime_compose_project_name: "augmented-triage-system"
+ats_runtime_env_file: "{{ ats_runtime_root }}/.env"
+
+# Public GHCR image coordinates.
+ats_runtime_image_registry: "ghcr.io"
+ats_runtime_image_repository: "carlosapgomes/augmented-triage-system"
+ats_runtime_image_tag: "latest"
+ats_runtime_image: "{{ ats_runtime_image_registry }}/{{ ats_runtime_image_repository }}:{{ ats_runtime_image_tag }}"
+
+# Runtime commands aligned with the supported uv/docker startup contracts.
+ats_runtime_services:
+  bot_api:
+    command:
+      - "uv"
+      - "run"
+      - "uvicorn"
+      - "apps.bot_api.main:create_app"
+      - "--factory"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
+  bot_matrix:
+    command:
+      - "uv"
+      - "run"
+      - "python"
+      - "-m"
+      - "apps.bot_matrix.main"
+  worker:
+    command:
+      - "uv"
+      - "run"
+      - "python"
+      - "-m"
+      - "apps.worker.main"
+
+# Mandatory runtime environment keys. Values must be overridden per environment.
+ats_runtime_env_required:
+  DATABASE_URL: ""
+  ROOM1_ID: ""
+  ROOM2_ID: ""
+  ROOM3_ID: ""
+  MATRIX_HOMESERVER_URL: ""
+  MATRIX_BOT_USER_ID: ""
+  MATRIX_ACCESS_TOKEN: ""
+  WEBHOOK_PUBLIC_URL: ""
+  WEBHOOK_HMAC_SECRET: ""
+
+# Default runtime environment keys.
+ats_runtime_env_defaults:
+  LOG_LEVEL: "INFO"
+  LLM_RUNTIME_MODE: "deterministic"
+  MATRIX_SYNC_TIMEOUT_MS: "30000"
+  MATRIX_POLL_INTERVAL_SECONDS: "1.0"
+  WORKER_POLL_INTERVAL_SECONDS: "1.0"
+  OPENAI_MODEL_LLM1: "gpt-4o-mini"
+  OPENAI_MODEL_LLM2: "gpt-4o-mini"
+
+# Optional environment keys that may remain empty depending on runtime mode.
+ats_runtime_env_optional:
+  OPENAI_API_KEY: ""
+  OPENAI_TEMPERATURE: ""
+  BOOTSTRAP_ADMIN_EMAIL: ""
+  BOOTSTRAP_ADMIN_PASSWORD: ""
+  BOOTSTRAP_ADMIN_PASSWORD_FILE: ""
