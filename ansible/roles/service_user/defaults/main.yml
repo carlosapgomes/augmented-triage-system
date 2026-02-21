@@ -1,0 +1,3 @@
+---
+ats_service_user_shell: "/bin/bash"
+ats_service_user_system: false

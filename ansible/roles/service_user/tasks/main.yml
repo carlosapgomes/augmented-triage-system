@@ -1,0 +1,24 @@
+---
+- name: Ensure dedicated service group exists
+  ansible.builtin.group:
+    name: "{{ ats_service_group }}"
+    system: "{{ ats_service_user_system }}"
+    state: present
+
+- name: Ensure dedicated service user exists
+  ansible.builtin.user:
+    name: "{{ ats_service_user }}"
+    group: "{{ ats_service_group }}"
+    shell: "{{ ats_service_user_shell }}"
+    home: "{{ ats_service_home }}"
+    create_home: true
+    system: "{{ ats_service_user_system }}"
+    state: present
+
+- name: Ensure runtime root directory exists
+  ansible.builtin.file:
+    path: "{{ ats_runtime_root }}"
+    state: directory
+    owner: "{{ ats_service_user }}"
+    group: "{{ ats_service_group }}"
+    mode: "0750"

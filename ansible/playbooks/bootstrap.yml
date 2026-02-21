@@ -44,3 +44,7 @@
     - name: Apply base host dependencies
       ansible.builtin.include_role:
         name: base_host
+
+    - name: Apply dedicated service user setup
+      ansible.builtin.include_role:
+        name: service_user
