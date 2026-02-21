@@ -5,3 +5,5 @@ ats_rootless_docker_packages:
 
 ats_rootless_subid_range_start: 100000
 ats_rootless_subid_range_size: 65536
+ats_docker_info_server_version_format: "{{ '{{.ServerVersion}}' }}"
+ats_docker_info_security_options_format: "{{ '{{json .SecurityOptions}}' }}"

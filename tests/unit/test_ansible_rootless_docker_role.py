@@ -29,6 +29,10 @@ def test_rootless_docker_role_declares_user_context_setup_tasks() -> None:
     assert "name: docker.service" in tasks
     assert "state: started" in tasks
     assert "enabled: true" in tasks
+    assert "docker info --format '{{.ServerVersion}}'" in tasks
+    assert "docker info --format '{{json .SecurityOptions}}'" in tasks
+    assert "docker compose version" in tasks
+    assert "Rootless Docker is not active" in tasks
 
 
 def test_bootstrap_playbook_invokes_rootless_docker_role() -> None:

@@ -29,12 +29,16 @@
   register: ats_service_user_uid
   changed_when: false
 
+- name: Build rootless XDG runtime directory path
+  ansible.builtin.set_fact:
+    ats_rootless_xdg_runtime_dir: "/run/user/{{ ats_service_user_uid.stdout }}"
+
 - name: Install rootless Docker in service user context
   become: true
   become_user: "{{ ats_service_user }}"
   ansible.builtin.command: dockerd-rootless-setuptool.sh install --force
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ ats_service_user_uid.stdout }}"
+    XDG_RUNTIME_DIR: "{{ ats_rootless_xdg_runtime_dir }}"
   changed_when: false
 
 - name: Ensure rootless Docker user service is enabled and started
@@ -46,4 +50,46 @@
     state: started
     enabled: true
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ ats_service_user_uid.stdout }}"
+    XDG_RUNTIME_DIR: "{{ ats_rootless_xdg_runtime_dir }}"
+
+- name: Verify rootless Docker daemon responds using docker info --format '{{.ServerVersion}}'
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command:
+    argv:
+      - docker
+      - info
+      - --format
+      - "{{ ats_docker_info_server_version_format }}"
+  register: ats_rootless_docker_info_version
+  changed_when: false
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_rootless_xdg_runtime_dir }}"
+
+- name: Verify rootless Docker security options using docker info --format '{{json .SecurityOptions}}'
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command:
+    argv:
+      - docker
+      - info
+      - --format
+      - "{{ ats_docker_info_security_options_format }}"
+  register: ats_rootless_docker_security_options
+  changed_when: false
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_rootless_xdg_runtime_dir }}"
+
+- name: Assert rootless Docker is active in daemon security options
+  ansible.builtin.assert:
+    that:
+      - "'rootless' in ats_rootless_docker_security_options.stdout"
+    fail_msg: "Rootless Docker is not active for service user {{ ats_service_user }}."
+
+- name: Verify Docker Compose plugin availability
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: docker compose version
+  changed_when: false
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_rootless_xdg_runtime_dir }}"
