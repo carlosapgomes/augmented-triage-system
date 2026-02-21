@@ -30,6 +30,70 @@
     ats_post_deploy_criterion_services_running: >-
       {{ ats_post_deploy_expected_services | difference(ats_post_deploy_running_services.stdout_lines) | length == 0 }}
 
+- name: Collect runtime service container IDs for non-root ownership checks
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    ps -q {{ item }}
+  loop: "{{ ats_post_deploy_expected_services }}"
+  register: ats_post_deploy_service_container_ids_command
+  changed_when: false
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_post_deploy_xdg_runtime_dir }}"
+
+- name: Build runtime container ID map and missing-service list
+  ansible.builtin.set_fact:
+    ats_post_deploy_service_container_ids: >-
+      {{ (ats_post_deploy_service_container_ids | default({})) |
+      combine({item.item: (item.stdout | trim)}) }}
+    ats_post_deploy_missing_runtime_container_services: >-
+      {{ (ats_post_deploy_missing_runtime_container_services | default([])) +
+      (((item.stdout | trim) == '') | ternary([item.item], [])) }}
+  loop: "{{ ats_post_deploy_service_container_ids_command.results }}"
+
+- name: Resolve host process PID for each runtime service container
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker inspect --format '{{.State.Pid}}' {{ item.value }}
+  loop: "{{ (ats_post_deploy_service_container_ids | default({})) | dict2items }}"
+  when: item.value | length > 0
+  register: ats_post_deploy_service_container_pids_command
+  changed_when: false
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_post_deploy_xdg_runtime_dir }}"
+
+- name: Resolve host process owner for each runtime service container PID
+  ansible.builtin.command: >-
+    ps -o user= -p {{ item.stdout | trim }}
+  loop: "{{ ats_post_deploy_service_container_pids_command.results | default([]) }}"
+  when: item.stdout is defined and (item.stdout | trim | int) > 0
+  register: ats_post_deploy_service_process_owners_command
+  changed_when: false
+
+- name: Build runtime process owner map and unexpected-owner list
+  ansible.builtin.set_fact:
+    ats_post_deploy_runtime_process_owners: >-
+      {{ (ats_post_deploy_runtime_process_owners | default({})) |
+      combine({item.item.item.key: (item.stdout | trim)}) }}
+    ats_post_deploy_runtime_unexpected_owner_services: >-
+      {{ (ats_post_deploy_runtime_unexpected_owner_services | default([])) +
+      (((item.stdout | trim) != ats_service_user) | ternary([item.item.item.key], [])) }}
+  loop: "{{ ats_post_deploy_service_process_owners_command.results | default([]) }}"
+  when: item.stdout is defined
+
+- name: Evaluate non-root runtime ownership criterion
+  ansible.builtin.set_fact:
+    ats_post_deploy_criterion_non_root_runtime: >-
+      {{ (ats_post_deploy_service_user_uid.stdout | int != 0)
+      and ((ats_post_deploy_missing_runtime_container_services | default([])) | length == 0)
+      and ((ats_post_deploy_runtime_unexpected_owner_services | default([])) | length == 0) }}
+
 - name: Collect initial service logs for post-deploy checks
   become: true
   become_user: "{{ ats_service_user }}"
@@ -85,6 +149,8 @@
         {{ (not ats_post_deploy_require_logs_clean_criterion) or (ats_post_deploy_criterion_logs_clean | bool) }}
       bot_api_health: >-
         {{ (not ats_post_deploy_require_bot_api_health_criterion) or (ats_post_deploy_criterion_bot_api_health | bool) }}
+      non_root_runtime: >-
+        {{ (not ats_post_deploy_require_non_root_runtime_criterion) or (ats_post_deploy_criterion_non_root_runtime | bool) }}
 
 - name: Validate objective post-deploy approval criteria
   ansible.builtin.assert:
@@ -92,6 +158,7 @@
       - ats_post_deploy_approval_criteria.services_running | bool
       - ats_post_deploy_approval_criteria.logs_clean | bool
       - ats_post_deploy_approval_criteria.bot_api_health | bool
+      - ats_post_deploy_approval_criteria.non_root_runtime | bool
     fail_msg: >-
       Deploy approval gate failed.
       services_running={{ ats_post_deploy_approval_criteria.services_running }}
@@ -101,6 +168,11 @@
       bot_api_health={{ ats_post_deploy_approval_criteria.bot_api_health }}
       http_status={{ ats_post_deploy_bot_api_health_response.status | default('n/a') }}
       expected_status={{ ats_post_deploy_bot_api_expected_status }}
-      expected_text_found={{ ats_post_deploy_criterion_bot_api_health_content | default(false) }}.
+      expected_text_found={{ ats_post_deploy_criterion_bot_api_health_content | default(false) }};
+      non_root_runtime={{ ats_post_deploy_approval_criteria.non_root_runtime }}
+      service_user_uid={{ ats_post_deploy_service_user_uid.stdout | default('n/a') }}
+      runtime_process_owners={{ ats_post_deploy_runtime_process_owners | default({}) }}
+      missing_runtime_containers={{ ats_post_deploy_missing_runtime_container_services | default([]) }}
+      unexpected_owner_services={{ ats_post_deploy_runtime_unexpected_owner_services | default([]) }}.
     success_msg: >-
       Deploy approved by objective post-deploy criteria.

@@ -30,7 +30,7 @@
 
 - [x] 5.1 Implementar role `post_deploy_checks` com checks deterministas de processo, logs iniciais e saude dos servicos.
 - [x] 5.2 Definir criterios objetivos de sucesso/falha para aprovar deploy em producao (servicos `running`, health HTTP do `bot-api` e logs iniciais sem erro critico).
-- [ ] 5.3 Adicionar verificacao de execucao dos servicos sob usuario nao-root.
+- [x] 5.3 Adicionar verificacao de execucao dos servicos sob usuario nao-root.
 
 ## 6. Runbook operacional para TI
 
