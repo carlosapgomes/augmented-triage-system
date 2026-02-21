@@ -31,6 +31,6 @@
 
 ## 5. Final Verification
 
-- [ ] 5.1 Executar suíte de testes alvo da feature de gestão de usuários (unit + integração + docs alteradas).
+- [x] 5.1 Executar suíte de testes alvo da feature de gestão de usuários (unit + integração + docs alteradas).
 - [ ] 5.2 Executar `uv run ruff check` e `uv run mypy` nos caminhos alterados.
 - [ ] 5.3 Executar `markdownlint-cli2` nos artefatos OpenSpec e documentação modificada.
