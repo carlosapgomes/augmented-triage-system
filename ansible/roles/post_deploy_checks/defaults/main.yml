@@ -8,3 +8,6 @@ ats_post_deploy_log_error_patterns:
 ats_post_deploy_bot_api_healthcheck_url: "http://127.0.0.1:8000/openapi.json"
 ats_post_deploy_bot_api_expected_status: 200
 ats_post_deploy_bot_api_expected_text: "openapi"
+ats_post_deploy_require_services_running_criterion: true
+ats_post_deploy_require_logs_clean_criterion: true
+ats_post_deploy_require_bot_api_health_criterion: true

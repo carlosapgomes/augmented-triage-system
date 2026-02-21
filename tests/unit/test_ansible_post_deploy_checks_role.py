@@ -24,6 +24,9 @@ def test_post_deploy_checks_role_declares_process_logs_and_health_checks() -> No
     assert "ats_post_deploy_log_error_patterns:" in defaults
     assert "ats_post_deploy_bot_api_healthcheck_url:" in defaults
     assert "ats_post_deploy_bot_api_expected_status:" in defaults
+    assert "ats_post_deploy_require_services_running_criterion:" in defaults
+    assert "ats_post_deploy_require_logs_clean_criterion:" in defaults
+    assert "ats_post_deploy_require_bot_api_health_criterion:" in defaults
 
     assert "id -u {{ ats_service_user }}" in tasks
     assert "docker compose" in tasks
@@ -34,3 +37,6 @@ def test_post_deploy_checks_role_declares_process_logs_and_health_checks() -> No
     assert "ats_post_deploy_log_error_patterns" in tasks
     assert "ansible.builtin.uri:" in tasks
     assert "url: \"{{ ats_post_deploy_bot_api_healthcheck_url }}\"" in tasks
+    assert "ats_post_deploy_approval_criteria" in tasks
+    assert "Validate objective post-deploy approval criteria" in tasks
+    assert "Deploy approval gate failed." in tasks
