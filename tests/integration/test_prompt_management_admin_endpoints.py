@@ -62,7 +62,8 @@ def _insert_token(
     user_id: UUID,
     token: str,
 ) -> None:
-    expires_at = datetime(2026, 2, 20, 0, 0, 0, tzinfo=UTC)
+    issued_at = datetime.now(tz=UTC)
+    expires_at = issued_at + timedelta(hours=1)
     connection.execute(
         sa.text(
             "INSERT INTO auth_tokens (user_id, token_hash, expires_at, issued_at) "
@@ -72,7 +73,7 @@ def _insert_token(
             "user_id": user_id.hex,
             "token_hash": token_service.hash_token(token),
             "expires_at": expires_at,
-            "issued_at": expires_at - timedelta(hours=1),
+            "issued_at": issued_at,
         },
     )
 
@@ -322,6 +323,7 @@ async def test_admin_renders_prompt_management_html_page_with_versions(tmp_path:
     assert '<form method="post" action="/logout"' in response.text
     assert 'href="/dashboard/cases"' in response.text
     assert 'href="/admin/prompts"' in response.text
+    assert 'href="/admin/users"' in response.text
 
 
 @pytest.mark.asyncio

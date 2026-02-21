@@ -61,7 +61,8 @@ def _insert_token(
     user_id: UUID,
     token: str,
 ) -> None:
-    expires_at = datetime(2026, 2, 20, 0, 0, 0, tzinfo=UTC)
+    issued_at = datetime.now(tz=UTC)
+    expires_at = issued_at + timedelta(hours=1)
     connection.execute(
         sa.text(
             "INSERT INTO auth_tokens (user_id, token_hash, expires_at, issued_at) "
@@ -71,7 +72,7 @@ def _insert_token(
             "user_id": user_id.hex,
             "token_hash": token_service.hash_token(token),
             "expires_at": expires_at,
-            "issued_at": expires_at - timedelta(hours=1),
+            "issued_at": issued_at,
         },
     )
 
@@ -568,10 +569,10 @@ async def test_dashboard_case_list_accepts_reader_and_admin_roles(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("role", "token", "shows_prompt_nav"),
+    ("role", "token", "shows_prompt_nav", "shows_users_nav"),
     [
-        ("reader", "reader-dashboard-shell-nav", False),
-        ("admin", "admin-dashboard-shell-nav", True),
+        ("reader", "reader-dashboard-shell-nav", False, False),
+        ("admin", "admin-dashboard-shell-nav", True, True),
     ],
 )
 async def test_dashboard_shell_navigation_is_role_aware(
@@ -579,6 +580,7 @@ async def test_dashboard_shell_navigation_is_role_aware(
     role: str,
     token: str,
     shows_prompt_nav: bool,
+    shows_users_nav: bool,
 ) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, f"dashboard_shell_nav_{role}.db")
     token_service = OpaqueTokenService()
@@ -612,6 +614,10 @@ async def test_dashboard_shell_navigation_is_role_aware(
         assert 'href="/admin/prompts"' in response.text
     else:
         assert 'href="/admin/prompts"' not in response.text
+    if shows_users_nav:
+        assert 'href="/admin/users"' in response.text
+    else:
+        assert 'href="/admin/users"' not in response.text
 
 
 @pytest.mark.asyncio
@@ -658,6 +664,7 @@ async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Pat
     assert 'href="/dashboard/cases"' in list_response.text
     assert 'href="/dashboard/cases"' in detail_response.text
     assert 'href="/admin/prompts"' in detail_response.text
+    assert 'href="/admin/users"' in detail_response.text
     assert "Detalhe do Caso" in detail_response.text
 
 

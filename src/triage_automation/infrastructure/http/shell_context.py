@@ -22,5 +22,5 @@ def build_shell_context(
         "shell_user_email": user.email if user is not None else "",
         "shell_user_role": role_value or "",
         "shell_can_access_prompts": user is not None and user.role is Role.ADMIN,
+        "shell_can_access_users": user is not None and user.role is Role.ADMIN,
     }
-
