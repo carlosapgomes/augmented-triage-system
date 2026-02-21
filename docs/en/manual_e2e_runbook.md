@@ -176,6 +176,22 @@ uv run python -m apps.worker.main
 - submit `POST /admin/users` form to create a `reader`
 - expected: redirect to `/admin/users` with `Usuario criado` feedback
 - validate the new user appears in list with `active` state
+- validate audit in `auth_events`:
+  - query latest target event:
+
+    ```sql
+    SELECT event_type, user_id, payload
+    FROM auth_events
+    WHERE payload->>'target_user_id' = '<target_user_id>'
+    ORDER BY occurred_at DESC
+    LIMIT 1;
+    ```
+
+  - `event_type=user_created`
+  - event `user_id` equals admin actor id
+  - `payload` includes `target_user_id`, `target_email`, `target_role`, `previous_status`, `new_status`
+  - expected `previous_status`: `null`
+  - expected `new_status`: `active`
 
 1. Using an `admin` session, validate blocking an active account:
 
@@ -183,6 +199,22 @@ uv run python -m apps.worker.main
 - expected: redirect to `/admin/users` with update feedback
 - validate target user changes to `blocked` state in listing
 - validate `POST /auth/login` with target user credentials returns `403` (`inactive user`)
+- validate audit in `auth_events`:
+  - query latest target event:
+
+    ```sql
+    SELECT event_type, user_id, payload
+    FROM auth_events
+    WHERE payload->>'target_user_id' = '<target_user_id>'
+    ORDER BY occurred_at DESC
+    LIMIT 1;
+    ```
+
+  - `event_type=user_blocked`
+  - event `user_id` equals admin actor id
+  - `payload.target_user_id` equals target user id
+  - `payload.previous_status=active`
+  - `payload.new_status=blocked`
 
 1. Using an `admin` session, validate reactivation of a blocked account:
 
@@ -190,6 +222,22 @@ uv run python -m apps.worker.main
 - expected: redirect to `/admin/users` with update feedback
 - validate target user returns to `active` state in listing
 - validate `POST /auth/login` with target user credentials returns `200`
+- validate audit in `auth_events`:
+  - query latest target event:
+
+    ```sql
+    SELECT event_type, user_id, payload
+    FROM auth_events
+    WHERE payload->>'target_user_id' = '<target_user_id>'
+    ORDER BY occurred_at DESC
+    LIMIT 1;
+    ```
+
+  - `event_type=user_reactivated`
+  - event `user_id` equals admin actor id
+  - `payload.target_user_id` equals target user id
+  - `payload.previous_status=blocked`
+  - `payload.new_status=active`
 
 1. Using an `admin` session, validate administrative removal (soft delete):
 
@@ -197,3 +245,19 @@ uv run python -m apps.worker.main
 - expected: redirect to `/admin/users` with update feedback
 - validate target user changes to `removed` state in listing
 - validate `POST /auth/login` with target user credentials returns `403` (`inactive user`)
+- validate audit in `auth_events`:
+  - query latest target event:
+
+    ```sql
+    SELECT event_type, user_id, payload
+    FROM auth_events
+    WHERE payload->>'target_user_id' = '<target_user_id>'
+    ORDER BY occurred_at DESC
+    LIMIT 1;
+    ```
+
+  - `event_type=user_removed`
+  - event `user_id` equals admin actor id
+  - `payload.target_user_id` equals target user id
+  - `payload.previous_status=active` or `blocked` (depending on pre-remove state)
+  - `payload.new_status=removed`
