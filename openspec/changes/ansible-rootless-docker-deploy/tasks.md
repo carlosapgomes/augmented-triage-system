@@ -42,4 +42,10 @@
 
 - [x] 7.1 Executar `ansible-playbook -i <inventory> <playbook> --syntax-check` para os playbooks principais.
 - [x] 7.2 Validar lint dos artefatos markdown alterados com `markdownlint-cli2`.
-- [ ] 7.3 Atualizar checklist de progresso OpenSpec e registrar observacoes operacionais relevantes.
+- [x] 7.3 Atualizar checklist de progresso OpenSpec e registrar observacoes operacionais relevantes.
+
+### Observacoes operacionais
+
+- `--syntax-check` validado para `bootstrap.yml`, `deploy.yml`, `upgrade.yml` e `rollback.yml`.
+- Em ambiente restrito/sandbox, foi necessario definir `ANSIBLE_LOCAL_TEMP=/tmp` para evitar falha de permissao em `~/.ansible/tmp`.
+- Fluxo oficial de operacao para TI documentado em `docs/ansible_ops_runbook.md` e `docs/en/ansible_ops_runbook.md` (instalacao inicial, upgrade, rollback e troubleshooting).
