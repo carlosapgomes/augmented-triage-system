@@ -18,6 +18,7 @@ from triage_automation.application.services.user_management_service import (
     LastActiveAdminError,
     SelfUserManagementError,
     UserCreateRequest,
+    UserEmailAlreadyExistsError,
     UserManagementAuthorizationError,
     UserManagementService,
     UserNotFoundError,
@@ -258,6 +259,35 @@ async def test_create_user_rejects_blank_password() -> None:
                 password="   ",
                 role=Role.READER,
             )
+        )
+
+    assert users.create_payloads == []
+    assert password_hasher.hash_calls == []
+    assert auth_events.events == []
+
+
+@pytest.mark.asyncio
+async def test_create_user_rejects_duplicate_email_after_normalization() -> None:
+    actor = _make_user(email="actor-admin@example.org", role=Role.ADMIN)
+    existing = _make_user(email="existing.reader@example.org", role=Role.READER)
+    users = FakeUserRepository(users={actor.user_id: actor, existing.user_id: existing})
+    password_hasher = FakePasswordHasher()
+    auth_events = FakeAuthEventRepository()
+    service = UserManagementService(
+        users=users,
+        auth_events=auth_events,
+        auth_tokens=FakeAuthTokenRepository(),
+        password_hasher=password_hasher,
+    )
+
+    with pytest.raises(UserEmailAlreadyExistsError):
+        await service.create_user(
+            actor_user_id=actor.user_id,
+            payload=UserCreateRequest(
+                email=" Existing.Reader@Example.org ",
+                password="valid-password",
+                role=Role.READER,
+            ),
         )
 
     assert users.create_payloads == []

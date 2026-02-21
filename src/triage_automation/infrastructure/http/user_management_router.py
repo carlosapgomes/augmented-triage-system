@@ -21,6 +21,7 @@ from triage_automation.application.services.user_management_service import (
     LastActiveAdminError,
     SelfUserManagementError,
     UserCreateRequest,
+    UserEmailAlreadyExistsError,
     UserManagementAuthorizationError,
     UserManagementService,
     UserNotFoundError,
@@ -122,6 +123,11 @@ def build_user_management_router(
         except InvalidUserPasswordError:
             return RedirectResponse(
                 url=f"/admin/users?{urlencode({'error': 'Senha nao pode ficar vazia.'})}",
+                status_code=303,
+            )
+        except UserEmailAlreadyExistsError:
+            return RedirectResponse(
+                url=f"/admin/users?{urlencode({'error': 'Email ja cadastrado.'})}",
                 status_code=303,
             )
         except UserManagementAuthorizationError as exc:

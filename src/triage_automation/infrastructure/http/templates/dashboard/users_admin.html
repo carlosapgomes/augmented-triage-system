@@ -8,17 +8,25 @@
   </section>
 
   {% if created_email %}
-    <div class="alert alert-success" role="status">
-      Usuario criado: <strong>{{ created_email }}</strong>
+    <div class="alert alert-success d-flex align-items-center gap-2" role="status">
+      <strong>Sucesso:</strong>
+      <span>Usuario criado: <strong>{{ created_email }}</strong></span>
     </div>
   {% endif %}
   {% if updated_email and updated_status %}
-    <div class="alert alert-success" role="status">
-      Conta atualizada: <strong>{{ updated_email }}</strong> -> <strong>{{ updated_status }}</strong>
+    <div class="alert alert-success d-flex align-items-center gap-2" role="status">
+      <strong>Sucesso:</strong>
+      <span>
+        Conta atualizada: <strong>{{ updated_email }}</strong> ->
+        <strong>{{ updated_status }}</strong>
+      </span>
     </div>
   {% endif %}
   {% if error_message %}
-    <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+      <strong>Erro:</strong>
+      <span>{{ error_message }}</span>
+    </div>
   {% endif %}
 
   <section class="card shadow-sm border-0 mb-4">
@@ -65,18 +73,34 @@
               <tr>
                 <td>{{ user.email }}</td>
                 <td>{{ user.role.value }}</td>
-                <td>{{ user.account_status.value }}</td>
+                <td>
+                  {% if user.account_status.value == "active" %}
+                    <span class="badge text-bg-success">active</span>
+                  {% elif user.account_status.value == "blocked" %}
+                    <span class="badge text-bg-warning">blocked</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">removed</span>
+                  {% endif %}
+                </td>
                 <td>
                   <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
-                    <form method="post" action="/admin/users/{{ user.user_id }}/block" class="d-inline mb-0">
-                      <button type="submit" class="btn btn-sm btn-outline-warning">Bloquear</button>
-                    </form>
-                    <form method="post" action="/admin/users/{{ user.user_id }}/activate" class="d-inline mb-0">
-                      <button type="submit" class="btn btn-sm btn-outline-success">Reativar</button>
-                    </form>
-                    <form method="post" action="/admin/users/{{ user.user_id }}/remove" class="d-inline mb-0">
-                      <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
-                    </form>
+                    {% if user.account_status.value == "active" %}
+                      <form method="post" action="/admin/users/{{ user.user_id }}/block" class="d-inline mb-0">
+                        <button type="submit" class="btn btn-sm btn-outline-warning">Bloquear</button>
+                      </form>
+                      <form method="post" action="/admin/users/{{ user.user_id }}/remove" class="d-inline mb-0">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                      </form>
+                    {% elif user.account_status.value == "blocked" %}
+                      <form method="post" action="/admin/users/{{ user.user_id }}/activate" class="d-inline mb-0">
+                        <button type="submit" class="btn btn-sm btn-outline-success">Reativar</button>
+                      </form>
+                      <form method="post" action="/admin/users/{{ user.user_id }}/remove" class="d-inline mb-0">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                      </form>
+                    {% else %}
+                      <span class="text-muted small">-</span>
+                    {% endif %}
                   </div>
                 </td>
               </tr>

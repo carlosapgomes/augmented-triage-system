@@ -67,6 +67,13 @@ class InvalidUserPasswordError(ValueError):
         super().__init__("user password cannot be blank")
 
 
+class UserEmailAlreadyExistsError(ValueError):
+    """Raised when create-user attempts to use an existing normalized email."""
+
+    def __init__(self) -> None:
+        super().__init__("user email already exists")
+
+
 @dataclass(frozen=True)
 class UserCreateRequest:
     """Application-layer request for creating one user account."""
@@ -103,6 +110,9 @@ class UserManagementService:
         await self._require_admin_actor(actor_user_id=actor_user_id)
         normalized_email = self._normalize_email(payload.email)
         normalized_password = self._normalize_password(payload.password)
+        existing_user = await self._users.get_by_email(email=normalized_email)
+        if existing_user is not None:
+            raise UserEmailAlreadyExistsError()
         created = await self._users.create_user(
             UserCreateInput(
                 user_id=uuid4(),

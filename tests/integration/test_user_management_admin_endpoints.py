@@ -177,6 +177,91 @@ async def test_admin_create_user_form_persists_new_account(tmp_path: Path) -> No
 
 
 @pytest.mark.asyncio
+async def test_admin_create_user_form_shows_success_feedback_banner(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "user_management_admin_feedback_success.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-users-success-feedback-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            data={
+                "email": "feedback.reader@example.org",
+                "password": "test-password",
+                "role": "reader",
+            },
+        )
+
+    assert response.status_code == 200
+    assert "Usuario criado:" in response.text
+    assert "feedback.reader@example.org" in response.text
+    assert "alert alert-success" in response.text
+
+
+@pytest.mark.asyncio
+async def test_admin_create_user_form_duplicate_email_shows_error_feedback(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "user_management_admin_feedback_duplicate.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    existing_id = uuid4()
+    admin_token = "admin-users-duplicate-feedback-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_user(
+            connection,
+            user_id=existing_id,
+            email="existing.reader@example.org",
+            role="reader",
+        )
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            data={
+                "email": " Existing.Reader@Example.org ",
+                "password": "another-password",
+                "role": "reader",
+            },
+        )
+
+    assert response.status_code == 200
+    assert "Email ja cadastrado." in response.text
+    assert "alert alert-danger" in response.text
+
+    with sa.create_engine(sync_url).begin() as connection:
+        count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM users WHERE lower(email) = lower(:email)"
+            ),
+            {"email": "existing.reader@example.org"},
+        ).scalar_one()
+    assert int(count) == 1
+
+
+@pytest.mark.asyncio
 async def test_admin_user_actions_block_activate_remove_target(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "user_management_admin_lifecycle_actions.db")
     token_service = OpaqueTokenService()
