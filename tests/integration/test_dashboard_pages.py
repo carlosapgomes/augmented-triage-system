@@ -1078,7 +1078,7 @@ async def test_dashboard_case_detail_shows_patient_name_and_record_number(
     assert response.status_code == 200
     assert "Maria da Silva" in response.text
     assert "REC-2026-001" in response.text
-    assert "Ocorrencia:" in response.text
+    assert "Ocorrência:" in response.text
     # Verifica que o nome do paciente aparece no cabecalho (nao apenas o UUID)
     assert "Detalhe do Caso" in response.text
 
