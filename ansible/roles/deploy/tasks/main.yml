@@ -32,6 +32,19 @@
     XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
   changed_when: false
 
+- name: Execute database migrations
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    run --rm bot-api uv run alembic upgrade head
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
+
 - name: Start runtime services in detached mode
   become: true
   become_user: "{{ ats_service_user }}"
