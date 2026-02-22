@@ -1026,3 +1026,59 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
     assert "Autor: Enf. Maria" in response.text
     assert "Resultado final: AGENDAMENTO CONFIRMADO para 2026-02-20 14:30" in response.text
     assert "Reacao ao ACK: 👍 por Carlos Gomes" in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_shows_patient_name_and_record_number(
+    tmp_path: Path,
+) -> None:
+    """Verifica se a pagina de detalhes exibe nome do paciente e numero da ocorrencia."""
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_detail_patient_info.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-detail-patient-token"
+    case_id = uuid4()
+    now = datetime(2026, 2, 22, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=now,
+            agency_record_number="REC-2026-001",
+            structured_data_json={
+                "patient": {
+                    "name": "Maria da Silva",
+                    "age": 45,
+                },
+            },
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="Relatorio medico da paciente",
+            captured_at=now,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "Maria da Silva" in response.text
+    assert "REC-2026-001" in response.text
+    assert "Ocorrencia:" in response.text
+    # Verifica que o nome do paciente aparece no cabecalho (nao apenas o UUID)
+    assert "Detalhe do Caso" in response.text
+

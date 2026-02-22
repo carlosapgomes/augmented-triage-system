@@ -200,6 +200,8 @@ def build_dashboard_router(
                 "view_mode": view_mode,
                 "timeline_rows": timeline_rows,
                 "thread_sections": thread_sections,
+                "patient_name": detail.patient_name,
+                "agency_record_number": detail.agency_record_number,
             },
         )
 
