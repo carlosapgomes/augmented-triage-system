@@ -15,6 +15,7 @@ ats_runtime_env_file: "{{ ats_runtime_root }}/.env"
 ats_runtime_image_registry: "ghcr.io"
 ats_runtime_image_repository: "carlosapgomes/augmented-triage-system"
 ats_runtime_image_tag: "latest"
+ats_runtime_allow_latest_tag: true
 ats_runtime_image: "{{ ats_runtime_image_registry }}/{{ ats_runtime_image_repository }}:{{ ats_runtime_image_tag }}"
 
 # Runtime commands aligned with the supported uv/docker startup contracts.

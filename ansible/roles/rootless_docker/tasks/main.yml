@@ -1,10 +1,17 @@
 ---
-- name: Install Docker runtime packages
+- name: Check if Docker is already installed
+  ansible.builtin.command: which docker
+  register: ats_docker_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install Docker runtime packages (only if not present)
   ansible.builtin.apt:
     name: "{{ ats_rootless_docker_packages }}"
     state: present
     update_cache: true
     cache_valid_time: 3600
+  when: ats_docker_installed.rc != 0
 
 - name: Ensure subuid entry exists for service user
   ansible.builtin.lineinfile:
@@ -52,7 +59,7 @@
   environment:
     XDG_RUNTIME_DIR: "{{ ats_rootless_xdg_runtime_dir }}"
 
-- name: Verify rootless Docker daemon responds using docker info --format '{{.ServerVersion}}'
+- name: Verify rootless Docker daemon responds
   become: true
   become_user: "{{ ats_service_user }}"
   ansible.builtin.command:
@@ -66,7 +73,7 @@
   environment:
     XDG_RUNTIME_DIR: "{{ ats_rootless_xdg_runtime_dir }}"
 
-- name: Verify rootless Docker security options using docker info --format '{{json .SecurityOptions}}'
+- name: Verify rootless Docker security options
   become: true
   become_user: "{{ ats_service_user }}"
   ansible.builtin.command:
