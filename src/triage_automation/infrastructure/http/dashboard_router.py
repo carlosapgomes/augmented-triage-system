@@ -175,7 +175,7 @@ def build_dashboard_router(
                     "channel": item.channel,
                     "channel_badge_class": _channel_badge_class(item.channel),
                     "actor": item.actor or "system",
-                    "event_type": item.event_type,
+                    "event_type": _translate_event_type(item.event_type),
                     "event_badge_class": _event_badge_class(item.event_type),
                     "excerpt_text": excerpt_text,
                     "full_text": full_text if can_view_full_content else None,
@@ -498,6 +498,36 @@ def _parse_case_status_filter(raw_status: str | None) -> CaseStatus | None:
         return CaseStatus(normalized)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"invalid status filter: {normalized}") from exc
+
+
+def _translate_event_type(event_type: str) -> str:
+    """Translate technical event type to user-friendly Portuguese label."""
+
+    translations = {
+        "room1_origin": "recepção",
+        "bot_processing": "bot processando",
+        "pdf_report_extracted": "relatório pdf extraído",
+        "LLM1": "extração estruturada",
+        "LLM2": "sugestão de decisão",
+        "room2_case_root": "avaliação",
+        "room2_case_summary": "resumo do caso",
+        "room2_case_instructions": "instruções ao médico",
+        "room2_case_template": "modelo de resposta da decisão",
+        "room2_doctor_reply": "resposta do médico",
+        "room2_decision_ack": "confirmação da decisão",
+        "ROOM2_ACK_POSITIVE_EXPECTED": "aguardando reação positiva do Médico",
+        "ROOM2_ACK_POSITIVE_RECEIVED": "reação positiva recebida do Médico",
+        "room3_request": "solicitação de agendamento",
+        "room3_template": "modelo de resposta do agendamento",
+        "room3_reply": "resposta do agendamento",
+        "bot_ack": "confirmação do agendamento",
+        "ROOM3_ACK_POSITIVE_EXPECTED": "aguardando reação positiva do Agendamento",
+        "ROOM3_ACK_POSITIVE_RECEIVED": "reação positiva recebida do Agendamento",
+        "ROOM1_FINAL_POSITIVE_EXPECTED": "aguardando reação positiva da Recepção",
+        "room1_final": "mensagem final à Recepção",
+        "ROOM1_FINAL_POSITIVE_RECEIVED": "reação positiva recebida da Recepção",
+    }
+    return translations.get(event_type, event_type)
 
 
 def _source_badge_class(source: str) -> str:

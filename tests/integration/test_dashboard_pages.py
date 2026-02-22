@@ -742,10 +742,10 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
     assert "--hospital-primary" in response.text
     assert str(case_id) in response.text
     assert 'id="case-timeline"' in response.text
-    assert "pdf_report_extracted" in response.text
-    assert "bot_processing" in response.text
-    assert "LLM1" in response.text
-    assert "room2_doctor_reply" in response.text
+    assert "relatório pdf extraído" in response.text
+    assert "bot processando" in response.text
+    assert "extração estruturada" in response.text
+    assert "resposta do médico" in response.text
     assert "Dra. Joana" in response.text
     assert "badge text-bg-secondary" in response.text
     assert "badge text-bg-info" in response.text
@@ -756,9 +756,9 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
     assert "document.addEventListener(\"click\"" in response.text
 
     html = response.text
-    assert html.index("pdf_report_extracted") < html.index("bot_processing")
-    assert html.index("bot_processing") < html.index("LLM1")
-    assert html.index("LLM1") < html.index("room2_doctor_reply")
+    assert html.index("relatório pdf extraído") < html.index("bot processando")
+    assert html.index("bot processando") < html.index("extração estruturada")
+    assert html.index("extração estruturada") < html.index("resposta do médico")
 
 
 @pytest.mark.asyncio
@@ -861,8 +861,8 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
         )
 
     assert response.status_code == 200
-    assert "ROOM3_ACK_POSITIVE_EXPECTED" in response.text
-    assert "ROOM3_ACK_POSITIVE_RECEIVED" in response.text
+    assert "aguardando reação positiva do Agendamento" in response.text
+    assert "reação positiva recebida do Agendamento" in response.text
     assert "Enf. Maria" in response.text
     assert "!room3:example.org" in response.text
 
