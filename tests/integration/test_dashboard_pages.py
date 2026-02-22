@@ -672,7 +672,7 @@ async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Pat
 async def test_dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin(
     tmp_path: Path,
 ) -> None:
-    """Verifica se a página de detalhes renderiza histórico e toggle de conteúdo completo para admin."""
+    """Verifica se a página de detalhes renderiza histórico e toggle de conteúdo para admin."""
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail.db")
     token_service = OpaqueTokenService()
     admin_id = uuid4()
