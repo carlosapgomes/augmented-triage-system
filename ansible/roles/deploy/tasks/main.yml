@@ -81,3 +81,19 @@
     'Created' in ats_deploy_up_result.stdout
     or 'Started' in ats_deploy_up_result.stdout
     or 'Recreated' in ats_deploy_up_result.stdout
+
+- name: Prune unused Docker images for this repository
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.shell: >-
+    docker images --format '{{ "{{" }}.Repository{{ "}}" }}:{{ "{{" }}.Tag{{ "}}" }}'
+    | grep '{{ ats_runtime_image_repository }}'
+    | grep -v '{{ ats_runtime_image_tag }}'
+    | xargs -r docker rmi -f
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
+  register: ats_deploy_prune_result
+  changed_when: "'Deleted' in ats_deploy_prune_result.stdout"
+  failed_when: false
