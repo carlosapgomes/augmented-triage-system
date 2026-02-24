@@ -28,6 +28,7 @@ class CaseMonitoringListQuery:
     status: CaseStatus | None = None
     from_date: date | None = None
     to_date: date | None = None
+    tz_offset_minutes: int = 0
 
 
 class CaseMonitoringService:
@@ -49,8 +50,16 @@ class CaseMonitoringService:
             resolved_from_date = default_date
             resolved_to_date = default_date
 
-        activity_from = _day_start(resolved_from_date) if resolved_from_date is not None else None
-        activity_to = _next_day_start(resolved_to_date) if resolved_to_date is not None else None
+        activity_from = (
+            _day_start(resolved_from_date, query.tz_offset_minutes)
+            if resolved_from_date is not None
+            else None
+        )
+        activity_to = (
+            _next_day_start(resolved_to_date, query.tz_offset_minutes)
+            if resolved_to_date is not None
+            else None
+        )
         return await self._case_repository.list_cases_for_monitoring(
             filters=CaseMonitoringListFilter(
                 status=query.status,
@@ -67,14 +76,30 @@ class CaseMonitoringService:
         return await self._case_repository.get_case_monitoring_detail(case_id=case_id)
 
 
-def _day_start(value: date) -> datetime:
-    """Return UTC start-of-day datetime for the provided date."""
+def _day_start(value: date, tz_offset_minutes: int = 0) -> datetime:
+    """Return UTC start-of-day datetime adjusted for client timezone offset.
 
-    return datetime(value.year, value.month, value.day, tzinfo=UTC)
+    Args:
+        value: The local date from the client's perspective.
+        tz_offset_minutes: Client's timezone offset in minutes (e.g., -180 for UTC-3).
+            Positive values mean east of UTC, negative means west.
+
+    Returns:
+        UTC datetime representing the start of the given day in client's timezone.
+
+    Example:
+        Client in UTC-3 (offset=-180) searching for 2026-02-22:
+        - Their 00:00 local is 03:00 UTC
+        - So we return 2026-02-22 03:00:00 UTC
+    """
+
+    base = datetime(value.year, value.month, value.day, tzinfo=UTC)
+    adjusted = base - timedelta(minutes=tz_offset_minutes)
+    return adjusted
 
 
-def _next_day_start(value: date) -> datetime:
-    """Return UTC start-of-next-day datetime for inclusive date-end filtering."""
+def _next_day_start(value: date, tz_offset_minutes: int = 0) -> datetime:
+    """Return UTC start-of-next-day datetime adjusted for client timezone offset."""
 
-    return _day_start(value) + timedelta(days=1)
+    return _day_start(value, tz_offset_minutes) + timedelta(days=1)
 

@@ -63,6 +63,7 @@ def build_dashboard_router(
         status: str | None = None,
         from_date: date | None = None,
         to_date: date | None = None,
+        tz_offset: int = Query(default=0, ge=-1440, le=1440),
     ) -> Response:
         """Render dashboard list page with filters and paginated case rows."""
 
@@ -78,6 +79,7 @@ def build_dashboard_router(
                     status=status_filter,
                     from_date=from_date,
                     to_date=to_date,
+                    tz_offset_minutes=tz_offset,
                 )
             )
         except InvalidMonitoringPeriodError as exc:
@@ -92,6 +94,7 @@ def build_dashboard_router(
             "from_date": from_date.isoformat() if from_date is not None else "",
             "to_date": to_date.isoformat() if to_date is not None else "",
             "page_size": result.page_size,
+            "tz_offset": tz_offset,
         }
         context = {
             **build_shell_context(
@@ -114,6 +117,7 @@ def build_dashboard_router(
                         status=status_filter,
                         from_date=from_date,
                         to_date=to_date,
+                        tz_offset=tz_offset,
                     )
                     if prev_page is not None
                     else None
@@ -125,6 +129,7 @@ def build_dashboard_router(
                         status=status_filter,
                         from_date=from_date,
                         to_date=to_date,
+                        tz_offset=tz_offset,
                     )
                     if next_page is not None
                     else None
@@ -469,6 +474,7 @@ def _build_cases_url(
     status: CaseStatus | None,
     from_date: date | None,
     to_date: date | None,
+    tz_offset: int = 0,
 ) -> str:
     """Build dashboard list URL preserving active filters and pagination size."""
 
@@ -476,6 +482,7 @@ def _build_cases_url(
     params: dict[str, str | int] = {
         "page": page,
         "page_size": page_size,
+        "tz_offset": tz_offset,
     }
     if status is not None:
         params["status"] = status.value

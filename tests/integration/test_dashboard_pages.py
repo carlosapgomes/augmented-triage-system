@@ -1085,3 +1085,159 @@ async def test_dashboard_case_detail_shows_patient_name_and_record_number(
     # Verifica que o nome do paciente aparece no cabecalho (nao apenas o UUID)
     assert "Detalhe do Caso" in response.text
 
+
+@pytest.mark.asyncio
+async def test_dashboard_case_list_respects_client_timezone_offset(tmp_path: Path) -> None:
+    """Verifica que a busca por data considera o timezone do cliente.
+
+    Cenário:
+    - Cliente no Brasil (UTC-3, offset = -180 minutos)
+    - Caso criado às 21:30 do dia 22/02/2026 no horário local do Brasil
+    - Isso equivale a 00:30 UTC do dia 23/02/2026
+    - Cliente busca pela data local 22/02/2026 com tz_offset=-180
+    - Backend ajusta a busca: 2026-02-22 03:00:00 UTC até 2026-02-23 03:00:00 UTC
+    - O caso (armazenado como 00:30 UTC do dia 23) deve ser encontrado
+    """
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_tz_offset.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-tz-offset-token"
+    case_id = uuid4()
+
+    # Caso criado às 21:30 no Brasil (UTC-3) = 00:30 UTC do dia seguinte
+    # Dia local: 2026-02-22, mas em UTC já é 2026-02-23
+    case_created_at_utc = datetime(2026, 2, 23, 0, 30, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=case_created_at_utc,
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id="$evt-tz-test",
+            captured_at=case_created_at_utc,
+        )
+
+    # Busca pela data LOCAL (22/02/2026) com offset do Brasil (-180 minutos)
+    # Sem o ajuste, o caso não seria encontrado pois está armazenado como 23/02/2026 em UTC
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases?from_date=2026-02-22&to_date=2026-02-22&tz_offset=-180",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert str(case_id) in response.text, (
+        "Caso criado às 21:30 no Brasil (00:30 UTC) deveria ser encontrado "
+        "ao buscar pela data local 2026-02-22 com tz_offset=-180"
+    )
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_list_without_tz_offset_uses_utc(tmp_path: Path) -> None:
+    """Verifica que sem tz_offset, a busca usa UTC puro (comportamento anterior).
+
+    Cenário:
+    - Caso criado às 00:30 UTC do dia 23/02/2026
+    - Busca pela data 23/02/2026 SEM tz_offset (default = 0)
+    - O caso deve ser encontrado
+    """
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_tz_default.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-tz-default-token"
+    case_id = uuid4()
+
+    case_created_at_utc = datetime(2026, 2, 23, 0, 30, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=case_created_at_utc,
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id="$evt-tz-default",
+            captured_at=case_created_at_utc,
+        )
+
+    # Busca pela data UTC sem offset
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases?from_date=2026-02-23&to_date=2026-02-23",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert str(case_id) in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_list_tz_offset_preserved_in_pagination(tmp_path: Path) -> None:
+    """Verifica que o tz_offset é preservado nas URLs de paginação."""
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_tz_pagination.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-tz-pagination-token"
+
+    # Criar múltiplos casos para ter paginação
+    base_time = datetime(2026, 2, 22, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        for i in range(3):
+            case_id = uuid4()
+            _insert_case(
+                connection,
+                case_id=case_id,
+                status="WAIT_DOCTOR",
+                updated_at=base_time + timedelta(minutes=i),
+            )
+            _insert_matrix_transcript(
+                connection,
+                case_id=case_id,
+                event_id=f"$evt-tz-page-{i}",
+                captured_at=base_time + timedelta(minutes=i),
+            )
+
+    # Busca com tz_offset e page_size=1 para forçar paginação
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases?from_date=2026-02-22&to_date=2026-02-22&tz_offset=-180&page_size=1",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    # Verifica que o tz_offset está presente na URL de próxima página
+    assert "tz_offset=-180" in response.text
+
