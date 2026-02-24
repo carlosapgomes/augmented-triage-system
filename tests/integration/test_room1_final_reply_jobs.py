@@ -210,7 +210,8 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "paciente: PACIENTE TRIAGEM\n"
             "idade: 51\n"
             "exame solicitado: EDA\n"
-            "motivo: critério clínico"
+            "motivo: critério clínico\n\n"
+            "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
     assert matrix_poster.calls[1] == (
@@ -225,7 +226,8 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "exame solicitado: EDA\n"
             "agendamento: 16-02-2026 14:30 BRT\n"
             "local: Sala 2\n"
-            "instrucoes: Jejum 8h\n"
+            "instrucoes: Jejum 8h\n\n"
+            "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
     assert matrix_poster.calls[2] == (
@@ -238,7 +240,8 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "paciente: PACIENTE SEM AGENDA\n"
             "idade: 44\n"
             "exame solicitado: EDA\n"
-            "motivo: sem agenda"
+            "motivo: sem agenda\n\n"
+            "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
     assert matrix_poster.calls[3] == (
@@ -252,7 +255,8 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "idade: 73\n"
             "exame solicitado: EDA\n"
             "causa: llm\n"
-            "detalhes: schema mismatch"
+            "detalhes: schema mismatch\n\n"
+            "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
 

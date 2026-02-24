@@ -468,7 +468,7 @@ def build_room2_decision_ack_message(
         f"decisao: {decision_label}\n"
         f"suporte: {support_label}\n"
         f"motivo: {reason_value}\n"
-        "Reaja com +1 para confirmar ciencia do encerramento."
+        "Reaja com +1 para confirmar ciência do encerramento."
     )
 
 
@@ -649,7 +649,8 @@ def build_room1_final_accepted_message(
         f"{context_block}\n"
         f"agendamento: {appointment_at.strftime('%d-%m-%Y %H:%M')} BRT\n"
         f"local: {location}\n"
-        f"instrucoes: {instructions}\n"
+        f"instrucoes: {instructions}\n\n"
+        "Reaja com +1 para confirmar ciência do encerramento."
     )
 
 
@@ -674,7 +675,8 @@ def build_room1_final_denied_triage_message(
     return (
         "❌ negado (triagem)\n"
         f"{context_block}\n"
-        f"motivo: {reason}"
+        f"motivo: {reason}\n\n"
+        "Reaja com +1 para confirmar ciência do encerramento."
     )
 
 
@@ -699,7 +701,8 @@ def build_room1_final_denied_appointment_message(
     return (
         "❌ negado (agendamento)\n"
         f"{context_block}\n"
-        f"motivo: {reason}"
+        f"motivo: {reason}\n\n"
+        "Reaja com +1 para confirmar ciência do encerramento."
     )
 
 
@@ -726,7 +729,8 @@ def build_room1_final_failure_message(
         "⚠️ falha no processamento\n"
         f"{context_block}\n"
         f"causa: {cause}\n"
-        f"detalhes: {details}"
+        f"detalhes: {details}\n\n"
+        "Reaja com +1 para confirmar ciência do encerramento."
     )
 
 
