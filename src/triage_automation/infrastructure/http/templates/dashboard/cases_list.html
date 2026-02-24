@@ -5,6 +5,7 @@
     <div class="card-body">
       <h2 class="h5 mb-3">Casos</h2>
       <form
+        id="cases-filter-form"
         class="row g-2 align-items-end"
         method="get"
         action="/dashboard/cases"
@@ -44,6 +45,7 @@
         </div>
         <input type="hidden" name="page" value="1">
         <input type="hidden" name="page_size" value="{{ filters.page_size }}">
+        <input type="hidden" id="tz_offset" name="tz_offset" value="{{ filters.tz_offset | default('0') }}">
         <div class="col-12 col-md-3">
           <button class="btn btn-primary btn-sm w-100" type="submit">Aplicar filtros</button>
         </div>
@@ -51,4 +53,82 @@
     </div>
   </section>
   {% include "dashboard/partials/cases_list_fragment.html" %}
+
+  <script>
+    (function () {
+      var form = document.getElementById('cases-filter-form');
+      var fromDateInput = document.getElementById('from_date');
+      var toDateInput = document.getElementById('to_date');
+      var tzOffsetInput = document.getElementById('tz_offset');
+
+      function getTodayDate() {
+        var today = new Date();
+        var year = today.getFullYear();
+        var month = String(today.getMonth() + 1).padStart(2, '0');
+        var day = String(today.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+      }
+
+      function getBrowserTzOffset() {
+        // getTimezoneOffset returns the difference in minutes between UTC and local time.
+        // For UTC-3, it returns 180. We want to send -180 to indicate "3 hours behind UTC".
+        return -new Date().getTimezoneOffset();
+      }
+
+      function setDefaultDates() {
+        var today = getTodayDate();
+        if (fromDateInput && !fromDateInput.value) {
+          fromDateInput.value = today;
+        }
+        if (toDateInput && !toDateInput.value) {
+          toDateInput.value = today;
+        }
+      }
+
+      function setTzOffset() {
+        // Always update the tz_offset to the browser's current offset
+        if (tzOffsetInput) {
+          tzOffsetInput.value = getBrowserTzOffset();
+        }
+      }
+
+      function validateDates(event) {
+        if (!fromDateInput.value || !toDateInput.value) {
+          event.preventDefault();
+          event.stopPropagation();
+          alert('Por favor, preencha os campos de data (De e Ate) antes de filtrar.');
+          return false;
+        }
+        return true;
+      }
+
+      // Set default dates and timezone offset on initial page load
+      setDefaultDates();
+      setTzOffset();
+
+      // Validate on form submit
+      form.addEventListener('submit', validateDates);
+
+      // Also validate on Unpoly submissions
+      up.on('up:form:submit', function (event) {
+        if (event.target.id === 'cases-filter-form') {
+          if (!validateDates(event)) {
+            event.preventDefault();
+          }
+        }
+      });
+
+      // Re-set default dates and tz_offset after Unpoly fragment updates
+      up.on('up:fragment:inserted', function (event) {
+        if (event.target.querySelector && event.target.querySelector('#cases-filter-form')) {
+          fromDateInput = document.getElementById('from_date');
+          toDateInput = document.getElementById('to_date');
+          tzOffsetInput = document.getElementById('tz_offset');
+          form = document.getElementById('cases-filter-form');
+          setDefaultDates();
+          setTzOffset();
+        }
+      });
+    })();
+  </script>
 {% endblock %}
