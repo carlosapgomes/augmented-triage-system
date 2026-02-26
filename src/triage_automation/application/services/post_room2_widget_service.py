@@ -255,12 +255,16 @@ class PostRoom2WidgetService:
 
         summary_body = build_room2_case_summary_message(
             case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
             structured_data=structured_data_json,
             summary_text=summary_text,
             suggested_action=suggested_action_json,
         )
         summary_formatted_body = build_room2_case_summary_formatted_html(
             case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
             structured_data=structured_data_json,
             summary_text=summary_text,
             suggested_action=suggested_action_json,
@@ -312,10 +316,14 @@ class PostRoom2WidgetService:
         )
 
         instructions_body = build_room2_case_decision_instructions_message(
-            case_id=case.case_id
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
         )
         instructions_formatted_body = build_room2_case_decision_instructions_formatted_html(
-            case_id=case.case_id
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
         )
         instructions_event_id = await self._matrix_poster.reply_text(
             room_id=self._room2_id,

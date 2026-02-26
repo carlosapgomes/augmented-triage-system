@@ -116,20 +116,52 @@ def _normalize_human_identification_value(value: str | None) -> str:
     return normalized
 
 
+def _build_human_identification_html(
+    *,
+    agency_record_number: str | None,
+    patient_name: str | None,
+) -> str:
+    record_value = _normalize_human_identification_value(agency_record_number)
+    patient_value = _normalize_human_identification_value(patient_name)
+    return (
+        f"<p>no. ocorrência: {escape(record_value)}</p>"
+        f"<p>paciente: {escape(patient_value)}</p>"
+    )
+
+
+def _build_human_identification_html_multiline(
+    *,
+    agency_record_number: str | None,
+    patient_name: str | None,
+) -> str:
+    record_value = _normalize_human_identification_value(agency_record_number)
+    patient_value = _normalize_human_identification_value(patient_name)
+    return (
+        "<p>"
+        f"no. ocorrência: {escape(record_value)}<br>"
+        f"paciente: {escape(patient_value)}"
+        "</p>"
+    )
+
+
 def build_room2_widget_message(
     *,
     case_id: UUID,
     agency_record_number: str,
+    patient_name: str | None = None,
     widget_launch_url: str,
     payload: dict[str, object],
 ) -> str:
     """Build Room-2 widget post body with embedded JSON payload."""
 
     payload_json = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "Solicitação de triagem\n"
-        f"caso: {case_id}\n"
-        f"registro: {agency_record_number}\n\n"
+        f"{identification_block}\n\n"
         f"Abra o widget de decisão: {widget_launch_url}\n\n"
         "Payload do widget:\n"
         f"```json\n{payload_json}\n```"
@@ -140,15 +172,19 @@ def build_room2_case_pdf_message(
     *,
     case_id: UUID,
     agency_record_number: str,
+    patient_name: str | None = None,
     extracted_text: str,
 ) -> str:
     """Build Room-2 message I body with concise context plus PDF attachment guidance."""
     _ = extracted_text
 
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "# Solicitação de triagem - contexto original\n\n"
-        f"caso: {case_id}\n"
-        f"registro: {agency_record_number}\n\n"
+        f"{identification_block}\n\n"
         "O PDF original do relatório foi anexado como resposta a esta mensagem."
     )
 
@@ -157,15 +193,19 @@ def build_room2_case_pdf_formatted_html(
     *,
     case_id: UUID,
     agency_record_number: str,
+    patient_name: str | None = None,
     extracted_text: str,
 ) -> str:
     """Build Room-2 message I HTML payload with concise PDF attachment guidance."""
     _ = extracted_text
 
+    identification_html = _build_human_identification_html(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "<h1>Solicitação de triagem - contexto original</h1>"
-        f"<p>caso: {escape(str(case_id))}</p>"
-        f"<p>registro: {escape(agency_record_number)}</p>"
+        f"{identification_html}"
         "<p>O PDF original do relatório foi anexado como resposta a esta mensagem.</p>"
     )
 
@@ -179,6 +219,8 @@ def build_room2_case_pdf_attachment_filename(*, case_id: UUID) -> str:
 def build_room2_case_summary_message(
     *,
     case_id: UUID,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
     structured_data: dict[str, object],
     summary_text: str,
     suggested_action: dict[str, object],
@@ -195,9 +237,13 @@ def build_room2_case_summary_message(
     suggestion_lines = _format_compact_markdown_lines(compact_suggestion)
     structured_block = "\n".join(structured_lines)
     suggestion_block = "\n".join(suggestion_lines)
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "# Resumo técnico da triagem\n\n"
-        f"caso: {case_id}\n\n"
+        f"{identification_block}\n\n"
         "## Resumo clínico:\n\n"
         f"{summary_text}\n\n"
         "## Dados extraídos:\n\n"
@@ -210,6 +256,8 @@ def build_room2_case_summary_message(
 def build_room2_case_summary_formatted_html(
     *,
     case_id: UUID,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
     structured_data: dict[str, object],
     summary_text: str,
     suggested_action: dict[str, object],
@@ -228,9 +276,13 @@ def build_room2_case_summary_formatted_html(
     summary_html = _format_paragraphs_html(summary_text)
     structured_html = _format_markdown_lines_html(structured_lines)
     suggestion_html = _format_markdown_lines_html(suggestion_lines)
+    identification_html = _build_human_identification_html(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "<h1>Resumo técnico da triagem</h1>"
-        f"<p>caso: {escape(str(case_id))}</p>"
+        f"{identification_html}"
         "<h2>Resumo clínico:</h2>"
         f"{summary_html}"
         "<h2>Dados extraídos:</h2>"
@@ -430,11 +482,21 @@ def _prune_redundant_summary_fields(
     return structured_clean, suggestion_clean
 
 
-def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
+def build_room2_case_decision_instructions_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
+) -> str:
     """Build Room-2 guidance message that points doctors to the copy template."""
 
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "# Instrução de decisão médica\n\n"
+        f"{identification_block}\n\n"
         "1. Copie a PRÓXIMA mensagem (modelo puro).\n"
         "2. Responda como resposta a ela, preenchendo os campos.\n"
         "3. Mantenha exatamente uma linha por campo.\n\n"
@@ -443,15 +505,25 @@ def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
         "- decisão=negar exige suporte=nenhum\n"
         "- valores válidos: decisão=aceitar|negar; suporte=nenhum|anestesista|anestesista_uti\n"
         "- Não adicione linhas fora do modelo\n"
-        f"- caso esperado: {case_id}"
+        "- Use a mensagem de modelo para preencher o campo de caso"
     )
 
 
-def build_room2_case_decision_instructions_formatted_html(*, case_id: UUID) -> str:
+def build_room2_case_decision_instructions_formatted_html(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
+) -> str:
     """Build Room-2 guidance HTML payload that points doctors to template message."""
 
+    identification_html = _build_human_identification_html_multiline(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "<h1>Instrução de decisão médica</h1>"
+        f"{identification_html}"
         "<ol>"
         "<li>Copie a <strong>PRÓXIMA mensagem</strong> (modelo puro).</li>"
         "<li>Responda como resposta a ela, preenchendo os campos.</li>"
@@ -464,7 +536,7 @@ def build_room2_case_decision_instructions_formatted_html(*, case_id: UUID) -> s
         "<li>valores válidos: decisão=aceitar|negar; "
         "suporte=nenhum|anestesista|anestesista_uti</li>"
         "<li>Não adicione linhas fora do modelo</li>"
-        f"<li>caso esperado: {escape(str(case_id))}</li>"
+        "<li>Use a mensagem de modelo para preencher o campo de caso</li>"
         "</ul>"
     )
 
@@ -494,10 +566,19 @@ def build_room2_case_decision_template_formatted_html(*, case_id: UUID) -> str:
     )
 
 
-def build_room2_ack_message(*, case_id: UUID) -> str:
+def build_room2_ack_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
+) -> str:
     """Build Room-2 ack body used as audit-only reaction target."""
 
-    return f"Triagem registrada para o caso: {case_id}\nReaja com +1 para confirmar."
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
+    return f"Triagem registrada\n{identification_block}\nReaja com +1 para confirmar."
 
 
 def build_room2_decision_ack_message(
@@ -506,15 +587,21 @@ def build_room2_decision_ack_message(
     decision: str,
     support_flag: str,
     reason: str | None,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
 ) -> str:
     """Build Room-2 post-decision acknowledgment body for doctor reaction."""
 
     reason_value = reason or ""
     decision_label = _format_decision_value(decision)
     support_label = _format_support_value(support_flag)
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
     return (
         "resultado: sucesso\n"
-        f"caso: {case_id}\n"
+        f"{identification_block}\n"
         f"decisao: {decision_label}\n"
         f"suporte: {support_label}\n"
         f"motivo: {reason_value}\n"

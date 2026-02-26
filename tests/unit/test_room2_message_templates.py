@@ -23,11 +23,13 @@ def test_build_room2_case_pdf_message_includes_compact_context_and_attachment_hi
     body = build_room2_case_pdf_message(
         case_id=case_id,
         agency_record_number="12345",
+        patient_name="MARIA",
         extracted_text="Paciente com dispepsia crônica.",
     )
 
-    assert f"caso: {case_id}" in body
-    assert "12345" in body
+    assert "no. ocorrência: 12345" in body
+    assert "paciente: MARIA" in body
+    assert f"caso: {case_id}" not in body
     assert "PDF original do relatório" in body
 
 
@@ -37,12 +39,14 @@ def test_build_room2_case_pdf_formatted_html_includes_preview_context() -> None:
     body = build_room2_case_pdf_formatted_html(
         case_id=case_id,
         agency_record_number="12345",
+        patient_name="MARIA",
         extracted_text="Linha 1\nLinha 2",
     )
 
     assert "<h1>Solicitação de triagem - contexto original</h1>" in body
-    assert f"<p>caso: {case_id}</p>" in body
-    assert "<p>registro: 12345</p>" in body
+    assert "<p>no. ocorrência: 12345</p>" in body
+    assert "<p>paciente: MARIA</p>" in body
+    assert f"<p>caso: {case_id}</p>" not in body
     assert "PDF original do relatório" in body
 
 
@@ -59,6 +63,8 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
 
     body = build_room2_case_summary_message(
         case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
         structured_data={
             "policy_precheck": {"labs_pass": "yes", "pediatric_flag": True},
             "eda": {"asa": {"class": "II"}, "ecg": {"abnormal_flag": "unknown"}},
@@ -67,7 +73,9 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
 
-    assert f"caso: {case_id}" in body
+    assert "no. ocorrência: 12345" in body
+    assert "paciente: PACIENTE" in body
+    assert f"caso: {case_id}" not in body
     assert "Resumo LLM1" in body
     assert "# Resumo técnico da triagem" in body
     assert "## Resumo clínico:" in body
@@ -89,25 +97,34 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
 def test_build_room2_case_decision_instructions_message_has_strict_template() -> None:
     case_id = UUID("33333333-3333-3333-3333-333333333333")
 
-    body = build_room2_case_decision_instructions_message(case_id=case_id)
+    body = build_room2_case_decision_instructions_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+    )
 
     assert "copie a próxima mensagem" in body.lower()
     assert "responda como resposta a ela" in body.lower()
     assert "decisão:aceitar" in body
     assert "valores válidos" in body.lower()
-    assert "caso esperado" in body
-    assert f"caso esperado: {case_id}" in body
+    assert "no. ocorrência: 12345" in body
+    assert "paciente: PACIENTE" in body
+    assert "caso esperado" not in body
 
 
 def test_build_room2_case_decision_instructions_formatted_html_has_guidance() -> None:
     case_id = UUID("33333333-3333-3333-3333-333333333333")
 
-    body = build_room2_case_decision_instructions_formatted_html(case_id=case_id)
+    body = build_room2_case_decision_instructions_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+    )
 
     assert "<h1>Instrução de decisão médica</h1>" in body
     assert "<ol>" in body
     assert "Copie a <strong>PRÓXIMA mensagem</strong>" in body
-    assert f"caso esperado: {case_id}" in body
+    assert "<p>no. ocorrência: 12345<br>paciente: PACIENTE</p>" in body
     assert "decisão:aceitar" in body
 
 
@@ -141,6 +158,8 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
 
     body = build_room2_case_summary_formatted_html(
         case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
         structured_data={
             "policy_precheck": {"labs_pass": "yes", "pediatric_flag": True},
             "eda": {"ecg": {"abnormal_flag": "unknown"}},
@@ -150,7 +169,9 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     )
 
     assert "<h1>Resumo técnico da triagem</h1>" in body
-    assert f"<p>caso: {case_id}</p>" in body
+    assert "<p>no. ocorrência: 12345</p>" in body
+    assert "<p>paciente: PACIENTE</p>" in body
+    assert f"<p>caso: {case_id}</p>" not in body
     assert "<h2>Resumo clínico:</h2>" in body
     assert "<p>Resumo LLM1</p>" in body
     assert "<h2>Dados extraídos:</h2>" in body
@@ -166,6 +187,8 @@ def test_build_room2_case_summary_message_removes_redundant_metadata() -> None:
 
     body = build_room2_case_summary_message(
         case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
         structured_data={
             "language": "pt-BR",
             "schema_version": "1.1",
@@ -184,7 +207,9 @@ def test_build_room2_case_summary_message_removes_redundant_metadata() -> None:
 
     assert body.count("idioma:") == 0
     assert body.count("versao_schema:") == 0
-    assert body.count("caso:") == 1
+    assert body.count("caso:") == 0
+    assert body.count("no. ocorrência: 12345") == 1
+    assert body.count("paciente: JOSE") == 1
     assert body.count("numero_registro: 12345") == 1
 
 
@@ -199,7 +224,9 @@ def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> 
     )
 
     assert "resultado: sucesso" in body
-    assert f"caso: {case_id}" in body
+    assert "no. ocorrência: não detectado" in body
+    assert "paciente: não detectado" in body
+    assert f"caso: {case_id}" not in body
     assert "decisao: aceitar" in body
     assert "suporte: nenhum" in body
     assert "motivo: criterios atendidos" in body
