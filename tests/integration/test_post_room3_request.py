@@ -94,16 +94,18 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
 
     request_room_id, request_body = matrix_poster.calls[0]
     assert request_room_id == "!room3:example.org"
-    assert str(case.case_id) in request_body
-    assert "registro: 4777300" in request_body
+    assert "no. ocorrência: 4777300" in request_body
     assert "paciente: EVALDO CARDOSO DOS SANTOS" in request_body
     assert "idade: 42" in request_body
     assert "exame solicitado: EDA" in request_body
-    assert "caso esperado" in request_body.lower()
+    assert str(case.case_id) not in request_body
+    assert "caso esperado" not in request_body.lower()
     assert "copie a proxima mensagem" in request_body.lower()
 
     template_room_id, template_body = matrix_poster.calls[1]
     assert template_room_id == "!room3:example.org"
+    assert "no. ocorrência: 4777300" in template_body
+    assert "paciente: EVALDO CARDOSO DOS SANTOS" in template_body
     assert "status: confirmado" in template_body
     assert "data_hora: DD-MM-YYYY HH:MM BRT" in template_body
     assert f"caso: {case.case_id}" in template_body

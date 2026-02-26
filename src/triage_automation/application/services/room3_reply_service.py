@@ -179,7 +179,12 @@ class Room3ReplyService:
                 )
             )
 
-            reprompt = build_room3_invalid_format_reprompt(case_id=case_id)
+            patient_name, _ = extract_patient_name_age(snapshot.structured_data_json)
+            reprompt = build_room3_invalid_format_reprompt(
+                case_id=case_id,
+                agency_record_number=snapshot.agency_record_number,
+                patient_name=patient_name,
+            )
             reprompt_event_id = await self._matrix_poster.reply_text(
                 room_id=event.room_id,
                 event_id=event.event_id,
