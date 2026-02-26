@@ -498,7 +498,10 @@ async def test_runtime_listener_routes_valid_room3_reply_to_service(tmp_path: Pa
     assert routed_count == 1
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-listener-valid"
-    assert "Reaja com +1 para confirmar." in matrix_poster.reply_calls[0][2]
+    ack_body = matrix_poster.reply_calls[0][2]
+    assert "Reaja com +1 para confirmar." in ack_body
+    assert "no. ocorrência: não detectado" in ack_body
+    assert "paciente: não detectado" in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -566,6 +569,10 @@ async def test_runtime_listener_invalid_template_reprompts_and_keeps_wait_appt(
     assert routed_count == 1
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-listener-invalid"
+    reprompt_body = matrix_poster.reply_calls[0][2]
+    assert "no. ocorrência: não detectado" in reprompt_body
+    assert "paciente: não detectado" in reprompt_body
+    assert f"caso: {case_id}" in reprompt_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
