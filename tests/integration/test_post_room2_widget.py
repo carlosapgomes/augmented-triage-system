@@ -267,7 +267,9 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     ) = matrix_poster.reply_calls[0]
     assert summary_room_id == "!room2:example.org"
     assert summary_parent == root_event_id
-    assert f"caso: {current_case.case_id}" in summary_body
+    assert "no. ocorrência: 12345" in summary_body
+    assert "paciente: Paciente" in summary_body
+    assert f"caso: {current_case.case_id}" not in summary_body
     assert "Resumo LLM1" in summary_body
     assert "# Resumo técnico da triagem" in summary_body
     assert "## Dados extraídos:" in summary_body
@@ -299,6 +301,9 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "copie a próxima mensagem" in instructions_body.lower()
     assert "responda como resposta a ela" in instructions_body.lower()
     assert "decisão:aceitar" in instructions_body
+    assert "no. ocorrência: 12345" in instructions_body
+    assert "paciente: Paciente" in instructions_body
+    assert "caso esperado" not in instructions_body
     assert instructions_formatted_body is not None
     assert "<h1>Instrução de decisão médica</h1>" in instructions_formatted_body
     assert "<ol>" in instructions_formatted_body

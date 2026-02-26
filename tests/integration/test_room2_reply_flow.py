@@ -245,7 +245,9 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     assert sync_client.reply_calls[0][1] == "$doctor-room2-reply-1"
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
-    assert f"caso: {case_id}" in ack_body
+    assert "no. ocorrência: não detectado" in ack_body
+    assert "paciente: não detectado" in ack_body
+    assert f"caso: {case_id}" not in ack_body
     assert "decisao: aceitar" in ack_body
     assert "suporte: nenhum" in ack_body
 
@@ -386,7 +388,9 @@ async def test_runtime_listener_accepts_all_supported_room2_support_flags(
     assert len(sync_client.reply_calls) == 1
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
-    assert f"caso: {case_id}" in ack_body
+    assert "no. ocorrência: não detectado" in ack_body
+    assert "paciente: não detectado" in ack_body
+    assert f"caso: {case_id}" not in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -483,7 +487,9 @@ async def test_runtime_listener_routes_room2_decision_reply_to_instructions_mess
     assert len(sync_client.reply_calls) == 1
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
-    assert f"caso: {case_id}" in ack_body
+    assert "no. ocorrência: não detectado" in ack_body
+    assert "paciente: não detectado" in ack_body
+    assert f"caso: {case_id}" not in ack_body
     assert "decisao: aceitar" in ack_body
     assert "suporte: nenhum" in ack_body
 
@@ -582,7 +588,9 @@ async def test_runtime_listener_routes_room2_decision_reply_to_template_message(
     assert len(sync_client.reply_calls) == 1
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
-    assert f"caso: {case_id}" in ack_body
+    assert "no. ocorrência: não detectado" in ack_body
+    assert "paciente: não detectado" in ack_body
+    assert f"caso: {case_id}" not in ack_body
     assert "decisao: aceitar" in ack_body
     assert "suporte: nenhum" in ack_body
 
