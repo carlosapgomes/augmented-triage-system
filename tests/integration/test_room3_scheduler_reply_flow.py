@@ -254,6 +254,10 @@ async def test_invalid_format_reprompts_and_keeps_wait_appt(tmp_path: Path) -> N
     assert result.reason == "invalid_template"
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-3"
+    reprompt_body = matrix_poster.reply_calls[0][2]
+    assert "no. ocorrência: não detectado" in reprompt_body
+    assert "paciente: não detectado" in reprompt_body
+    assert f"caso: {case_id}" in reprompt_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -304,7 +308,10 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
     assert result.processed is True
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-4"
-    assert "Reaja com +1 para confirmar." in matrix_poster.reply_calls[0][2]
+    ack_body = matrix_poster.reply_calls[0][2]
+    assert "Reaja com +1 para confirmar." in ack_body
+    assert "no. ocorrência: não detectado" in ack_body
+    assert "paciente: não detectado" in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -415,7 +422,10 @@ async def test_status_template_reply_to_room3_template_message_is_accepted(tmp_p
     assert result.processed is True
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-status-template-1"
-    assert "Reaja com +1 para confirmar." in matrix_poster.reply_calls[0][2]
+    ack_body = matrix_poster.reply_calls[0][2]
+    assert "Reaja com +1 para confirmar." in ack_body
+    assert "no. ocorrência: não detectado" in ack_body
+    assert "paciente: não detectado" in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:

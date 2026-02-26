@@ -180,7 +180,11 @@ class PostRoom3RequestService:
             )
         )
 
-        template_body = build_room3_reply_template_message(case_id=case_id)
+        template_body = build_room3_reply_template_message(
+            case_id=case_id,
+            agency_record_number=snapshot.agency_record_number,
+            patient_name=patient_name,
+        )
         template_event_id = await self._matrix_poster.send_text(
             room_id=self._room3_id,
             body=template_body,
