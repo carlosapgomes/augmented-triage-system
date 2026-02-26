@@ -16,5 +16,5 @@
 ## 3. Testes e validação
 
 - [x] 3.1 Atualizar testes unitários de `message_templates` para cobrir bloco humano, fallback `não detectado`, preservação de UUID em templates estruturais e remoção de UUID como identificador principal em mensagens informativas.
-- [ ] 3.2 Atualizar testes de integração dos fluxos Room-1/2/3 para refletir novo conteúdo textual e novo padrão de filename do PDF da Room-2.
+- [x] 3.2 Atualizar testes de integração dos fluxos Room-1/2/3 para refletir novo conteúdo textual e novo padrão de filename do PDF da Room-2.
 - [ ] 3.3 Executar verificações obrigatórias do slice (`uv run pytest` alvo, `uv run ruff check` caminhos alterados, `uv run mypy` caminhos alterados, `markdownlint-cli2` nos artefatos OpenSpec alterados) e registrar qualquer limitação.
