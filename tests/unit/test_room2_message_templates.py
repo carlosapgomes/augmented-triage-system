@@ -81,7 +81,7 @@ def test_build_room2_case_pdf_attachment_filename_uses_fallback_when_record_miss
     )
 
 
-def test_build_room2_case_summary_message_includes_structured_payloads() -> None:
+def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     case_id = UUID("22222222-2222-2222-2222-222222222222")
 
     body = build_room2_case_summary_message(
@@ -104,11 +104,13 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
     assert "## Resumo clínico:" in body
     assert "## Dados extraídos:" in body
     assert "## Recomendação do sistema:" in body
-    assert "- prechecagem_politica: laboratorio_aprovado=sim;" in body
-    assert "é pediátrico?=sim" in body
-    assert "- eda: asa.classe=II; ecg.sinal de alerta=desconhecido" in body
+    assert "Consulte o relatório original para dados estruturados completos." in body
+    assert "Resumo detalhado disponível no histórico técnico do caso." in body
     assert "flag_pediatrico" not in body
     assert "abnormal_flag" not in body
+    assert "prechecagem_politica:" not in body
+    assert "asa.classe=" not in body
+    assert "ecg.sinal de alerta=" not in body
     assert "sugestao" in body.lower()
     assert "aceitar" in body
     assert "accept" not in body
@@ -198,9 +200,10 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     assert "<h2>Resumo clínico:</h2>" in body
     assert "<p>Resumo LLM1</p>" in body
     assert "<h2>Dados extraídos:</h2>" in body
-    assert "<li>prechecagem_politica: laboratorio_aprovado=sim;" in body
-    assert "é pediátrico?=sim" in body
-    assert "<li>eda: ecg.sinal de alerta=desconhecido</li>" in body
+    assert "<li>Consulte o relatório original para dados estruturados completos.</li>" in body
+    assert "<li>Resumo detalhado disponível no histórico técnico do caso.</li>" in body
+    assert "prechecagem_politica:" not in body
+    assert "ecg.sinal de alerta=" not in body
     assert "<h2>Recomendação do sistema:</h2>" in body
     assert "<li>sugestao: aceitar</li>" in body
 
@@ -228,12 +231,12 @@ def test_build_room2_case_summary_message_removes_redundant_metadata() -> None:
         },
     )
 
-    assert body.count("idioma:") == 0
-    assert body.count("versao_schema:") == 0
-    assert body.count("caso:") == 0
+    assert "idioma:" not in body
+    assert "versao_schema:" not in body
+    assert "caso:" not in body
     assert body.count("no. ocorrência: 12345") == 1
     assert body.count("paciente: JOSE") == 1
-    assert body.count("numero_registro: 12345") == 1
+    assert "numero_registro: 12345" not in body
 
 
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
