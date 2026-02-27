@@ -102,8 +102,23 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "Resumo LLM1" in body
     assert "# Resumo técnico da triagem" in body
     assert "## Resumo clínico:" in body
-    assert "## Dados extraídos:" in body
-    assert "## Recomendação do sistema:" in body
+    assert "## Achados críticos:" in body
+    assert "## Pendências críticas:" in body
+    assert "## Decisão sugerida:" in body
+    assert "## Suporte recomendado:" in body
+    assert "## Motivo objetivo:" in body
+    assert "## Conduta sugerida:" in body
+    section_order = [
+        "## Resumo clínico:",
+        "## Achados críticos:",
+        "## Pendências críticas:",
+        "## Decisão sugerida:",
+        "## Suporte recomendado:",
+        "## Motivo objetivo:",
+        "## Conduta sugerida:",
+    ]
+    section_positions = [body.index(section) for section in section_order]
+    assert section_positions == sorted(section_positions)
     assert "Consulte o relatório original para dados estruturados completos." in body
     assert "Resumo detalhado disponível no histórico técnico do caso." in body
     assert "flag_pediatrico" not in body
@@ -111,11 +126,10 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "prechecagem_politica:" not in body
     assert "asa.classe=" not in body
     assert "ecg.sinal de alerta=" not in body
-    assert "sugestao" in body.lower()
     assert "aceitar" in body
     assert "accept" not in body
-    assert "Dados extraídos" in body
-    assert "Recomendação" in body
+    assert "Achados críticos" in body
+    assert "Conduta sugerida" in body
     assert "```json" not in body
 
 
@@ -199,13 +213,28 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     assert f"<p>caso: {case_id}</p>" not in body
     assert "<h2>Resumo clínico:</h2>" in body
     assert "<p>Resumo LLM1</p>" in body
-    assert "<h2>Dados extraídos:</h2>" in body
+    assert "<h2>Achados críticos:</h2>" in body
+    assert "<h2>Pendências críticas:</h2>" in body
+    assert "<h2>Decisão sugerida:</h2>" in body
+    assert "<h2>Suporte recomendado:</h2>" in body
+    assert "<h2>Motivo objetivo:</h2>" in body
+    assert "<h2>Conduta sugerida:</h2>" in body
+    section_order = [
+        "<h2>Resumo clínico:</h2>",
+        "<h2>Achados críticos:</h2>",
+        "<h2>Pendências críticas:</h2>",
+        "<h2>Decisão sugerida:</h2>",
+        "<h2>Suporte recomendado:</h2>",
+        "<h2>Motivo objetivo:</h2>",
+        "<h2>Conduta sugerida:</h2>",
+    ]
+    section_positions = [body.index(section) for section in section_order]
+    assert section_positions == sorted(section_positions)
     assert "<li>Consulte o relatório original para dados estruturados completos.</li>" in body
     assert "<li>Resumo detalhado disponível no histórico técnico do caso.</li>" in body
     assert "prechecagem_politica:" not in body
     assert "ecg.sinal de alerta=" not in body
-    assert "<h2>Recomendação do sistema:</h2>" in body
-    assert "<li>sugestao: aceitar</li>" in body
+    assert "<li>aceitar</li>" in body
 
 
 def test_build_room2_case_summary_message_removes_redundant_metadata() -> None:
