@@ -232,14 +232,9 @@ def build_room2_case_summary_message(
 ) -> str:
     """Build Room-2 message II body using markdown-like section headings."""
 
-    translated_structured = _translate_keys_to_portuguese(value=structured_data)
-    translated_suggestion = _translate_keys_to_portuguese(value=suggested_action)
-    compact_structured, compact_suggestion = _prune_redundant_summary_fields(
-        structured_data=translated_structured,
-        suggested_action=translated_suggestion,
-    )
-    structured_lines = _format_compact_markdown_lines(compact_structured)
-    suggestion_lines = _format_compact_markdown_lines(compact_suggestion)
+    _ = case_id, structured_data
+    structured_lines = _build_room2_structured_overview_lines()
+    suggestion_lines = _build_room2_recommendation_overview_lines(suggested_action)
     structured_block = "\n".join(structured_lines)
     suggestion_block = "\n".join(suggestion_lines)
     identification_block = build_human_identification_block(
@@ -269,14 +264,9 @@ def build_room2_case_summary_formatted_html(
 ) -> str:
     """Build Room-2 message II HTML payload for Matrix formatted_body rendering."""
 
-    translated_structured = _translate_keys_to_portuguese(value=structured_data)
-    translated_suggestion = _translate_keys_to_portuguese(value=suggested_action)
-    compact_structured, compact_suggestion = _prune_redundant_summary_fields(
-        structured_data=translated_structured,
-        suggested_action=translated_suggestion,
-    )
-    structured_lines = _format_compact_markdown_lines(compact_structured)
-    suggestion_lines = _format_compact_markdown_lines(compact_suggestion)
+    _ = case_id, structured_data
+    structured_lines = _build_room2_structured_overview_lines()
+    suggestion_lines = _build_room2_recommendation_overview_lines(suggested_action)
 
     summary_html = _format_paragraphs_html(summary_text)
     structured_html = _format_markdown_lines_html(structured_lines)
@@ -295,6 +285,37 @@ def build_room2_case_summary_formatted_html(
         "<h2>Recomendação do sistema:</h2>"
         f"{suggestion_html}"
     )
+
+
+def _build_room2_structured_overview_lines() -> list[str]:
+    """Return fixed compact guidance replacing full flattened structured dump."""
+
+    return [
+        "- Consulte o relatório original para dados estruturados completos.",
+        "- Resumo detalhado disponível no histórico técnico do caso.",
+    ]
+
+
+def _build_room2_recommendation_overview_lines(
+    suggested_action: dict[str, object],
+) -> list[str]:
+    """Return compact recommendation lines from reconciled LLM2 suggestion payload."""
+
+    lines: list[str] = []
+    suggestion = suggested_action.get("suggestion")
+    support_recommendation = suggested_action.get("support_recommendation")
+    confidence = suggested_action.get("confidence")
+
+    if isinstance(suggestion, str):
+        lines.append(f"- sugestao: {_format_scalar(suggestion)}")
+    if isinstance(support_recommendation, str):
+        lines.append(f"- recomendacao_suporte: {_format_scalar(support_recommendation)}")
+    if isinstance(confidence, str):
+        lines.append(f"- confianca: {_format_scalar(confidence)}")
+
+    if not lines:
+        return ["- recomendacao indisponivel"]
+    return lines
 
 
 def _translate_keys_to_portuguese(*, value: object) -> object:

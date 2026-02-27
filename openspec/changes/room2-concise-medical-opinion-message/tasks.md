@@ -2,7 +2,7 @@
 
 ## 1. Contrato de mensagem concisa do Room-2
 
-- [ ] 1.1 Atualizar os builders de resumo do Room-2 (`text` e `formatted_html`) para remover o dump achatado completo de LLM1/LLM2.
+- [x] 1.1 Atualizar os builders de resumo do Room-2 (`text` e `formatted_html`) para remover o dump achatado completo de LLM1/LLM2.
 - [ ] 1.2 Implementar layout obrigatório com sete blocos na ordem definida: resumo clínico, achados críticos, pendências críticas, decisão sugerida, suporte recomendado, motivo objetivo e conduta sugerida.
 - [ ] 1.3 Garantir que o `Resumo clínico` seja renderizado em formato curto (2 a 4 linhas) usando `summary_text` como base.
 
