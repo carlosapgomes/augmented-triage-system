@@ -10,7 +10,7 @@
 
 - [x] 2.1 Exibir `Decisão sugerida` e `Suporte recomendado` exclusivamente a partir de `suggested_action_json` reconciliado.
 - [x] 2.2 Gerar `Motivo objetivo` curto (1 a 2 linhas) coerente com decisão e suporte exibidos.
-- [ ] 2.3 Implementar seleção determinística de achados/pêndencias críticas (Hb, plaquetas, INR, ECG e flags de precheck) com fallback `não informado`.
+- [x] 2.3 Implementar seleção determinística de achados/pêndencias críticas (Hb, plaquetas, INR, ECG e flags de precheck) com fallback `não informado`.
 - [ ] 2.4 Implementar regra editorial para incluir frase padrão de prioridade emergente em casos de sangramento ativo com instabilidade hemodinâmica documentada.
 - [ ] 2.5 Limitar `Conduta sugerida` para alvo de 3 bullets acionáveis, com máximo rígido de 4.
 

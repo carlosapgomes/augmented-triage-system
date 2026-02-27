@@ -350,18 +350,64 @@ def _format_room2_clinical_summary_html(summary_text: str) -> str:
 def _build_room2_critical_findings_lines(structured_data: dict[str, object]) -> list[str]:
     """Return concise critical findings section lines."""
 
-    _ = structured_data
+    hb_value = _extract_room2_nested_value(structured_data, "eda", "labs", "hb_g_dl")
+    platelets_value = _extract_room2_nested_value(
+        structured_data,
+        "eda",
+        "labs",
+        "platelets_per_mm3",
+    )
+    inr_value = _extract_room2_nested_value(structured_data, "eda", "labs", "inr")
+    ecg_present_value = _extract_room2_nested_value(
+        structured_data,
+        "eda",
+        "ecg",
+        "report_present",
+    )
+    ecg_alert_value = _extract_room2_nested_value(
+        structured_data,
+        "eda",
+        "ecg",
+        "abnormal_flag",
+    )
     return [
-        "- Consulte o relatório original para dados estruturados completos.",
+        f"- Hb: {_format_room2_value_or_fallback(hb_value)}",
+        f"- Plaquetas: {_format_room2_value_or_fallback(platelets_value)}",
+        f"- INR: {_format_room2_value_or_fallback(inr_value)}",
+        f"- ECG presente: {_format_room2_value_or_fallback(ecg_present_value)}",
+        f"- ECG sinal de alerta: {_format_room2_value_or_fallback(ecg_alert_value)}",
     ]
 
 
 def _build_room2_critical_pending_lines(structured_data: dict[str, object]) -> list[str]:
     """Return concise critical pending section lines."""
 
-    _ = structured_data
+    precheck_labs_pass = _extract_room2_nested_value(
+        structured_data,
+        "policy_precheck",
+        "labs_pass",
+    )
+    precheck_ecg_present = _extract_room2_nested_value(
+        structured_data,
+        "policy_precheck",
+        "ecg_present",
+    )
+    labs_failed_items = _extract_room2_nested_value(
+        structured_data,
+        "policy_precheck",
+        "labs_failed_items",
+    )
+
+    failed_items_text = "não informado"
+    if isinstance(labs_failed_items, list):
+        normalized_items = [str(item).strip() for item in labs_failed_items if str(item).strip()]
+        if normalized_items:
+            failed_items_text = ", ".join(normalized_items)
+
     return [
-        "- Resumo detalhado disponível no histórico técnico do caso.",
+        f"- Pré-check laboratório: {_format_room2_value_or_fallback(precheck_labs_pass)}",
+        f"- Pré-check ECG: {_format_room2_value_or_fallback(precheck_ecg_present)}",
+        f"- Pendências de laboratório: {failed_items_text}",
     ]
 
 
@@ -448,6 +494,34 @@ def _build_room2_conduct_lines(suggested_action: dict[str, object]) -> list[str]
         "- Prosseguir conforme protocolo clínico local.",
         "- Confirmar pendências críticas antes do procedimento.",
     ]
+
+
+def _extract_room2_nested_value(payload: dict[str, object], *keys: str) -> object | None:
+    """Return nested dictionary value by key path, or None when missing."""
+
+    current: object = payload
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _format_room2_value_or_fallback(value: object | None) -> str:
+    """Return human-readable scalar value with deterministic 'não informado' fallback."""
+
+    if value is None:
+        return "não informado"
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not normalized:
+            return "não informado"
+        return _map_presentation_value(normalized)
+    if isinstance(value, bool):
+        return "sim" if value else "nao"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return str(value)
 
 
 def _translate_keys_to_portuguese(*, value: object) -> object:
