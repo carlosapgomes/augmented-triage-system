@@ -17,6 +17,13 @@ from triage_automation.infrastructure.matrix.message_templates import (
 )
 
 
+def _extract_markdown_section_lines(*, body: str, section: str, next_section: str) -> list[str]:
+    start = body.index(section) + len(section)
+    end = body.index(next_section, start)
+    chunk = body[start:end]
+    return [line.strip() for line in chunk.splitlines() if line.strip()]
+
+
 def test_build_room2_case_pdf_message_includes_compact_context_and_attachment_hint() -> None:
     case_id = UUID("11111111-1111-1111-1111-111111111111")
 
@@ -266,6 +273,51 @@ def test_build_room2_case_summary_message_removes_redundant_metadata() -> None:
     assert body.count("no. ocorrência: 12345") == 1
     assert body.count("paciente: JOSE") == 1
     assert "numero_registro: 12345" not in body
+
+
+def test_build_room2_case_summary_message_limits_clinical_summary_to_two_to_four_lines() -> None:
+    case_id = UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+    summary_text = "Linha 1\nLinha 2\nLinha 3\nLinha 4\nLinha 5"
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text=summary_text,
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Resumo clínico:\n\n",
+        next_section="\n\n## Achados críticos:",
+    )
+    assert 2 <= len(lines) <= 4
+    assert "Linha 1" in lines
+    assert "Linha 4" in lines
+    assert "Linha 5" not in lines
+
+
+def test_build_room2_case_summary_formatted_html_keeps_two_to_four_paragraphs_in_summary() -> None:
+    case_id = UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+    summary_text = "Resumo clínico curto para validação."
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text=summary_text,
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    start = body.index("<h2>Resumo clínico:</h2>") + len("<h2>Resumo clínico:</h2>")
+    end = body.index("<h2>Achados críticos:</h2>", start)
+    summary_chunk = body[start:end]
+
+    paragraph_count = summary_chunk.count("<p>")
+    assert 2 <= paragraph_count <= 4
 
 
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:

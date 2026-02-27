@@ -233,6 +233,8 @@ def build_room2_case_summary_message(
     """Build Room-2 message II body using markdown-like section headings."""
 
     _ = case_id
+    summary_lines = _build_room2_clinical_summary_lines(summary_text)
+    summary_block = "\n".join(summary_lines)
     findings_block = "\n".join(_build_room2_critical_findings_lines(structured_data))
     pending_block = "\n".join(_build_room2_critical_pending_lines(structured_data))
     decision_block = "\n".join(_build_room2_decision_lines(suggested_action))
@@ -247,7 +249,7 @@ def build_room2_case_summary_message(
         "# Resumo técnico da triagem\n\n"
         f"{identification_block}\n\n"
         "## Resumo clínico:\n\n"
-        f"{summary_text}\n\n"
+        f"{summary_block}\n\n"
         "## Achados críticos:\n\n"
         f"{findings_block}\n\n"
         "## Pendências críticas:\n\n"
@@ -275,7 +277,7 @@ def build_room2_case_summary_formatted_html(
     """Build Room-2 message II HTML payload for Matrix formatted_body rendering."""
 
     _ = case_id
-    summary_html = _format_paragraphs_html(summary_text)
+    summary_html = _format_room2_clinical_summary_html(summary_text)
     findings_html = _format_markdown_lines_html(
         _build_room2_critical_findings_lines(structured_data)
     )
@@ -308,6 +310,41 @@ def build_room2_case_summary_formatted_html(
         "<h2>Conduta sugerida:</h2>"
         f"{conduct_html}"
     )
+
+
+def _build_room2_clinical_summary_lines(summary_text: str) -> list[str]:
+    """Normalize clinical summary into a deterministic concise 2-4 line block."""
+
+    stripped_lines = [line.strip() for line in summary_text.splitlines() if line.strip()]
+    if not stripped_lines:
+        return [
+            "Resumo clínico não informado.",
+            "Consulte o relatório original para contexto clínico.",
+        ]
+
+    if len(stripped_lines) >= 2:
+        return stripped_lines[:4]
+
+    one_liner = stripped_lines[0]
+    words = one_liner.split()
+    if len(words) >= 4:
+        midpoint = len(words) // 2
+        first_half = " ".join(words[:midpoint]).strip()
+        second_half = " ".join(words[midpoint:]).strip()
+        if first_half and second_half:
+            return [first_half, second_half]
+
+    return [
+        one_liner,
+        f"Base clínica: {one_liner}",
+    ]
+
+
+def _format_room2_clinical_summary_html(summary_text: str) -> str:
+    """Render normalized clinical summary lines as HTML paragraphs."""
+
+    lines = _build_room2_clinical_summary_lines(summary_text)
+    return "".join(f"<p>{escape(line)}</p>" for line in lines)
 
 
 def _build_room2_critical_findings_lines(structured_data: dict[str, object]) -> list[str]:
