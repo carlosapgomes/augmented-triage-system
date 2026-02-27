@@ -17,9 +17,17 @@ from triage_automation.infrastructure.matrix.message_templates import (
 )
 
 
-def _extract_markdown_section_lines(*, body: str, section: str, next_section: str) -> list[str]:
+def _extract_markdown_section_lines(
+    *,
+    body: str,
+    section: str,
+    next_section: str | None,
+) -> list[str]:
     start = body.index(section) + len(section)
-    end = body.index(next_section, start)
+    if next_section is None:
+        end = len(body)
+    else:
+        end = body.index(next_section, start)
     chunk = body[start:end]
     return [line.strip() for line in chunk.splitlines() if line.strip()]
 
@@ -485,6 +493,49 @@ def test_room2_summary_critical_sections_use_nao_informado_fallback() -> None:
         "- Pré-check ECG: não informado",
         "- Pendências de laboratório: não informado",
     ]
+
+
+def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_instability() -> None:
+    case_id = UUID("56565656-5656-5656-5656-565656565656")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "eda": {"indication_category": "bleeding"},
+            "policy_precheck": {
+                "notes": "Paciente com hipotensão importante e instabilidade hemodinâmica.",
+            },
+        },
+        summary_text="Paciente com hematêmese e PA 79/53 em sala vermelha.",
+        suggested_action={"suggestion": "accept", "support_recommendation": "anesthesist_icu"},
+    )
+
+    conduct_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Conduta sugerida:\n\n",
+        next_section=None,
+    )
+    assert any("PRIORIDADE EMERGENTE" in line for line in conduct_lines)
+
+
+def test_room2_summary_does_not_include_emergent_priority_phrase_without_instability() -> None:
+    case_id = UUID("78787878-7878-7878-7878-787878787878")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={"eda": {"indication_category": "dyspepsia"}},
+        summary_text="Paciente estável em investigação eletiva.",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    conduct_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Conduta sugerida:\n\n",
+        next_section=None,
+    )
+    assert all("PRIORIDADE EMERGENTE" not in line for line in conduct_lines)
 
 
 def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
