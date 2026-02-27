@@ -102,8 +102,15 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
         agency_record_number="12345",
         patient_name="PACIENTE",
         structured_data={
-            "policy_precheck": {"labs_pass": "yes", "pediatric_flag": True},
-            "eda": {"asa": {"class": "II"}, "ecg": {"abnormal_flag": "unknown"}},
+            "policy_precheck": {
+                "labs_pass": "yes",
+                "ecg_present": "no",
+                "labs_failed_items": ["INR ausente"],
+            },
+            "eda": {
+                "labs": {"hb_g_dl": 10.2, "platelets_per_mm3": 140000, "inr": None},
+                "ecg": {"report_present": "no", "abnormal_flag": "unknown"},
+            },
         },
         summary_text="Resumo LLM1",
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
@@ -132,8 +139,14 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     ]
     section_positions = [body.index(section) for section in section_order]
     assert section_positions == sorted(section_positions)
-    assert "Consulte o relatório original para dados estruturados completos." in body
-    assert "Resumo detalhado disponível no histórico técnico do caso." in body
+    assert "- Hb: 10.2" in body
+    assert "- Plaquetas: 140000" in body
+    assert "- INR: não informado" in body
+    assert "- ECG presente: nao" in body
+    assert "- ECG sinal de alerta: desconhecido" in body
+    assert "- Pré-check laboratório: sim" in body
+    assert "- Pré-check ECG: nao" in body
+    assert "- Pendências de laboratório: INR ausente" in body
     assert "flag_pediatrico" not in body
     assert "abnormal_flag" not in body
     assert "prechecagem_politica:" not in body
@@ -213,8 +226,15 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
         agency_record_number="12345",
         patient_name="PACIENTE",
         structured_data={
-            "policy_precheck": {"labs_pass": "yes", "pediatric_flag": True},
-            "eda": {"ecg": {"abnormal_flag": "unknown"}},
+            "policy_precheck": {
+                "labs_pass": "yes",
+                "ecg_present": "no",
+                "labs_failed_items": ["INR ausente"],
+            },
+            "eda": {
+                "labs": {"hb_g_dl": 10.2, "platelets_per_mm3": 140000, "inr": None},
+                "ecg": {"report_present": "no", "abnormal_flag": "unknown"},
+            },
         },
         summary_text="Resumo LLM1",
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
@@ -243,8 +263,14 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     ]
     section_positions = [body.index(section) for section in section_order]
     assert section_positions == sorted(section_positions)
-    assert "<li>Consulte o relatório original para dados estruturados completos.</li>" in body
-    assert "<li>Resumo detalhado disponível no histórico técnico do caso.</li>" in body
+    assert "<li>Hb: 10.2</li>" in body
+    assert "<li>Plaquetas: 140000</li>" in body
+    assert "<li>INR: não informado</li>" in body
+    assert "<li>ECG presente: nao</li>" in body
+    assert "<li>ECG sinal de alerta: desconhecido</li>" in body
+    assert "<li>Pré-check laboratório: sim</li>" in body
+    assert "<li>Pré-check ECG: nao</li>" in body
+    assert "<li>Pendências de laboratório: INR ausente</li>" in body
     assert "prechecagem_politica:" not in body
     assert "ecg.sinal de alerta=" not in body
     assert "<li>aceitar</li>" in body
@@ -423,6 +449,42 @@ def test_room2_summary_objective_reason_is_short_and_coherent_markdown() -> None
     assert 1 <= len(reason_lines) <= 2
     assert "negar" in reason_text
     assert "anestesista_uti" in reason_text
+
+
+def test_room2_summary_critical_sections_use_nao_informado_fallback() -> None:
+    case_id = UUID("abababab-abab-abab-abab-abababababab")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    findings_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Achados críticos:\n\n",
+        next_section="\n\n## Pendências críticas:",
+    )
+    pending_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Pendências críticas:\n\n",
+        next_section="\n\n## Decisão sugerida:",
+    )
+
+    assert findings_lines == [
+        "- Hb: não informado",
+        "- Plaquetas: não informado",
+        "- INR: não informado",
+        "- ECG presente: não informado",
+        "- ECG sinal de alerta: não informado",
+    ]
+    assert pending_lines == [
+        "- Pré-check laboratório: não informado",
+        "- Pré-check ECG: não informado",
+        "- Pendências de laboratório: não informado",
+    ]
 
 
 def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
