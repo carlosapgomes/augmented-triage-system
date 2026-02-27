@@ -24,6 +24,12 @@ def _extract_markdown_section_lines(*, body: str, section: str, next_section: st
     return [line.strip() for line in chunk.splitlines() if line.strip()]
 
 
+def _extract_html_section_chunk(*, body: str, section: str, next_section: str) -> str:
+    start = body.index(section) + len(section)
+    end = body.index(next_section, start)
+    return body[start:end]
+
+
 def test_build_room2_case_pdf_message_includes_compact_context_and_attachment_hint() -> None:
     case_id = UUID("11111111-1111-1111-1111-111111111111")
 
@@ -318,6 +324,73 @@ def test_build_room2_case_summary_formatted_html_keeps_two_to_four_paragraphs_in
 
     paragraph_count = summary_chunk.count("<p>")
     assert 2 <= paragraph_count <= 4
+
+
+def test_room2_summary_decision_and_support_come_only_from_suggested_action_markdown() -> None:
+    case_id = UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "suggestion": "accept",
+            "support_recommendation": "none",
+            "policy_precheck": {"labs_pass": "yes"},
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "deny",
+            "support_recommendation": "anesthesist_icu",
+            "confidence": "media",
+        },
+    )
+
+    decision_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Decisão sugerida:\n\n",
+        next_section="\n\n## Suporte recomendado:",
+    )
+    support_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Suporte recomendado:\n\n",
+        next_section="\n\n## Motivo objetivo:",
+    )
+    assert decision_lines == ["- negar"]
+    assert support_lines == ["- anestesista_uti"]
+    assert "aceitar" not in "\n".join(decision_lines + support_lines)
+
+
+def test_room2_summary_decision_and_support_come_only_from_suggested_action_html() -> None:
+    case_id = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "suggestion": "accept",
+            "support_recommendation": "none",
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "deny",
+            "support_recommendation": "anesthesist",
+        },
+    )
+
+    decision_chunk = _extract_html_section_chunk(
+        body=body,
+        section="<h2>Decisão sugerida:</h2>",
+        next_section="<h2>Suporte recomendado:</h2>",
+    )
+    support_chunk = _extract_html_section_chunk(
+        body=body,
+        section="<h2>Suporte recomendado:</h2>",
+        next_section="<h2>Motivo objetivo:</h2>",
+    )
+
+    assert "<li>negar</li>" in decision_chunk
+    assert "<li>anestesista</li>" in support_chunk
+    assert "aceitar" not in decision_chunk + support_chunk
 
 
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
