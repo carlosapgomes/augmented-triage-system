@@ -232,11 +232,13 @@ def build_room2_case_summary_message(
 ) -> str:
     """Build Room-2 message II body using markdown-like section headings."""
 
-    _ = case_id, structured_data
-    structured_lines = _build_room2_structured_overview_lines()
-    suggestion_lines = _build_room2_recommendation_overview_lines(suggested_action)
-    structured_block = "\n".join(structured_lines)
-    suggestion_block = "\n".join(suggestion_lines)
+    _ = case_id
+    findings_block = "\n".join(_build_room2_critical_findings_lines(structured_data))
+    pending_block = "\n".join(_build_room2_critical_pending_lines(structured_data))
+    decision_block = "\n".join(_build_room2_decision_lines(suggested_action))
+    support_block = "\n".join(_build_room2_support_lines(suggested_action))
+    reason_block = "\n".join(_build_room2_objective_reason_lines(suggested_action))
+    conduct_block = "\n".join(_build_room2_conduct_lines(suggested_action))
     identification_block = build_human_identification_block(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
@@ -246,10 +248,18 @@ def build_room2_case_summary_message(
         f"{identification_block}\n\n"
         "## Resumo clínico:\n\n"
         f"{summary_text}\n\n"
-        "## Dados extraídos:\n\n"
-        f"{structured_block}\n\n"
-        "## Recomendação do sistema:\n\n"
-        f"{suggestion_block}"
+        "## Achados críticos:\n\n"
+        f"{findings_block}\n\n"
+        "## Pendências críticas:\n\n"
+        f"{pending_block}\n\n"
+        "## Decisão sugerida:\n\n"
+        f"{decision_block}\n\n"
+        "## Suporte recomendado:\n\n"
+        f"{support_block}\n\n"
+        "## Motivo objetivo:\n\n"
+        f"{reason_block}\n\n"
+        "## Conduta sugerida:\n\n"
+        f"{conduct_block}"
     )
 
 
@@ -264,13 +274,18 @@ def build_room2_case_summary_formatted_html(
 ) -> str:
     """Build Room-2 message II HTML payload for Matrix formatted_body rendering."""
 
-    _ = case_id, structured_data
-    structured_lines = _build_room2_structured_overview_lines()
-    suggestion_lines = _build_room2_recommendation_overview_lines(suggested_action)
-
+    _ = case_id
     summary_html = _format_paragraphs_html(summary_text)
-    structured_html = _format_markdown_lines_html(structured_lines)
-    suggestion_html = _format_markdown_lines_html(suggestion_lines)
+    findings_html = _format_markdown_lines_html(
+        _build_room2_critical_findings_lines(structured_data)
+    )
+    pending_html = _format_markdown_lines_html(
+        _build_room2_critical_pending_lines(structured_data)
+    )
+    decision_html = _format_markdown_lines_html(_build_room2_decision_lines(suggested_action))
+    support_html = _format_markdown_lines_html(_build_room2_support_lines(suggested_action))
+    reason_html = _format_markdown_lines_html(_build_room2_objective_reason_lines(suggested_action))
+    conduct_html = _format_markdown_lines_html(_build_room2_conduct_lines(suggested_action))
     identification_html = _build_human_identification_html(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
@@ -280,42 +295,85 @@ def build_room2_case_summary_formatted_html(
         f"{identification_html}"
         "<h2>Resumo clínico:</h2>"
         f"{summary_html}"
-        "<h2>Dados extraídos:</h2>"
-        f"{structured_html}"
-        "<h2>Recomendação do sistema:</h2>"
-        f"{suggestion_html}"
+        "<h2>Achados críticos:</h2>"
+        f"{findings_html}"
+        "<h2>Pendências críticas:</h2>"
+        f"{pending_html}"
+        "<h2>Decisão sugerida:</h2>"
+        f"{decision_html}"
+        "<h2>Suporte recomendado:</h2>"
+        f"{support_html}"
+        "<h2>Motivo objetivo:</h2>"
+        f"{reason_html}"
+        "<h2>Conduta sugerida:</h2>"
+        f"{conduct_html}"
     )
 
 
-def _build_room2_structured_overview_lines() -> list[str]:
-    """Return fixed compact guidance replacing full flattened structured dump."""
+def _build_room2_critical_findings_lines(structured_data: dict[str, object]) -> list[str]:
+    """Return concise critical findings section lines."""
 
+    _ = structured_data
     return [
         "- Consulte o relatório original para dados estruturados completos.",
+    ]
+
+
+def _build_room2_critical_pending_lines(structured_data: dict[str, object]) -> list[str]:
+    """Return concise critical pending section lines."""
+
+    _ = structured_data
+    return [
         "- Resumo detalhado disponível no histórico técnico do caso.",
     ]
 
 
-def _build_room2_recommendation_overview_lines(
+def _build_room2_decision_lines(
     suggested_action: dict[str, object],
 ) -> list[str]:
-    """Return compact recommendation lines from reconciled LLM2 suggestion payload."""
+    """Return decision section lines based on reconciled suggestion payload."""
 
-    lines: list[str] = []
     suggestion = suggested_action.get("suggestion")
-    support_recommendation = suggested_action.get("support_recommendation")
-    confidence = suggested_action.get("confidence")
-
     if isinstance(suggestion, str):
-        lines.append(f"- sugestao: {_format_scalar(suggestion)}")
-    if isinstance(support_recommendation, str):
-        lines.append(f"- recomendacao_suporte: {_format_scalar(support_recommendation)}")
-    if isinstance(confidence, str):
-        lines.append(f"- confianca: {_format_scalar(confidence)}")
+        return [f"- {_format_scalar(suggestion)}"]
+    return ["- não informado"]
 
-    if not lines:
-        return ["- recomendacao indisponivel"]
-    return lines
+
+def _build_room2_support_lines(suggested_action: dict[str, object]) -> list[str]:
+    """Return support section lines based on reconciled suggestion payload."""
+
+    support_recommendation = suggested_action.get("support_recommendation")
+    if isinstance(support_recommendation, str):
+        return [f"- {_format_scalar(support_recommendation)}"]
+    return ["- não informado"]
+
+
+def _build_room2_objective_reason_lines(suggested_action: dict[str, object]) -> list[str]:
+    """Return concise objective reason section lines."""
+
+    rationale = suggested_action.get("rationale")
+    if isinstance(rationale, str) and rationale.strip():
+        return [f"- {rationale.strip()}"]
+    if isinstance(rationale, dict):
+        short_reason = rationale.get("short_reason")
+        if isinstance(short_reason, str) and short_reason.strip():
+            return [f"- {short_reason.strip()}"]
+    return ["- Não informado."]
+
+
+def _build_room2_conduct_lines(suggested_action: dict[str, object]) -> list[str]:
+    """Return concise conduct section lines."""
+
+    suggestion = suggested_action.get("suggestion")
+    if suggestion == "deny":
+        return [
+            "- Reavaliar após resolução das pendências críticas.",
+            "- Consultar relatório completo para suporte à decisão.",
+        ]
+    return [
+        "- Prosseguir conforme protocolo clínico local.",
+        "- Confirmar pendências críticas antes do procedimento.",
+    ]
 
 
 def _translate_keys_to_portuguese(*, value: object) -> object:
