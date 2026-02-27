@@ -538,6 +538,48 @@ def test_room2_summary_does_not_include_emergent_priority_phrase_without_instabi
     assert all("PRIORIDADE EMERGENTE" not in line for line in conduct_lines)
 
 
+def test_room2_summary_conduct_targets_three_bullets_by_default() -> None:
+    case_id = UUID("90909090-9090-9090-9090-909090909090")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={"eda": {"indication_category": "dyspepsia"}},
+        summary_text="Caso estável, sem urgência imediata.",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    conduct_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Conduta sugerida:\n\n",
+        next_section=None,
+    )
+    assert len(conduct_lines) == 3
+
+
+def test_room2_summary_conduct_has_max_four_bullets_with_emergent_priority() -> None:
+    case_id = UUID("91919191-9191-9191-9191-919191919191")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "eda": {"indication_category": "bleeding"},
+            "policy_precheck": {"notes": "Instabilidade hemodinâmica e hipotensão."},
+        },
+        summary_text="Paciente com melena e PAS 80, instável.",
+        suggested_action={"suggestion": "deny", "support_recommendation": "anesthesist_icu"},
+    )
+
+    conduct_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Conduta sugerida:\n\n",
+        next_section=None,
+    )
+    assert len(conduct_lines) <= 4
+    assert len(conduct_lines) >= 3
+
+
 def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
     case_id = UUID("34343434-3434-3434-3434-343434343434")
     body = build_room2_case_summary_formatted_html(

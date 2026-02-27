@@ -507,12 +507,14 @@ def _build_room2_conduct_lines(
     if suggestion == "deny":
         lines = [
             "- Reavaliar após resolução das pendências críticas.",
+            "- Priorizar coleta/validação dos exames pendentes críticos.",
             "- Consultar relatório completo para suporte à decisão.",
         ]
     else:
         lines = [
             "- Prosseguir conforme protocolo clínico local.",
             "- Confirmar pendências críticas antes do procedimento.",
+            "- Reavaliar estabilidade clínica imediatamente antes da EDA.",
         ]
 
     if _should_include_room2_emergent_priority_phrase(
@@ -527,7 +529,7 @@ def _build_room2_conduct_lines(
             ),
         )
 
-    return lines
+    return lines[:4]
 
 
 def _should_include_room2_emergent_priority_phrase(
