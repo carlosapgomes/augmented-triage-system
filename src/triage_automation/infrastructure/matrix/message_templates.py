@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from html import escape
 from uuid import UUID
@@ -240,7 +241,13 @@ def build_room2_case_summary_message(
     decision_block = "\n".join(_build_room2_decision_lines(suggested_action))
     support_block = "\n".join(_build_room2_support_lines(suggested_action))
     reason_block = "\n".join(_build_room2_objective_reason_lines(suggested_action))
-    conduct_block = "\n".join(_build_room2_conduct_lines(suggested_action))
+    conduct_block = "\n".join(
+        _build_room2_conduct_lines(
+            suggested_action=suggested_action,
+            structured_data=structured_data,
+            summary_text=summary_text,
+        )
+    )
     identification_block = build_human_identification_block(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
@@ -287,7 +294,13 @@ def build_room2_case_summary_formatted_html(
     decision_html = _format_markdown_lines_html(_build_room2_decision_lines(suggested_action))
     support_html = _format_markdown_lines_html(_build_room2_support_lines(suggested_action))
     reason_html = _format_markdown_lines_html(_build_room2_objective_reason_lines(suggested_action))
-    conduct_html = _format_markdown_lines_html(_build_room2_conduct_lines(suggested_action))
+    conduct_html = _format_markdown_lines_html(
+        _build_room2_conduct_lines(
+            suggested_action=suggested_action,
+            structured_data=structured_data,
+            summary_text=summary_text,
+        )
+    )
     identification_html = _build_human_identification_html(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
@@ -481,19 +494,132 @@ def _truncate_room2_reason_line(reason: str, limit: int = 180) -> str:
     return f"{normalized[: limit - 1].rstrip()}…"
 
 
-def _build_room2_conduct_lines(suggested_action: dict[str, object]) -> list[str]:
+def _build_room2_conduct_lines(
+    *,
+    suggested_action: dict[str, object],
+    structured_data: dict[str, object],
+    summary_text: str,
+) -> list[str]:
     """Return concise conduct section lines."""
 
     suggestion = suggested_action.get("suggestion")
+    lines: list[str]
     if suggestion == "deny":
-        return [
+        lines = [
             "- Reavaliar após resolução das pendências críticas.",
             "- Consultar relatório completo para suporte à decisão.",
         ]
-    return [
-        "- Prosseguir conforme protocolo clínico local.",
-        "- Confirmar pendências críticas antes do procedimento.",
-    ]
+    else:
+        lines = [
+            "- Prosseguir conforme protocolo clínico local.",
+            "- Confirmar pendências críticas antes do procedimento.",
+        ]
+
+    if _should_include_room2_emergent_priority_phrase(
+        structured_data=structured_data,
+        summary_text=summary_text,
+    ):
+        lines.insert(
+            0,
+            (
+                "- PRIORIDADE EMERGENTE: estabilizar hemodinamicamente e seguir via "
+                "urgente sem atraso por pendências não críticas."
+            ),
+        )
+
+    return lines
+
+
+def _should_include_room2_emergent_priority_phrase(
+    *,
+    structured_data: dict[str, object],
+    summary_text: str,
+) -> bool:
+    """Return True when case indicates bleeding with documented hemodynamic instability."""
+
+    return _is_room2_bleeding_case(
+        structured_data=structured_data,
+        summary_text=summary_text,
+    ) and _has_room2_documented_hemodynamic_instability(
+        structured_data=structured_data,
+        summary_text=summary_text,
+    )
+
+
+def _is_room2_bleeding_case(*, structured_data: dict[str, object], summary_text: str) -> bool:
+    """Detect bleeding context by structured indicator or narrative keywords."""
+
+    indication_category = _extract_room2_nested_value(structured_data, "eda", "indication_category")
+    if isinstance(indication_category, str) and indication_category.strip().lower() == "bleeding":
+        return True
+
+    combined_text = " ".join(_collect_room2_context_texts(structured_data, summary_text)).lower()
+    bleeding_markers = ("hematêmese", "hematemese", "melena", "hda", "hemorragia digestiva")
+    return any(marker in combined_text for marker in bleeding_markers)
+
+
+def _has_room2_documented_hemodynamic_instability(
+    *,
+    structured_data: dict[str, object],
+    summary_text: str,
+) -> bool:
+    """Detect documented hemodynamic instability by keywords or low systolic values."""
+
+    texts = _collect_room2_context_texts(structured_data, summary_text)
+    combined_text = " ".join(texts).lower()
+    keyword_markers = (
+        "instabilidade hemodin",
+        "hemodinamicamente inst",
+        "choque",
+        "hipotensão",
+        "hipotensao",
+        "hipovol",
+    )
+    if any(marker in combined_text for marker in keyword_markers):
+        return True
+
+    systolic_values = _extract_room2_systolic_values(combined_text)
+    return any(value < 90 for value in systolic_values)
+
+
+def _collect_room2_context_texts(
+    structured_data: dict[str, object],
+    summary_text: str,
+) -> list[str]:
+    """Collect free-text fields relevant for emergent-context detection."""
+
+    texts: list[str] = []
+    if summary_text.strip():
+        texts.append(summary_text.strip())
+
+    policy_notes = _extract_room2_nested_value(structured_data, "policy_precheck", "notes")
+    if isinstance(policy_notes, str) and policy_notes.strip():
+        texts.append(policy_notes.strip())
+
+    return texts
+
+
+def _extract_room2_systolic_values(text: str) -> list[int]:
+    """Extract systolic blood-pressure values from common textual notations."""
+
+    values: list[int] = []
+    single_patterns = (
+        r"\bpas\s*[:=]?\s*([0-9]{2,3})\b",
+    )
+    paired_patterns = (
+        r"\bpa\s*[:=]?\s*([0-9]{2,3})\s*[x/]\s*([0-9]{2,3})\b",
+        r"\bta\s*[:=]?\s*([0-9]{2,3})\s*[x/]\s*([0-9]{2,3})\b",
+    )
+
+    for pattern in single_patterns:
+        for match in re.finditer(pattern, text):
+            values.append(int(match.group(1)))
+
+    for pattern in paired_patterns:
+        for match in re.finditer(pattern, text):
+            values.append(int(match.group(1)))
+
+    return values
 
 
 def _extract_room2_nested_value(payload: dict[str, object], *keys: str) -> object | None:
