@@ -2,13 +2,15 @@
 
 from functools import lru_cache
 from typing import Annotated, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AliasChoices, Field, HttpUrl
+from pydantic import AliasChoices, Field, HttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 PositiveInt = Annotated[int, Field(gt=0)]
+HourOfDayInt = Annotated[int, Field(ge=0, le=23)]
 TemperatureFloat = Annotated[float, Field(ge=0.0, le=2.0)]
 
 
@@ -20,6 +22,7 @@ class Settings(BaseSettings):
     room1_id: NonEmptyStr = Field(validation_alias="ROOM1_ID")
     room2_id: NonEmptyStr = Field(validation_alias="ROOM2_ID")
     room3_id: NonEmptyStr = Field(validation_alias="ROOM3_ID")
+    room4_id: NonEmptyStr = Field(validation_alias="ROOM4_ID")
     matrix_homeserver_url: HttpUrl = Field(validation_alias="MATRIX_HOMESERVER_URL")
     matrix_bot_user_id: NonEmptyStr = Field(validation_alias="MATRIX_BOT_USER_ID")
     matrix_access_token: NonEmptyStr = Field(validation_alias="MATRIX_ACCESS_TOKEN")
@@ -34,6 +37,18 @@ class Settings(BaseSettings):
     worker_poll_interval_seconds: NonNegativeFloat = Field(
         default=1.0,
         validation_alias="WORKER_POLL_INTERVAL_SECONDS",
+    )
+    supervisor_summary_timezone: NonEmptyStr = Field(
+        default="America/Bahia",
+        validation_alias="SUPERVISOR_SUMMARY_TIMEZONE",
+    )
+    supervisor_summary_morning_hour: HourOfDayInt = Field(
+        default=7,
+        validation_alias="SUPERVISOR_SUMMARY_MORNING_HOUR",
+    )
+    supervisor_summary_evening_hour: HourOfDayInt = Field(
+        default=19,
+        validation_alias="SUPERVISOR_SUMMARY_EVENING_HOUR",
     )
     webhook_public_url: HttpUrl = Field(validation_alias="WEBHOOK_PUBLIC_URL")
     widget_public_url: HttpUrl = Field(
@@ -75,6 +90,17 @@ class Settings(BaseSettings):
         validation_alias="BOOTSTRAP_ADMIN_PASSWORD_FILE",
     )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
+
+    @field_validator("supervisor_summary_timezone")
+    @classmethod
+    def validate_supervisor_summary_timezone(cls, value: str) -> str:
+        """Ensure summary timezone is a valid IANA timezone name."""
+
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"invalid timezone: {value}") from exc
+        return value
 
 
 @lru_cache(maxsize=1)
