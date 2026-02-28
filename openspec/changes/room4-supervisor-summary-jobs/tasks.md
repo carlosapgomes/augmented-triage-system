@@ -10,7 +10,7 @@
 
 - [x] 2.1 Criar testes de infraestrutura para garantir unicidade por `(room_id, window_start, window_end)` no controle de dispatch de resumo.
 - [x] 2.2 Criar migração e metadata para tabela de dispatch de resumo com colunas de janela, status, `sent_at`, `matrix_event_id` e erro.
-- [ ] 2.3 Implementar repositório/porta de dispatch com operações atômicas de claim/registro de sucesso para suportar reexecução sem duplicidade.
+- [x] 2.3 Implementar repositório/porta de dispatch com operações atômicas de claim/registro de sucesso para suportar reexecução sem duplicidade.
 
 ## 3. Scheduler de enfileiramento (07:00/19:00 America/Bahia)
 
