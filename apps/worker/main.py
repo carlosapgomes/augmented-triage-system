@@ -135,6 +135,7 @@ def build_worker_handlers(
     process_pdf_case_handler: JobHandler,
     post_room2_widget_handler: JobHandler,
     post_room3_request_handler: JobHandler,
+    post_room4_summary_handler: JobHandler,
     post_room1_final_handler: JobHandler,
     execute_cleanup_handler: JobHandler,
 ) -> dict[str, JobHandler]:
@@ -144,6 +145,7 @@ def build_worker_handlers(
         "process_pdf_case": process_pdf_case_handler,
         "post_room2_widget": post_room2_widget_handler,
         "post_room3_request": post_room3_request_handler,
+        "post_room4_summary": post_room4_summary_handler,
         "post_room1_final_denial_triage": post_room1_final_handler,
         "post_room1_final_appt": post_room1_final_handler,
         "post_room1_final_appt_denied": post_room1_final_handler,
@@ -244,6 +246,15 @@ def build_runtime_job_handlers(*, services: WorkerRuntimeServices) -> dict[str, 
         case_id = _require_case_id(job)
         await services.post_room3_request_service.post_request(case_id=case_id)
 
+    async def handle_post_room4_summary(job: JobRecord) -> None:
+        """Handle Room-4 summary jobs via placeholder wiring until service lands."""
+
+        logger.info(
+            "post_room4_summary_handler_invoked job_id=%s payload_keys=%s",
+            job.job_id,
+            sorted(job.payload.keys()),
+        )
+
     async def handle_post_room1_final(job: JobRecord) -> None:
         case_id = _require_case_id(job)
         await services.post_room1_final_service.post(
@@ -260,6 +271,7 @@ def build_runtime_job_handlers(*, services: WorkerRuntimeServices) -> dict[str, 
         process_pdf_case_handler=handle_process_pdf_case,
         post_room2_widget_handler=handle_post_room2_widget,
         post_room3_request_handler=handle_post_room3_request,
+        post_room4_summary_handler=handle_post_room4_summary,
         post_room1_final_handler=handle_post_room1_final,
         execute_cleanup_handler=handle_execute_cleanup,
     )

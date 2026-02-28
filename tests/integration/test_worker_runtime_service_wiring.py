@@ -401,6 +401,16 @@ async def test_runtime_worker_handlers_execute_all_supported_job_types(
     cleanup_job = await queue_repo.enqueue(
         JobEnqueueInput(case_id=cleanup_case_id, job_type="execute_cleanup", payload={})
     )
+    summary_job = await queue_repo.enqueue(
+        JobEnqueueInput(
+            case_id=None,
+            job_type="post_room4_summary",
+            payload={
+                "window_start": "2026-02-15T19:00:00+00:00",
+                "window_end": "2026-02-16T07:00:00+00:00",
+            },
+        )
+    )
     target_job_ids = {
         process_job.job_id,
         room2_job.job_id,
@@ -410,6 +420,7 @@ async def test_runtime_worker_handlers_execute_all_supported_job_types(
         appt_denied_job.job_id,
         failed_job.job_id,
         cleanup_job.job_id,
+        summary_job.job_id,
     }
 
     runtime = build_worker_runtime(
@@ -440,8 +451,13 @@ async def test_runtime_worker_handlers_execute_all_supported_job_types(
                 "j8": cleanup_job.job_id,
             },
         ).mappings().all()
+        summary_row = connection.execute(
+            sa.text("SELECT status FROM jobs WHERE job_id = :job_id"),
+            {"job_id": summary_job.job_id},
+        ).mappings().one()
 
     assert all(str(row["status"]) == "done" for row in rows)
+    assert str(summary_row["status"]) == "done"
     assert matrix_client.send_calls
     assert matrix_client.reply_calls
     assert matrix_client.redaction_calls
