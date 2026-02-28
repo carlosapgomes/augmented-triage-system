@@ -20,6 +20,7 @@ REQUIRED_ENV = {
     "ROOM1_ID": "!room1:example.org",
     "ROOM2_ID": "!room2:example.org",
     "ROOM3_ID": "!room3:example.org",
+    "ROOM4_ID": "!room4:example.org",
     "MATRIX_HOMESERVER_URL": "https://matrix.example.org",
     "MATRIX_BOT_USER_ID": "@triage-bot:example.org",
     "MATRIX_ACCESS_TOKEN": "matrix-access-token",

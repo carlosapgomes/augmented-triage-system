@@ -39,6 +39,7 @@ def _set_required_env(monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("ROOM1_ID", "!room1:example.org")
     monkeypatch.setenv("ROOM2_ID", "!room2:example.org")
     monkeypatch.setenv("ROOM3_ID", "!room3:example.org")
+    monkeypatch.setenv("ROOM4_ID", "!room4:example.org")
     monkeypatch.setenv("MATRIX_HOMESERVER_URL", "https://matrix.example.org")
     monkeypatch.setenv("MATRIX_BOT_USER_ID", "@bot:example.org")
     monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "matrix-token")
