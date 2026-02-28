@@ -12,6 +12,7 @@
 - [x] 2.2 Atualizar templates de Room-3 (mensagem de solicitação, ACK e re-prompt/template estrito) aplicando a política dual: bloco humano em todas e UUID preservado nas mensagens estruturais.
 - [x] 2.3 Atualizar templates finais de Room-1 para priorizar `no. ocorrência` e `paciente` no topo com fallback `não detectado`.
 - [x] 2.4 Alterar geração de filename de anexo PDF da Room-2 para `ocorrencia-<agency_record_number>-caso-<uuid>-relatorio-original.pdf` com fallback `ocorrencia-indisponivel-caso-<uuid>-relatorio-original.pdf`.
+- [x] 2.5 Incluir `no. ocorrência` e `paciente` no template estrutural de resposta do médico (Room-2), preservando `caso: <uuid>` para o parser.
 
 ## 3. Testes e validação
 
@@ -23,3 +24,4 @@
 
 - Limitação de ambiente no momento da execução: `uv` indisponível (`command not found`), o que impediu rodar `uv run pytest`, `uv run ruff check` e `uv run mypy`.
 - Verificação de markdown foi executada com sucesso: `markdownlint-cli2 "openspec/changes/human-readable-case-identification-messages/tasks.md"` retornou `0 error(s)`.
+- Slice 2.5 validado com `uv run pytest` (alvos unitários + integração), `uv run ruff check`, `uv run mypy` e `markdownlint-cli2` sem erros.

@@ -340,11 +340,14 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     ) = matrix_poster.reply_calls[2]
     assert template_room_id == "!room2:example.org"
     assert template_parent == root_event_id
-    assert template_body.startswith("decisao: aceitar\n")
+    assert template_body.startswith("no. ocorrência: 12345\npaciente: Paciente\n")
+    assert "decisao: aceitar\n" in template_body
     assert "suporte: nenhum\n" in template_body
     assert "motivo: (opcional)\n" in template_body
     assert template_formatted_body is not None
     assert template_formatted_body.startswith("<p>")
+    assert "no. ocorrência: 12345" in template_formatted_body
+    assert "paciente: Paciente" in template_formatted_body
     assert "<br>" in template_formatted_body
     assert template_formatted_body.endswith("</p>")
 

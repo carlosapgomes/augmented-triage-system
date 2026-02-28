@@ -901,10 +901,21 @@ def build_room2_case_decision_instructions_formatted_html(
     )
 
 
-def build_room2_case_decision_template_message(*, case_id: UUID) -> str:
-    """Build Room-2 pure template message intended for doctor copy/paste reply."""
+def build_room2_case_decision_template_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
+) -> str:
+    """Build strict Room-2 doctor reply template with human identification context."""
+
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
 
     return (
+        f"{identification_block}\n"
         "decisao: aceitar\n"
         "suporte: nenhum\n"
         "motivo: (opcional)\n"
@@ -912,12 +923,25 @@ def build_room2_case_decision_template_message(*, case_id: UUID) -> str:
     )
 
 
-def build_room2_case_decision_template_formatted_html(*, case_id: UUID) -> str:
-    """Build Room-2 pure template HTML payload without code fencing."""
+def build_room2_case_decision_template_formatted_html(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
+) -> str:
+    """Build strict Room-2 doctor reply template HTML payload without code fencing."""
 
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
+    identification_lines_html = "<br>".join(
+        escape(line) for line in identification_block.splitlines()
+    )
     case_value = escape(str(case_id))
     return (
         "<p>"
+        f"{identification_lines_html}<br>"
         "decisao: aceitar<br>"
         "suporte: nenhum<br>"
         "motivo: (opcional)<br>"
