@@ -21,11 +21,17 @@ from triage_automation.infrastructure.db.session import create_session_factory
 
 class FakeMatrixPoster:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str]] = []
+        self.send_calls: list[tuple[str, str]] = []
+        self.reply_calls: list[tuple[str, str, str]] = []
         self._counter = 0
 
     async def send_text(self, *, room_id: str, body: str) -> str:
-        self.calls.append((room_id, body))
+        self.send_calls.append((room_id, body))
+        self._counter += 1
+        return f"$room3-{self._counter}"
+
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        self.reply_calls.append((room_id, event_id, body))
         self._counter += 1
         return f"$room3-{self._counter}"
 
@@ -90,9 +96,10 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     result = await service.post_request(case_id=case.case_id)
 
     assert result.posted is True
-    assert len(matrix_poster.calls) == 2
+    assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_calls) == 1
 
-    request_room_id, request_body = matrix_poster.calls[0]
+    request_room_id, request_body = matrix_poster.send_calls[0]
     assert request_room_id == "!room3:example.org"
     assert "no. ocorrência: 4777300" in request_body
     assert "paciente: EVALDO CARDOSO DOS SANTOS" in request_body
@@ -102,8 +109,9 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     assert "caso esperado" not in request_body.lower()
     assert "copie a proxima mensagem" in request_body.lower()
 
-    template_room_id, template_body = matrix_poster.calls[1]
+    template_room_id, template_parent_event_id, template_body = matrix_poster.reply_calls[0]
     assert template_room_id == "!room3:example.org"
+    assert template_parent_event_id == "$room3-1"
     assert "no. ocorrência: 4777300" in template_body
     assert "paciente: EVALDO CARDOSO DOS SANTOS" in template_body
     assert "status: confirmado" in template_body
@@ -143,7 +151,7 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     assert transcript_rows[1]["message_type"] == "room3_template"
     assert transcript_rows[1]["sender"] == "bot"
     assert transcript_rows[1]["message_text"] == template_body
-    assert transcript_rows[1]["reply_to_event_id"] is None
+    assert transcript_rows[1]["reply_to_event_id"] == "$room3-1"
 
 
 @pytest.mark.asyncio
@@ -179,7 +187,8 @@ async def test_duplicate_job_execution_is_idempotent(tmp_path: Path) -> None:
 
     assert first.posted is True
     assert second.posted is False
-    assert len(matrix_poster.calls) == 2
+    assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_calls) == 1
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:

@@ -36,6 +36,9 @@ class MatrixRoomPosterPort(Protocol):
     async def send_text(self, *, room_id: str, body: str) -> str:
         """Post text body to a room and return generated matrix event id."""
 
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        """Post text body as reply to a room event and return matrix event id."""
+
 
 @dataclass
 class PostRoom3RequestRetriableError(RuntimeError):
@@ -185,15 +188,20 @@ class PostRoom3RequestService:
             agency_record_number=snapshot.agency_record_number,
             patient_name=patient_name,
         )
-        template_event_id = await self._matrix_poster.send_text(
+        template_event_id = await self._matrix_poster.reply_text(
             room_id=self._room3_id,
+            event_id=request_event_id,
             body=template_body,
         )
         logger.info(
-            "room3_template_posted case_id=%s room_id=%s event_id=%s",
+            (
+                "room3_template_posted case_id=%s room_id=%s event_id=%s "
+                "parent_event_id=%s"
+            ),
             case_id,
             self._room3_id,
             template_event_id,
+            request_event_id,
         )
         await self._message_repository.add_message(
             CaseMessageCreateInput(
@@ -212,6 +220,7 @@ class PostRoom3RequestService:
                 sender="bot",
                 message_type="room3_template",
                 message_text=template_body,
+                reply_to_event_id=request_event_id,
             )
         )
 
@@ -222,7 +231,7 @@ class PostRoom3RequestService:
                 room_id=self._room3_id,
                 matrix_event_id=template_event_id,
                 event_type="ROOM3_TEMPLATE_POSTED",
-                payload={},
+                payload={"reply_to_event_id": request_event_id},
             )
         )
 
