@@ -377,9 +377,15 @@ class PostRoom2WidgetService:
             )
         )
 
-        template_body = build_room2_case_decision_template_message(case_id=case.case_id)
+        template_body = build_room2_case_decision_template_message(
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
+        )
         template_formatted_body = build_room2_case_decision_template_formatted_html(
-            case_id=case.case_id
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
         )
         template_event_id = await self._matrix_poster.reply_text(
             room_id=self._room2_id,
