@@ -157,6 +157,46 @@ sa.Index(
     case_reaction_checkpoints.c.outcome,
 )
 
+supervisor_summary_dispatches = sa.Table(
+    "supervisor_summary_dispatches",
+    metadata,
+    sa.Column("id", sqlite_bigint, primary_key=True, autoincrement=True),
+    sa.Column("room_id", sa.Text(), nullable=False),
+    sa.Column("window_start", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("window_end", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("status", sa.Text(), nullable=False, server_default=sa.text("'pending'")),
+    sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("matrix_event_id", sa.Text(), nullable=True),
+    sa.Column("last_error", sa.Text(), nullable=True),
+    sa.Column(
+        "created_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.Column(
+        "updated_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.CheckConstraint(
+        "status IN ('pending', 'sent', 'failed')",
+        name="ck_supervisor_summary_dispatches_status",
+    ),
+    sa.UniqueConstraint(
+        "room_id",
+        "window_start",
+        "window_end",
+        name="uq_supervisor_summary_dispatches_room_window",
+    ),
+)
+sa.Index(
+    "ix_supervisor_summary_dispatches_status_window_end",
+    supervisor_summary_dispatches.c.status,
+    supervisor_summary_dispatches.c.window_end,
+)
+
 jobs = sa.Table(
     "jobs",
     metadata,
