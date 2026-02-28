@@ -1,0 +1,126 @@
+"""Scheduler service for Room-4 periodic summary job enqueuing."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+from triage_automation.application.ports.job_queue_port import (
+    JobEnqueueInput,
+    JobQueuePort,
+    JobRecord,
+)
+
+
+@dataclass(frozen=True)
+class SupervisorSummaryWindow:
+    """Resolved summary reporting window in local timezone and UTC."""
+
+    window_start_local: datetime
+    window_end_local: datetime
+    window_start_utc: datetime
+    window_end_utc: datetime
+
+
+class SupervisorSummarySchedulerService:
+    """Compute Room-4 summary window and enqueue canonical summary jobs."""
+
+    def __init__(
+        self,
+        *,
+        job_queue: JobQueuePort,
+        room4_id: str,
+        timezone_name: str,
+        morning_hour: int,
+        evening_hour: int,
+    ) -> None:
+        self._job_queue = job_queue
+        self._room4_id = room4_id
+        self._timezone_name = timezone_name
+        self._morning_hour = morning_hour
+        self._evening_hour = evening_hour
+
+    async def enqueue_previous_window_summary(
+        self,
+        *,
+        run_at_utc: datetime | None = None,
+    ) -> JobRecord:
+        """Enqueue one `post_room4_summary` job for the previous cutoff window."""
+
+        reference_now_utc = run_at_utc or datetime.now(tz=UTC)
+        window = resolve_previous_summary_window(
+            run_at_utc=reference_now_utc,
+            timezone_name=self._timezone_name,
+            morning_hour=self._morning_hour,
+            evening_hour=self._evening_hour,
+        )
+        payload = {
+            "room_id": self._room4_id,
+            "window_start": window.window_start_utc.isoformat(),
+            "window_end": window.window_end_utc.isoformat(),
+            "timezone": self._timezone_name,
+        }
+        return await self._job_queue.enqueue(
+            JobEnqueueInput(
+                job_type="post_room4_summary",
+                case_id=None,
+                payload=payload,
+            )
+        )
+
+
+def resolve_previous_summary_window(
+    *,
+    run_at_utc: datetime,
+    timezone_name: str,
+    morning_hour: int,
+    evening_hour: int,
+) -> SupervisorSummaryWindow:
+    """Resolve the latest completed 12-hour summary window for configured cutoffs."""
+
+    if run_at_utc.tzinfo is None:
+        raise ValueError("run_at_utc must be timezone-aware")
+
+    timezone = ZoneInfo(timezone_name)
+    run_at_local = run_at_utc.astimezone(timezone)
+
+    candidates: list[datetime] = []
+    for day_offset in (-1, 0):
+        day = (run_at_local + timedelta(days=day_offset)).date()
+        candidates.append(
+            datetime(
+                day.year,
+                day.month,
+                day.day,
+                morning_hour,
+                0,
+                0,
+                tzinfo=timezone,
+            )
+        )
+        candidates.append(
+            datetime(
+                day.year,
+                day.month,
+                day.day,
+                evening_hour,
+                0,
+                0,
+                tzinfo=timezone,
+            )
+        )
+
+    eligible = [candidate for candidate in candidates if candidate <= run_at_local]
+    if not eligible:
+        raise ValueError("unable to resolve previous summary cutoff")
+
+    window_end_local = max(eligible)
+    window_start_local = window_end_local - timedelta(hours=12)
+
+    return SupervisorSummaryWindow(
+        window_start_local=window_start_local,
+        window_end_local=window_end_local,
+        window_start_utc=window_start_local.astimezone(UTC),
+        window_end_utc=window_end_local.astimezone(UTC),
+    )
