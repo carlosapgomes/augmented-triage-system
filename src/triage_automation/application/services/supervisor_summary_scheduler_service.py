@@ -9,7 +9,10 @@ from zoneinfo import ZoneInfo
 from triage_automation.application.ports.job_queue_port import (
     JobEnqueueInput,
     JobQueuePort,
-    JobRecord,
+)
+from triage_automation.application.ports.supervisor_summary_dispatch_repository_port import (
+    SupervisorSummaryDispatchRepositoryPort,
+    SupervisorSummaryWindowKey,
 )
 
 
@@ -23,6 +26,15 @@ class SupervisorSummaryWindow:
     window_end_utc: datetime
 
 
+@dataclass(frozen=True)
+class SupervisorSummaryScheduleResult:
+    """Result summary for one scheduler execution attempt."""
+
+    claimed_dispatch: bool
+    enqueued_job_id: int | None
+    window: SupervisorSummaryWindow
+
+
 class SupervisorSummarySchedulerService:
     """Compute Room-4 summary window and enqueue canonical summary jobs."""
 
@@ -30,12 +42,14 @@ class SupervisorSummarySchedulerService:
         self,
         *,
         job_queue: JobQueuePort,
+        dispatch_repository: SupervisorSummaryDispatchRepositoryPort,
         room4_id: str,
         timezone_name: str,
         morning_hour: int,
         evening_hour: int,
     ) -> None:
         self._job_queue = job_queue
+        self._dispatch_repository = dispatch_repository
         self._room4_id = room4_id
         self._timezone_name = timezone_name
         self._morning_hour = morning_hour
@@ -45,8 +59,8 @@ class SupervisorSummarySchedulerService:
         self,
         *,
         run_at_utc: datetime | None = None,
-    ) -> JobRecord:
-        """Enqueue one `post_room4_summary` job for the previous cutoff window."""
+    ) -> SupervisorSummaryScheduleResult:
+        """Enqueue one `post_room4_summary` job for previous cutoff window if claimed."""
 
         reference_now_utc = run_at_utc or datetime.now(tz=UTC)
         window = resolve_previous_summary_window(
@@ -55,18 +69,37 @@ class SupervisorSummarySchedulerService:
             morning_hour=self._morning_hour,
             evening_hour=self._evening_hour,
         )
+        claimed_dispatch = await self._dispatch_repository.claim_window(
+            SupervisorSummaryWindowKey(
+                room_id=self._room4_id,
+                window_start=window.window_start_utc,
+                window_end=window.window_end_utc,
+            )
+        )
+        if not claimed_dispatch:
+            return SupervisorSummaryScheduleResult(
+                claimed_dispatch=False,
+                enqueued_job_id=None,
+                window=window,
+            )
+
         payload = {
             "room_id": self._room4_id,
             "window_start": window.window_start_utc.isoformat(),
             "window_end": window.window_end_utc.isoformat(),
             "timezone": self._timezone_name,
         }
-        return await self._job_queue.enqueue(
+        job = await self._job_queue.enqueue(
             JobEnqueueInput(
                 job_type="post_room4_summary",
                 case_id=None,
                 payload=payload,
             )
+        )
+        return SupervisorSummaryScheduleResult(
+            claimed_dispatch=True,
+            enqueued_job_id=job.job_id,
+            window=window,
         )
 
 
