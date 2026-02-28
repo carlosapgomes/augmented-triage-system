@@ -4,7 +4,7 @@
 
 - [x] 1.1 Adicionar testes para falhar (red) ao exigir configuração de Room-4 no `Settings` e validar timezone `America/Bahia` para o fluxo de resumo.
 - [x] 1.2 Implementar configurações necessárias (`ROOM4_ID` e parâmetros de resumo) em `settings.py` e `.env.example` com tipagem/docstrings alinhadas ao padrão do projeto.
-- [ ] 1.3 Validar wiring inicial para permitir o novo `job_type` `post_room4_summary` no runtime sem alterar semânticas existentes.
+- [x] 1.3 Validar wiring inicial para permitir o novo `job_type` `post_room4_summary` no runtime sem alterar semânticas existentes.
 
 ## 2. Persistência de idempotência e trilha de despacho
 
