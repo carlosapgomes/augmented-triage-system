@@ -14,7 +14,7 @@
 
 ## 3. Scheduler de enfileiramento (07:00/19:00 America/Bahia)
 
-- [ ] 3.1 Escrever testes unitários para cálculo de janela determinística às 07:00 e 19:00 (intervalos de 12h, formato `[start, end)`).
+- [x] 3.1 Escrever testes unitários para cálculo de janela determinística às 07:00 e 19:00 (intervalos de 12h, formato `[start, end)`).
 - [ ] 3.2 Implementar serviço de scheduler que calcula a janela local e enfileira `post_room4_summary` com payload canônico em UTC.
 - [ ] 3.3 Criar entrypoint de scheduler (CLI/processo curto) e validar execução manual idempotente para mesma janela.
 
