@@ -4,6 +4,10 @@ import importlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytest
+
+from triage_automation.application.ports.job_queue_port import JobRecord
+
 
 def _resolve_previous_summary_window(*, run_at_utc: datetime) -> Any:
     module = importlib.import_module(
@@ -38,3 +42,64 @@ def test_evening_cutoff_resolves_same_day_window_in_utc() -> None:
     assert resolved.window_end_utc == datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
     assert resolved.window_start_utc < resolved.window_end_utc
     assert resolved.window_end_utc - resolved.window_start_utc == timedelta(hours=12)
+
+
+class _QueueSpy:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    async def enqueue(self, payload: Any) -> JobRecord:
+        self.calls.append(
+            {
+                "job_type": payload.job_type,
+                "case_id": payload.case_id,
+                "payload": payload.payload,
+            }
+        )
+        now = datetime.now(tz=UTC)
+        return JobRecord(
+            job_id=1,
+            case_id=None,
+            job_type=payload.job_type,
+            status="queued",
+            run_after=now,
+            attempts=0,
+            max_attempts=5,
+            last_error=None,
+            payload=payload.payload,
+            created_at=now,
+            updated_at=now,
+        )
+
+
+@pytest.mark.asyncio
+async def test_scheduler_service_enqueues_post_room4_summary_with_canonical_utc_payload() -> None:
+    module = importlib.import_module(
+        "triage_automation.application.services.supervisor_summary_scheduler_service"
+    )
+    service_class = getattr(module, "SupervisorSummarySchedulerService")
+
+    queue = _QueueSpy()
+    service = service_class(
+        job_queue=queue,
+        room4_id="!room4:example.org",
+        timezone_name="America/Bahia",
+        morning_hour=7,
+        evening_hour=19,
+    )
+
+    result = await service.enqueue_previous_window_summary(
+        run_at_utc=datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
+    )
+
+    assert len(queue.calls) == 1
+    call = queue.calls[0]
+    assert call["job_type"] == "post_room4_summary"
+    assert call["case_id"] is None
+    assert call["payload"] == {
+        "room_id": "!room4:example.org",
+        "window_start": "2026-02-16T10:00:00+00:00",
+        "window_end": "2026-02-16T22:00:00+00:00",
+        "timezone": "America/Bahia",
+    }
+    assert result.job_type == "post_room4_summary"
