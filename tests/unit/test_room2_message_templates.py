@@ -239,6 +239,33 @@ def test_build_room2_case_decision_template_formatted_html_has_plain_lines() -> 
     assert body.endswith("</p>")
 
 
+def test_build_room2_case_decision_template_message_uses_fallback_identification() -> None:
+    case_id = UUID("44444444-4444-4444-4444-444444444444")
+
+    body = build_room2_case_decision_template_message(
+        case_id=case_id,
+        agency_record_number=" ",
+        patient_name=None,
+    )
+
+    assert body.startswith("no. ocorrência: não detectado\npaciente: não detectado\n")
+    assert body.endswith(f"caso: {case_id}")
+
+
+def test_build_room2_case_decision_template_formatted_html_uses_fallback_identification() -> None:
+    case_id = UUID("44444444-4444-4444-4444-444444444444")
+
+    body = build_room2_case_decision_template_formatted_html(
+        case_id=case_id,
+        agency_record_number=" ",
+        patient_name=None,
+    )
+
+    assert "no. ocorrência: não detectado" in body
+    assert "paciente: não detectado" in body
+    assert f"caso: {case_id}" in body
+
+
 def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     case_id = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 

@@ -22,6 +22,5 @@
 
 ## Notes
 
-- Limitação de ambiente no momento da execução: `uv` indisponível (`command not found`), o que impediu rodar `uv run pytest`, `uv run ruff check` e `uv run mypy`.
 - Verificação de markdown foi executada com sucesso: `markdownlint-cli2 "openspec/changes/human-readable-case-identification-messages/tasks.md"` retornou `0 error(s)`.
 - Slice 2.5 validado com `uv run pytest` (alvos unitários + integração), `uv run ruff check`, `uv run mypy` e `markdownlint-cli2` sem erros.
