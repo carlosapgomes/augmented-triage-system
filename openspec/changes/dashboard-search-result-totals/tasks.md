@@ -18,7 +18,7 @@
 
 - [x] 3.1 Atualizar `src/triage_automation/infrastructure/http/dashboard_router.py` para incluir os totais agregados no contexto da página/fragmento.
 - [x] 3.2 Atualizar `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` para renderizar, abaixo da tabela, o bloco de totalização operacional.
-- [ ] 3.3 Garantir que paginação e atualizações por Unpoly mantenham a totalização coerente com os filtros ativos.
+- [x] 3.3 Garantir que paginação e atualizações por Unpoly mantenham a totalização coerente com os filtros ativos.
 
 ## 4. Verificação final do slice
 
@@ -69,6 +69,11 @@
   - Fragmento atualizado em `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` com bloco `id="cases-search-totals"` e rótulos de totalização abaixo da tabela.
   - Verificação estática: `rg "cases-search-totals|Totalizacao da busca|Em processamento" -n src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html`.
   - Regressão funcional: `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or no_results_renders_zeroed_totals" -q`.
+- Evidência da task 3.3:
+  - Teste de integração fortalecido: `tests/integration/test_dashboard_pages.py::test_dashboard_case_list_fragment_update_respects_filters_and_pagination`.
+  - Execução: `uv run pytest tests/integration/test_dashboard_pages.py -k fragment_update_respects_filters_and_pagination -q`.
+  - Valida fragment updates via `X-Up-Target` em páginas 1 e 2 (`page_size=1`) com filtro `status=WAIT_DOCTOR`, mantendo totalização coerente com filtros (`Total de casos: 2`, `Em processamento: 2`) em ambas as páginas e excluindo casos fora do filtro.
+  - Qualidade: `uv run ruff check tests/integration/test_dashboard_pages.py` e `uv run mypy tests/integration/test_dashboard_pages.py`.
 - Verificações executadas neste slice:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or outcome" -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k operational_outcome -q`

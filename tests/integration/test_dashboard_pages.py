@@ -803,7 +803,8 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
     reader_token = "reader-dashboard-page-fragment"
     today = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
     filter_date = today.date().isoformat()
-    wait_case = uuid4()
+    wait_case_newer = uuid4()
+    wait_case_older = uuid4()
     failed_case = uuid4()
 
     engine = sa.create_engine(sync_url)
@@ -817,9 +818,15 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
         )
         _insert_case(
             connection,
-            case_id=wait_case,
+            case_id=wait_case_newer,
             status="WAIT_DOCTOR",
             updated_at=today - timedelta(hours=1),
+        )
+        _insert_case(
+            connection,
+            case_id=wait_case_older,
+            status="WAIT_DOCTOR",
+            updated_at=today - timedelta(hours=1, minutes=30),
         )
         _insert_case(
             connection,
@@ -829,9 +836,15 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
         )
         _insert_matrix_transcript(
             connection,
-            case_id=wait_case,
-            event_id="$evt-wait",
+            case_id=wait_case_newer,
+            event_id="$evt-wait-newer",
             captured_at=today - timedelta(minutes=5),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=wait_case_older,
+            event_id="$evt-wait-older",
+            captured_at=today - timedelta(minutes=7),
         )
         _insert_matrix_transcript(
             connection,
@@ -841,9 +854,19 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
         )
 
     with _build_client(async_url, token_service=token_service) as client:
-        response = client.get(
+        page_1_response = client.get(
             (
-                "/dashboard/cases?page=1&page_size=10&status=WAIT_DOCTOR"
+                "/dashboard/cases?page=1&page_size=1&status=WAIT_DOCTOR"
+                f"&from_date={filter_date}&to_date={filter_date}"
+            ),
+            headers={
+                "Authorization": f"Bearer {reader_token}",
+                "X-Up-Target": "#cases-list-fragment",
+            },
+        )
+        page_2_response = client.get(
+            (
+                "/dashboard/cases?page=2&page_size=1&status=WAIT_DOCTOR"
                 f"&from_date={filter_date}&to_date={filter_date}"
             ),
             headers={
@@ -852,12 +875,25 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
             },
         )
 
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("text/html")
-    assert "<!doctype html>" not in response.text.lower()
-    assert 'id="cases-list-fragment"' in response.text
-    assert str(wait_case) in response.text
-    assert str(failed_case) not in response.text
+    assert page_1_response.status_code == 200
+    assert page_1_response.headers["content-type"].startswith("text/html")
+    assert "<!doctype html>" not in page_1_response.text.lower()
+    assert 'id="cases-list-fragment"' in page_1_response.text
+    assert str(wait_case_newer) in page_1_response.text
+    assert str(wait_case_older) not in page_1_response.text
+    assert str(failed_case) not in page_1_response.text
+    assert "Total de casos:</strong> 2" in page_1_response.text
+    assert "Em processamento:</strong> 2" in page_1_response.text
+
+    assert page_2_response.status_code == 200
+    assert page_2_response.headers["content-type"].startswith("text/html")
+    assert "<!doctype html>" not in page_2_response.text.lower()
+    assert 'id="cases-list-fragment"' in page_2_response.text
+    assert str(wait_case_newer) not in page_2_response.text
+    assert str(wait_case_older) in page_2_response.text
+    assert str(failed_case) not in page_2_response.text
+    assert "Total de casos:</strong> 2" in page_2_response.text
+    assert "Em processamento:</strong> 2" in page_2_response.text
 
 
 @pytest.mark.asyncio
