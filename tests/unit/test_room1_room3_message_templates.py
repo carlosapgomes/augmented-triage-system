@@ -24,8 +24,8 @@ def test_build_room3_request_message_prioritizes_human_identification_without_uu
         requested_exam="EDA",
     )
 
-    assert "no. ocorrência: 4777300" in body
-    assert "paciente: MARIA" in body
+    assert "## no. ocorrência: 4777300" in body
+    assert "## paciente: MARIA" in body
     assert "idade: 42" in body
     assert "exame solicitado: EDA" in body
     assert f"caso: {case_id}" not in body

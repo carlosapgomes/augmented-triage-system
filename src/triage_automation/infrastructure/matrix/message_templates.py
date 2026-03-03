@@ -54,6 +54,18 @@ def build_human_identification_block(
     return f"no. ocorrência: {record_value}\npaciente: {patient_value}"
 
 
+def build_human_identification_heading_block(
+    *,
+    agency_record_number: str | None,
+    patient_name: str | None,
+) -> str:
+    """Build identification lines as Markdown headings for first-contact messages."""
+
+    record_value = _normalize_human_identification_value(agency_record_number)
+    patient_value = _normalize_human_identification_value(patient_name)
+    return f"## no. ocorrência: {record_value}\n## paciente: {patient_value}"
+
+
 _PT_BR_KEY_MAP: dict[str, str] = {
     "agency_record_number": "numero_registro",
     "age": "idade",
@@ -130,6 +142,19 @@ def _build_human_identification_html(
     return (
         f"<p>no. ocorrência: {escape(record_value)}</p>"
         f"<p>paciente: {escape(patient_value)}</p>"
+    )
+
+
+def _build_human_identification_heading_html(
+    *,
+    agency_record_number: str | None,
+    patient_name: str | None,
+) -> str:
+    record_value = _normalize_human_identification_value(agency_record_number)
+    patient_value = _normalize_human_identification_value(patient_name)
+    return (
+        f"<h2>no. ocorrência: {escape(record_value)}</h2>"
+        f"<h2>paciente: {escape(patient_value)}</h2>"
     )
 
 
@@ -253,7 +278,7 @@ def build_room2_case_summary_message(
         )
     )
     recent_denial_block = _build_room2_recent_denial_markdown_block(recent_denial_context)
-    identification_block = build_human_identification_block(
+    identification_block = build_human_identification_heading_block(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
     )
@@ -312,7 +337,7 @@ def build_room2_case_summary_formatted_html(
         )
     )
     recent_denial_html = _build_room2_recent_denial_html_block(recent_denial_context)
-    identification_html = _build_human_identification_html(
+    identification_html = _build_human_identification_heading_html(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
     )
@@ -1192,7 +1217,7 @@ def build_room3_request_message(
     """Build Room-3 guidance message that points scheduler to copy template."""
 
     _ = case_id
-    identification_block = build_human_identification_block(
+    identification_block = build_human_identification_heading_block(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
     )

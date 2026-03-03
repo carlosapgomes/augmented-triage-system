@@ -267,8 +267,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     ) = matrix_poster.reply_calls[0]
     assert summary_room_id == "!room2:example.org"
     assert summary_parent == root_event_id
-    assert "no. ocorrência: 12345" in summary_body
-    assert "paciente: Paciente" in summary_body
+    assert "## no. ocorrência: 12345" in summary_body
+    assert "## paciente: Paciente" in summary_body
     assert f"caso: {current_case.case_id}" not in summary_body
     assert "# Resumo técnico da triagem" in summary_body
     assert "## Resumo clínico:" in summary_body
@@ -302,6 +302,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "```json" not in summary_body
     assert summary_formatted_body is not None
     assert "<h1>Resumo técnico da triagem</h1>" in summary_formatted_body
+    assert "<h2>no. ocorrência: 12345</h2>" in summary_formatted_body
+    assert "<h2>paciente: Paciente</h2>" in summary_formatted_body
     assert "<h2>Resumo clínico:</h2>" in summary_formatted_body
     assert "<h2>Achados críticos:</h2>" in summary_formatted_body
     assert "<h2>Pendências críticas:</h2>" in summary_formatted_body

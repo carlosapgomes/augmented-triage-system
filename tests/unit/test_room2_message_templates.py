@@ -125,8 +125,8 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
 
-    assert "no. ocorrência: 12345" in body
-    assert "paciente: PACIENTE" in body
+    assert "## no. ocorrência: 12345" in body
+    assert "## paciente: PACIENTE" in body
     assert f"caso: {case_id}" not in body
     assert "Resumo LLM1" in body
     assert "# Resumo técnico da triagem" in body
@@ -354,8 +354,8 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     )
 
     assert "<h1>Resumo técnico da triagem</h1>" in body
-    assert "<p>no. ocorrência: 12345</p>" in body
-    assert "<p>paciente: PACIENTE</p>" in body
+    assert "<h2>no. ocorrência: 12345</h2>" in body
+    assert "<h2>paciente: PACIENTE</h2>" in body
     assert f"<p>caso: {case_id}</p>" not in body
     assert "<h2>Resumo clínico:</h2>" in body
     assert "<p>Resumo LLM1</p>" in body
