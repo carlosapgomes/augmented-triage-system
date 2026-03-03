@@ -17,7 +17,7 @@
 ## 3. Renderização da totalização no dashboard
 
 - [x] 3.1 Atualizar `src/triage_automation/infrastructure/http/dashboard_router.py` para incluir os totais agregados no contexto da página/fragmento.
-- [ ] 3.2 Atualizar `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` para renderizar, abaixo da tabela, o bloco de totalização operacional.
+- [x] 3.2 Atualizar `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` para renderizar, abaixo da tabela, o bloco de totalização operacional.
 - [ ] 3.3 Garantir que paginação e atualizações por Unpoly mantenham a totalização coerente com os filtros ativos.
 
 ## 4. Verificação final do slice
@@ -65,6 +65,10 @@
 - Evidência da task 3.1:
   - Contexto do router atualizado com chave `totals` e mapeamento de `result.totals` em `src/triage_automation/infrastructure/http/dashboard_router.py` (linhas com `"totals"`, `total`, `accepted`, `denied`, `in_progress`).
   - Execução de regressão: `uv run pytest tests/integration/test_dashboard_pages.py -k search_totals_summary -q`.
+- Evidência da task 3.2:
+  - Fragmento atualizado em `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` com bloco `id="cases-search-totals"` e rótulos de totalização abaixo da tabela.
+  - Verificação estática: `rg "cases-search-totals|Totalizacao da busca|Em processamento" -n src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html`.
+  - Regressão funcional: `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or no_results_renders_zeroed_totals" -q`.
 - Verificações executadas neste slice:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or outcome" -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k operational_outcome -q`
