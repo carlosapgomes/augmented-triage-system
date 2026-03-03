@@ -269,9 +269,8 @@ def build_room2_case_summary_message(
     pending_block = "\n".join(_build_room2_critical_pending_lines(structured_data))
     decision_block = "\n".join(_build_room2_decision_lines(suggested_action))
     support_block = "\n".join(_build_room2_support_lines(suggested_action))
-    reason_block = "\n".join(_build_room2_objective_reason_lines(suggested_action))
-    conduct_block = "\n".join(
-        _build_room2_conduct_lines(
+    reason_block = "\n".join(
+        _build_room2_objective_reason_lines(
             suggested_action=suggested_action,
             structured_data=structured_data,
             summary_text=summary_text,
@@ -297,9 +296,7 @@ def build_room2_case_summary_message(
         "## Suporte recomendado:\n\n"
         f"{support_block}\n\n"
         "## Motivo objetivo:\n\n"
-        f"{reason_block}\n\n"
-        "## Conduta sugerida:\n\n"
-        f"{conduct_block}"
+        f"{reason_block}"
     )
     if recent_denial_block is not None:
         message = f"{message}\n\n{recent_denial_block}"
@@ -328,9 +325,8 @@ def build_room2_case_summary_formatted_html(
     )
     decision_html = _format_markdown_lines_html(_build_room2_decision_lines(suggested_action))
     support_html = _format_markdown_lines_html(_build_room2_support_lines(suggested_action))
-    reason_html = _format_markdown_lines_html(_build_room2_objective_reason_lines(suggested_action))
-    conduct_html = _format_markdown_lines_html(
-        _build_room2_conduct_lines(
+    reason_html = _format_markdown_lines_html(
+        _build_room2_objective_reason_lines(
             suggested_action=suggested_action,
             structured_data=structured_data,
             summary_text=summary_text,
@@ -357,8 +353,6 @@ def build_room2_case_summary_formatted_html(
         f"{support_html}"
         "<h2>Motivo objetivo:</h2>"
         f"{reason_html}"
-        "<h2>Conduta sugerida:</h2>"
-        f"{conduct_html}"
     )
     if recent_denial_html is not None:
         formatted = f"{formatted}<h2>Histórico de negativa recente:</h2>{recent_denial_html}"
@@ -594,27 +588,39 @@ def _build_room2_support_lines(suggested_action: dict[str, object]) -> list[str]
     return ["- não informado"]
 
 
-def _build_room2_objective_reason_lines(suggested_action: dict[str, object]) -> list[str]:
-    """Return concise objective reason section lines."""
+def _build_room2_objective_reason_lines(
+    *,
+    suggested_action: dict[str, object],
+    structured_data: dict[str, object],
+    summary_text: str,
+) -> list[str]:
+    """Return objective reason section lines aligned with decision and urgency context."""
 
     decision = suggested_action.get("suggestion")
     support_recommendation = suggested_action.get("support_recommendation")
-    decision_label = (
-        _format_scalar(decision)
-        if isinstance(decision, str)
-        else "não informado"
-    )
+    decision_label = _format_scalar(decision) if isinstance(decision, str) else "não informado"
     support_label = (
         _format_scalar(support_recommendation)
         if isinstance(support_recommendation, str)
         else "não informado"
     )
 
-    reason = _extract_room2_short_reason(suggested_action)
     lines = [f"- Decisão {decision_label} com suporte {support_label}."]
+    if _should_include_room2_emergent_priority_phrase(
+        structured_data=structured_data,
+        summary_text=summary_text,
+    ):
+        lines.append(
+            (
+                "- PRIORIDADE EMERGENTE: estabilizar hemodinamicamente e seguir via "
+                "urgente sem atraso por pendências não críticas."
+            ),
+        )
+
+    reason = _extract_room2_short_reason(suggested_action)
     if reason:
         lines.append(f"- {_truncate_room2_reason_line(reason)}")
-    return lines[:2]
+    return lines
 
 
 def _extract_room2_short_reason(suggested_action: dict[str, object]) -> str | None:
@@ -635,51 +641,13 @@ def _extract_room2_short_reason(suggested_action: dict[str, object]) -> str | No
     return None
 
 
-def _truncate_room2_reason_line(reason: str, limit: int = 180) -> str:
-    """Return normalized one-line reason text capped for concise objective display."""
+def _truncate_room2_reason_line(reason: str, limit: int = 360) -> str:
+    """Return normalized one-line reason text with protection cap for long rationale."""
 
     normalized = " ".join(reason.split())
     if len(normalized) <= limit:
         return normalized
     return f"{normalized[: limit - 1].rstrip()}…"
-
-
-def _build_room2_conduct_lines(
-    *,
-    suggested_action: dict[str, object],
-    structured_data: dict[str, object],
-    summary_text: str,
-) -> list[str]:
-    """Return concise conduct section lines."""
-
-    suggestion = suggested_action.get("suggestion")
-    lines: list[str]
-    if suggestion == "deny":
-        lines = [
-            "- Reavaliar após resolução das pendências críticas.",
-            "- Priorizar coleta/validação dos exames pendentes críticos.",
-            "- Consultar relatório completo para suporte à decisão.",
-        ]
-    else:
-        lines = [
-            "- Prosseguir conforme protocolo clínico local.",
-            "- Confirmar pendências críticas antes do procedimento.",
-            "- Reavaliar estabilidade clínica imediatamente antes da EDA.",
-        ]
-
-    if _should_include_room2_emergent_priority_phrase(
-        structured_data=structured_data,
-        summary_text=summary_text,
-    ):
-        lines.insert(
-            0,
-            (
-                "- PRIORIDADE EMERGENTE: estabilizar hemodinamicamente e seguir via "
-                "urgente sem atraso por pendências não críticas."
-            ),
-        )
-
-    return lines[:4]
 
 
 def _should_include_room2_emergent_priority_phrase(
