@@ -690,6 +690,57 @@ async def test_dashboard_case_list_initial_load_renders_totals_for_default_curre
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_list_no_results_renders_zeroed_totals(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "dashboard_page_search_totals_no_results.db",
+    )
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-search-totals-no-results"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+    case_id = uuid4()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(days=1),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id="$evt-no-results",
+            captured_at=now - timedelta(days=1),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases?from_date=2026-02-18&to_date=2026-02-18",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "Nenhum caso encontrado para os filtros selecionados." in response.text
+    assert "Totalizacao da busca" in response.text
+    assert "Total de casos:</strong> 0" in response.text
+    assert "Aceitos:</strong> 0" in response.text
+    assert "Negados:</strong> 0" in response.text
+    assert "Em processamento:</strong> 0" in response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_list_prefers_patient_name_and_record_number_identifier(
     tmp_path: Path,
 ) -> None:
