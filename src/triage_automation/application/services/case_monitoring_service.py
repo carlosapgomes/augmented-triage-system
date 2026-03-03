@@ -38,7 +38,7 @@ class CaseMonitoringService:
         self._case_repository = case_repository
 
     async def list_cases(self, query: CaseMonitoringListQuery) -> CaseMonitoringListPage:
-        """Return paginated cases ordered by latest activity timestamp."""
+        """Return paginated cases and aggregated outcome totals for the query."""
 
         if query.from_date and query.to_date and query.to_date < query.from_date:
             raise InvalidMonitoringPeriodError("to_date must be greater than or equal to from_date")

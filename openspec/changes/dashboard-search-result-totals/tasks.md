@@ -10,7 +10,7 @@
 ## 2. Contrato interno e agregação de dados
 
 - [x] 2.1 Atualizar o contrato de listagem em `src/triage_automation/application/ports/case_repository_port.py` para incluir estrutura explícita de totais agregados por desfecho.
-- [ ] 2.2 Ajustar `src/triage_automation/application/services/case_monitoring_service.py` para propagar os totais agregados sem alterar o comportamento dos filtros padrão existentes.
+- [x] 2.2 Ajustar `src/triage_automation/application/services/case_monitoring_service.py` para propagar os totais agregados sem alterar o comportamento dos filtros padrão existentes.
 - [ ] 2.3 Implementar em `src/triage_automation/infrastructure/db/case_repository.py` a agregação SQL de totais por desfecho usando os mesmos filtros do conjunto listado.
 - [ ] 2.4 Adicionar/ajustar teste em `tests/integration/test_case_repositories.py` para validar precedência de classificação e consistência dos totais agregados.
 
@@ -48,6 +48,11 @@
 - Evidência da task 2.1:
   - Contrato interno atualizado com `CaseMonitoringOutcomeTotals` e campo `totals` em `CaseMonitoringListPage` no arquivo `src/triage_automation/application/ports/case_repository_port.py`.
   - Verificação de qualidade: `uv run ruff check src/triage_automation/application/ports/case_repository_port.py` e `uv run mypy src/triage_automation/application/ports/case_repository_port.py`.
+- Evidência da task 2.2:
+  - Teste unitário adicionado: `tests/unit/test_case_monitoring_service.py`.
+  - Execução: `uv run pytest tests/unit/test_case_monitoring_service.py -q`.
+  - Verifica que `CaseMonitoringService` preserva filtros (incluindo janela com `tz_offset`) e propaga o objeto de totais agregado do repositório sem alterar comportamento padrão.
+  - Qualidade: `uv run ruff check src/triage_automation/application/services/case_monitoring_service.py tests/unit/test_case_monitoring_service.py` e `uv run mypy src/triage_automation/application/services/case_monitoring_service.py tests/unit/test_case_monitoring_service.py`.
 - Verificações executadas neste slice:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or outcome" -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k operational_outcome -q`
