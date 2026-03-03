@@ -3,7 +3,7 @@
 ## 1. Cobertura de teste (TDD) para coluna de desfecho no dashboard
 
 - [x] 1.1 Adicionar/ajustar teste de integração em `tests/integration/test_dashboard_pages.py` para falhar (red) quando a tabela não exibir a nova coluna de desfecho.
-- [ ] 1.2 Cobrir em teste os três rótulos esperados da coluna (`ACEITO`, `NEGADO`, `EM_ANDAMENTO`) com dados persistidos em `doctor_decision` e `appointment_status`.
+- [x] 1.2 Cobrir em teste os três rótulos esperados da coluna (`ACEITO`, `NEGADO`, `EM_ANDAMENTO`) com dados persistidos em `doctor_decision` e `appointment_status`.
 
 ## 2. Projeção e contrato de dados da listagem
 
@@ -26,3 +26,6 @@
 - Evidência de TDD (red) para 1.1:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k outcome_column_header -q`
   - Falha esperada confirmada: ausência de `<th scope="col">Desfecho</th>` no HTML da listagem atual.
+- Evidência de TDD (red) para 1.2:
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k outcome_labels -q`
+  - Falha esperada confirmada: ausência dos rótulos `ACEITO`, `NEGADO` e `EM_ANDAMENTO` na listagem atual.
