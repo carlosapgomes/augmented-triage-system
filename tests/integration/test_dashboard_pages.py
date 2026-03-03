@@ -102,15 +102,19 @@ def _insert_case(
     updated_at: datetime,
     agency_record_number: str | None = None,
     structured_data_json: dict[str, object] | None = None,
+    doctor_decision: str | None = None,
+    appointment_status: str | None = None,
 ) -> None:
     connection.execute(
         sa.text(
             "INSERT INTO cases ("
             "case_id, status, room1_origin_room_id, room1_origin_event_id, room1_sender_user_id, "
-            "agency_record_number, structured_data_json, created_at, updated_at"
+            "agency_record_number, structured_data_json, doctor_decision, "
+            "appointment_status, created_at, updated_at"
             ") VALUES ("
             ":case_id, :status, '!room1:example.org', :origin_event_id, '@reader:example.org', "
-            ":agency_record_number, :structured_data_json, :created_at, :updated_at"
+            ":agency_record_number, :structured_data_json, :doctor_decision, "
+            ":appointment_status, :created_at, :updated_at"
             ")"
         ),
         {
@@ -123,6 +127,8 @@ def _insert_case(
                 if structured_data_json is not None
                 else None
             ),
+            "doctor_decision": doctor_decision,
+            "appointment_status": appointment_status,
             "created_at": updated_at,
             "updated_at": updated_at,
         },
@@ -377,6 +383,85 @@ async def test_dashboard_case_list_renders_case_outcome_column_header(
 
     assert response.status_code == 200
     assert '<th scope="col">Desfecho</th>' in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_list_renders_operational_outcome_labels_from_decision_fields(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_outcome_labels.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-outcome-labels"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+    accepted_case = uuid4()
+    denied_case = uuid4()
+    in_progress_case = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=accepted_case,
+            status="APPT_CONFIRMED",
+            updated_at=now - timedelta(minutes=25),
+            appointment_status="confirmed",
+        )
+        _insert_case(
+            connection,
+            case_id=denied_case,
+            status="APPT_DENIED",
+            updated_at=now - timedelta(minutes=20),
+            appointment_status="denied",
+            doctor_decision="deny",
+        )
+        _insert_case(
+            connection,
+            case_id=in_progress_case,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(minutes=15),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=accepted_case,
+            event_id="$evt-outcome-accepted",
+            captured_at=now - timedelta(minutes=5),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=denied_case,
+            event_id="$evt-outcome-denied",
+            captured_at=now - timedelta(minutes=4),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=in_progress_case,
+            event_id="$evt-outcome-progress",
+            captured_at=now - timedelta(minutes=3),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert str(accepted_case) in response.text
+    assert str(denied_case) in response.text
+    assert str(in_progress_case) in response.text
+    assert "ACEITO" in response.text
+    assert "NEGADO" in response.text
+    assert "EM_ANDAMENTO" in response.text
 
 
 @pytest.mark.asyncio
