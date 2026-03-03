@@ -8,7 +8,7 @@
 ## 2. Projeção e contrato de dados da listagem
 
 - [x] 2.1 Atualizar `CaseMonitoringListItem` em `src/triage_automation/application/ports/case_repository_port.py` para incluir campo explícito de desfecho (`case_outcome`).
-- [ ] 2.2 Atualizar `SqlAlchemyCaseRepository.list_cases_for_monitoring` em `src/triage_automation/infrastructure/db/case_repository.py` para selecionar `doctor_decision`/`appointment_status` e derivar desfecho com precedência definida no design.
+- [x] 2.2 Atualizar `SqlAlchemyCaseRepository.list_cases_for_monitoring` em `src/triage_automation/infrastructure/db/case_repository.py` para selecionar `doctor_decision`/`appointment_status` e derivar desfecho com precedência definida no design.
 
 ## 3. Renderização da nova coluna na tabela de casos
 
@@ -29,3 +29,8 @@
 - Evidência de TDD (red) para 1.2:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k outcome_labels -q`
   - Falha esperada confirmada: ausência dos rótulos `ACEITO`, `NEGADO` e `EM_ANDAMENTO` na listagem atual.
+- Evidência de TDD para 2.2 (repositório):
+  - Red: `uv run pytest tests/integration/test_case_repositories.py -k derives_operational_outcome -q`
+    - Falha esperada: casos com `appointment_status`/`doctor_decision` ainda retornavam `EM_ANDAMENTO`.
+  - Green: `uv run pytest tests/integration/test_case_repositories.py -k derives_operational_outcome -q`
+    - Passou após derivação de `case_outcome` em `list_cases_for_monitoring`.

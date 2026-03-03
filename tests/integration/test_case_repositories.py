@@ -12,6 +12,7 @@ from alembic import command
 from triage_automation.application.ports.audit_repository_port import AuditEventCreateInput
 from triage_automation.application.ports.case_repository_port import (
     CaseCreateInput,
+    CaseMonitoringListFilter,
     DuplicateCaseOriginEventError,
 )
 from triage_automation.application.ports.message_repository_port import (
@@ -296,3 +297,112 @@ async def test_full_transcript_persistence_and_chronological_timeline_per_case(
         "event_id": "$evt-target-reply",
         "reply_to_event_id": "$evt-target-root",
     }
+
+
+@pytest.mark.asyncio
+async def test_case_monitoring_list_derives_operational_outcome_from_decision_fields(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "case_monitoring_outcome_labels.db")
+    session_factory = create_session_factory(async_url)
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+
+    accepted_case_id = uuid4()
+    denied_by_appt_case_id = uuid4()
+    denied_by_doctor_case_id = uuid4()
+    in_progress_case_id = uuid4()
+
+    await case_repo.create_case(
+        CaseCreateInput(
+            case_id=accepted_case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$event-accepted",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.create_case(
+        CaseCreateInput(
+            case_id=denied_by_appt_case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$event-denied-appt",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.create_case(
+        CaseCreateInput(
+            case_id=denied_by_doctor_case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$event-denied-doctor",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.create_case(
+        CaseCreateInput(
+            case_id=in_progress_case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$event-progress",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    now = datetime(2026, 2, 20, 12, 0, 0, tzinfo=UTC)
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET appointment_status = 'confirmed', updated_at = :updated_at "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "case_id": accepted_case_id.hex,
+                "updated_at": now - timedelta(minutes=4),
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET appointment_status = 'denied', updated_at = :updated_at "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "case_id": denied_by_appt_case_id.hex,
+                "updated_at": now - timedelta(minutes=3),
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET doctor_decision = 'deny', updated_at = :updated_at "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "case_id": denied_by_doctor_case_id.hex,
+                "updated_at": now - timedelta(minutes=2),
+            },
+        )
+        connection.execute(
+            sa.text("UPDATE cases SET updated_at = :updated_at WHERE case_id = :case_id"),
+            {
+                "case_id": in_progress_case_id.hex,
+                "updated_at": now - timedelta(minutes=1),
+            },
+        )
+
+    result = await case_repo.list_cases_for_monitoring(
+        filters=CaseMonitoringListFilter(
+            status=None,
+            activity_from=None,
+            activity_to=None,
+            page=1,
+            page_size=10,
+        )
+    )
+
+    outcomes_by_case_id = {item.case_id: item.case_outcome for item in result.items}
+
+    assert outcomes_by_case_id[accepted_case_id] == "ACEITO"
+    assert outcomes_by_case_id[denied_by_appt_case_id] == "NEGADO"
+    assert outcomes_by_case_id[denied_by_doctor_case_id] == "NEGADO"
+    assert outcomes_by_case_id[in_progress_case_id] == "EM_ANDAMENTO"
