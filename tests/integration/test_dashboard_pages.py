@@ -469,6 +469,85 @@ async def test_dashboard_case_list_renders_operational_outcome_labels_from_decis
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_list_renders_search_totals_summary_below_table(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_search_totals_summary.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-search-totals-summary"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+    accepted_case = uuid4()
+    denied_case = uuid4()
+    in_progress_case = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=accepted_case,
+            status="APPT_CONFIRMED",
+            updated_at=now - timedelta(minutes=25),
+            appointment_status="confirmed",
+        )
+        _insert_case(
+            connection,
+            case_id=denied_case,
+            status="APPT_DENIED",
+            updated_at=now - timedelta(minutes=20),
+            appointment_status="denied",
+            doctor_decision="deny",
+        )
+        _insert_case(
+            connection,
+            case_id=in_progress_case,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(minutes=15),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=accepted_case,
+            event_id="$evt-totals-accepted",
+            captured_at=now - timedelta(minutes=5),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=denied_case,
+            event_id="$evt-totals-denied",
+            captured_at=now - timedelta(minutes=4),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=in_progress_case,
+            event_id="$evt-totals-progress",
+            captured_at=now - timedelta(minutes=3),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "Totalizacao da busca" in response.text
+    assert "Total de casos:</strong> 3" in response.text
+    assert "Aceitos:</strong> 1" in response.text
+    assert "Negados:</strong> 1" in response.text
+    assert "Em processamento:</strong> 1" in response.text
+    assert response.text.index("<table") < response.text.index("Totalizacao da busca")
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_list_prefers_patient_name_and_record_number_identifier(
     tmp_path: Path,
 ) -> None:

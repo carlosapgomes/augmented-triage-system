@@ -21,6 +21,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseMonitoringListFilter,
     CaseMonitoringListItem,
     CaseMonitoringListPage,
+    CaseMonitoringOutcomeTotals,
     CaseMonitoringTimelineItem,
     CaseOutcome,
     CaseRecord,
@@ -142,6 +143,17 @@ def _derive_case_outcome(
     if doctor_decision == "deny":
         return "NEGADO"
     return "EM_ANDAMENTO"
+
+
+def _case_outcome_sql_expression() -> sa.ColumnElement[str]:
+    """Return SQL expression mirroring dashboard operational outcome precedence."""
+
+    return sa.case(
+        (cases.c.appointment_status == "confirmed", "ACEITO"),
+        (cases.c.appointment_status == "denied", "NEGADO"),
+        (cases.c.doctor_decision == "deny", "NEGADO"),
+        else_="EM_ANDAMENTO",
+    )
 
 
 class SqlAlchemyCaseRepository(CaseRepositoryPort):
@@ -630,9 +642,24 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         if filters.activity_to is not None:
             where_clauses.append(latest_activity.c.latest_activity_at < filters.activity_to)
 
-        total_statement = sa.select(sa.func.count()).select_from(from_clause)
+        outcome_expression = _case_outcome_sql_expression()
+        aggregate_statement = sa.select(
+            sa.func.count().label("total"),
+            sa.func.coalesce(
+                sa.func.sum(sa.case((outcome_expression == "ACEITO", 1), else_=0)),
+                0,
+            ).label("accepted"),
+            sa.func.coalesce(
+                sa.func.sum(sa.case((outcome_expression == "NEGADO", 1), else_=0)),
+                0,
+            ).label("denied"),
+            sa.func.coalesce(
+                sa.func.sum(sa.case((outcome_expression == "EM_ANDAMENTO", 1), else_=0)),
+                0,
+            ).label("in_progress"),
+        ).select_from(from_clause)
         if where_clauses:
-            total_statement = total_statement.where(*where_clauses)
+            aggregate_statement = aggregate_statement.where(*where_clauses)
 
         offset = (filters.page - 1) * filters.page_size
         statement = (
@@ -657,10 +684,17 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             statement = statement.where(*where_clauses)
 
         async with self._session_factory() as session:
-            total_result = await session.execute(total_statement)
+            aggregate_result = await session.execute(aggregate_statement)
             result = await session.execute(statement)
 
-        total = int(total_result.scalar_one())
+        aggregate_row = aggregate_result.mappings().one()
+        total = int(aggregate_row["total"])
+        totals = CaseMonitoringOutcomeTotals(
+            total=total,
+            accepted=int(aggregate_row["accepted"]),
+            denied=int(aggregate_row["denied"]),
+            in_progress=int(aggregate_row["in_progress"]),
+        )
         items: list[CaseMonitoringListItem] = []
         for row in result.mappings().all():
             structured_data_json = cast(dict[str, Any] | None, row["structured_data_json"])
@@ -684,6 +718,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             page=filters.page,
             page_size=filters.page_size,
             total=total,
+            totals=totals,
         )
 
     async def get_case_monitoring_detail(
