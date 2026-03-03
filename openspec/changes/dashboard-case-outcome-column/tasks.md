@@ -17,7 +17,7 @@
 
 ## 4. Verificação de qualidade do slice
 
-- [ ] 4.1 Executar testes alvo: `uv run pytest tests/integration/test_dashboard_pages.py -k outcome -q` (ou seleção equivalente que cubra os cenários novos).
+- [x] 4.1 Executar testes alvo: `uv run pytest tests/integration/test_dashboard_pages.py -k outcome -q` (ou seleção equivalente que cubra os cenários novos).
 - [ ] 4.2 Executar lint/type-check dos paths alterados: `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py tests/integration/test_dashboard_pages.py` e `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py tests/integration/test_dashboard_pages.py`.
 - [ ] 4.3 Executar `markdownlint-cli2 "openspec/changes/dashboard-case-outcome-column/*.md" "openspec/changes/dashboard-case-outcome-column/specs/**/*.md"`.
 
@@ -41,3 +41,6 @@
   - `uv run pytest tests/integration/test_dashboard_pages.py -k outcome_column_header -q`
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "case_list_page_renders_filters_and_paginated_rows_with_unpoly or case_list_fragment_update_respects_filters_and_pagination or outcome" -q`
   - Ambos passaram, confirmando presença contínua de `Status`, `Atividade mais recente`, identificadores de caso e comportamento de filtros/paginação.
+- Evidência para 4.1 (testes alvo do change):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k outcome -q`
+  - Resultado: `2 passed, 19 deselected`.
