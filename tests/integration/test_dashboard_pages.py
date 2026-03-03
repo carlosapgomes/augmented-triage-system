@@ -631,6 +631,65 @@ async def test_dashboard_case_list_totals_reflect_full_filtered_result_not_curre
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_list_initial_load_renders_totals_for_default_current_day(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "dashboard_page_initial_load_totals_default_day.db",
+    )
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-initial-load-totals-default-day"
+
+    now = datetime.now(tz=UTC)
+    today = datetime(now.year, now.month, now.day, 9, 0, 0, tzinfo=UTC)
+    yesterday = today - timedelta(days=1)
+    today_case = uuid4()
+    yesterday_case = uuid4()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=today_case,
+            status="APPT_CONFIRMED",
+            updated_at=today,
+            appointment_status="confirmed",
+        )
+        _insert_case(
+            connection,
+            case_id=yesterday_case,
+            status="APPT_DENIED",
+            updated_at=yesterday,
+            appointment_status="denied",
+            doctor_decision="deny",
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "Totalizacao da busca" in response.text
+    assert str(today_case) in response.text
+    assert str(yesterday_case) not in response.text
+    assert "Total de casos:</strong> 1" in response.text
+    assert "Aceitos:</strong> 1" in response.text
+    assert "Negados:</strong> 0" in response.text
+    assert "Em processamento:</strong> 0" in response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_list_prefers_patient_name_and_record_number_identifier(
     tmp_path: Path,
 ) -> None:
