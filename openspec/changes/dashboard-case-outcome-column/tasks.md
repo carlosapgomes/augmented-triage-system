@@ -7,7 +7,7 @@
 
 ## 2. Projeção e contrato de dados da listagem
 
-- [ ] 2.1 Atualizar `CaseMonitoringListItem` em `src/triage_automation/application/ports/case_repository_port.py` para incluir campo explícito de desfecho (`case_outcome`).
+- [x] 2.1 Atualizar `CaseMonitoringListItem` em `src/triage_automation/application/ports/case_repository_port.py` para incluir campo explícito de desfecho (`case_outcome`).
 - [ ] 2.2 Atualizar `SqlAlchemyCaseRepository.list_cases_for_monitoring` em `src/triage_automation/infrastructure/db/case_repository.py` para selecionar `doctor_decision`/`appointment_status` e derivar desfecho com precedência definida no design.
 
 ## 3. Renderização da nova coluna na tabela de casos
