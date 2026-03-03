@@ -22,7 +22,7 @@
 
 ## 4. Verificação final do slice
 
-- [ ] 4.1 Executar testes alvo do dashboard e repositório:
+- [x] 4.1 Executar testes alvo do dashboard e repositório:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k totals -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k monitoring -q`
 - [ ] 4.2 Executar lint/type-check dos arquivos alterados:
@@ -74,6 +74,9 @@
   - Execução: `uv run pytest tests/integration/test_dashboard_pages.py -k fragment_update_respects_filters_and_pagination -q`.
   - Valida fragment updates via `X-Up-Target` em páginas 1 e 2 (`page_size=1`) com filtro `status=WAIT_DOCTOR`, mantendo totalização coerente com filtros (`Total de casos: 2`, `Em processamento: 2`) em ambas as páginas e excluindo casos fora do filtro.
   - Qualidade: `uv run ruff check tests/integration/test_dashboard_pages.py` e `uv run mypy tests/integration/test_dashboard_pages.py`.
+- Evidência da task 4.1:
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k totals -q` -> `4 passed`.
+  - `uv run pytest tests/integration/test_case_repositories.py -k monitoring -q` -> `1 passed`.
 - Verificações executadas neste slice:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or outcome" -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k operational_outcome -q`
