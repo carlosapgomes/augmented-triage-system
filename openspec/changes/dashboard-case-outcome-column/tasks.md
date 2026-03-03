@@ -19,7 +19,7 @@
 
 - [x] 4.1 Executar testes alvo: `uv run pytest tests/integration/test_dashboard_pages.py -k outcome -q` (ou seleção equivalente que cubra os cenários novos).
 - [x] 4.2 Executar lint/type-check dos paths alterados: `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py tests/integration/test_dashboard_pages.py` e `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py tests/integration/test_dashboard_pages.py`.
-- [ ] 4.3 Executar `markdownlint-cli2 "openspec/changes/dashboard-case-outcome-column/*.md" "openspec/changes/dashboard-case-outcome-column/specs/**/*.md"`.
+- [x] 4.3 Executar `markdownlint-cli2 "openspec/changes/dashboard-case-outcome-column/*.md" "openspec/changes/dashboard-case-outcome-column/specs/**/*.md"`.
 
 ## Notes
 
@@ -48,3 +48,6 @@
   - `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py tests/integration/test_dashboard_pages.py`
   - `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py tests/integration/test_dashboard_pages.py`
   - Ambos passaram sem issues.
+- Evidência para 4.3 (markdownlint dos artefatos OpenSpec):
+  - `markdownlint-cli2 "openspec/changes/dashboard-case-outcome-column/*.md" "openspec/changes/dashboard-case-outcome-column/specs/**/*.md"`
+  - Resultado: `0 error(s)`.
