@@ -170,6 +170,16 @@ class CaseMonitoringListItem:
 
 
 @dataclass(frozen=True)
+class CaseMonitoringOutcomeTotals:
+    """Aggregated dashboard outcome totals for one filtered case search."""
+
+    total: int
+    accepted: int
+    denied: int
+    in_progress: int
+
+
+@dataclass(frozen=True)
 class CaseMonitoringListPage:
     """Paginated monitoring list payload returned by case repository."""
 
@@ -177,6 +187,7 @@ class CaseMonitoringListPage:
     page: int
     page_size: int
     total: int
+    totals: CaseMonitoringOutcomeTotals
 
 
 @dataclass(frozen=True)

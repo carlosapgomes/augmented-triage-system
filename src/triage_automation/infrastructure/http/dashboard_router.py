@@ -139,6 +139,12 @@ def build_dashboard_router(
                     else None
                 ),
             },
+            "totals": {
+                "total": result.totals.total,
+                "accepted": result.totals.accepted,
+                "denied": result.totals.denied,
+                "in_progress": result.totals.in_progress,
+            },
         }
 
         if _is_unpoly_fragment_request(request):
