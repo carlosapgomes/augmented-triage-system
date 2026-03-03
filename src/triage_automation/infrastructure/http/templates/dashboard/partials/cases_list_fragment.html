@@ -14,6 +14,7 @@
             <tr>
               <th scope="col">Caso</th>
               <th scope="col">Status</th>
+              <th scope="col">Desfecho</th>
               <th scope="col">Atividade mais recente</th>
             </tr>
           </thead>
@@ -35,6 +36,7 @@
                   <div class="small text-secondary">{{ item.case_id }}</div>
                 </td>
                 <td><code>{{ item.status.value }}</code></td>
+                <td><code>{{ item.case_outcome }}</code></td>
                 <td data-utc-timestamp="{{ item.latest_activity_at.isoformat() }}">{{ item.latest_activity_at.isoformat() }}</td>
               </tr>
             {% endfor %}

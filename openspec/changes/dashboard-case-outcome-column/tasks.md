@@ -12,7 +12,7 @@
 
 ## 3. Renderização da nova coluna na tabela de casos
 
-- [ ] 3.1 Atualizar `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` para incluir a coluna de desfecho na listagem.
+- [x] 3.1 Atualizar `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` para incluir a coluna de desfecho na listagem.
 - [ ] 3.2 Garantir que a página continue exibindo identificador, status e atividade mais recente sem regressões de paginação/filtros.
 
 ## 4. Verificação de qualidade do slice
@@ -34,3 +34,6 @@
     - Falha esperada: casos com `appointment_status`/`doctor_decision` ainda retornavam `EM_ANDAMENTO`.
   - Green: `uv run pytest tests/integration/test_case_repositories.py -k derives_operational_outcome -q`
     - Passou após derivação de `case_outcome` em `list_cases_for_monitoring`.
+- Evidência para 3.1 (template):
+  - Green: `uv run pytest tests/integration/test_dashboard_pages.py -k outcome -q`
+    - Passou após renderização da coluna `Desfecho` com `item.case_outcome` na tabela.
