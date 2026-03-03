@@ -382,7 +382,11 @@ async def test_dashboard_case_list_renders_case_outcome_column_header(
         )
 
     assert response.status_code == 200
+    assert '<th scope="col">Status</th>' in response.text
     assert '<th scope="col">Desfecho</th>' in response.text
+    assert '<th scope="col">Atividade mais recente</th>' in response.text
+    assert '<code>WAIT_DOCTOR</code>' in response.text
+    assert 'data-utc-timestamp="' in response.text
 
 
 @pytest.mark.asyncio
