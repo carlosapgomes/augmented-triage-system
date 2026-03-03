@@ -25,7 +25,7 @@
 - [x] 4.1 Executar testes alvo do dashboard e repositório:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k totals -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k monitoring -q`
-- [ ] 4.2 Executar lint/type-check dos arquivos alterados:
+- [x] 4.2 Executar lint/type-check dos arquivos alterados:
   - `uv run ruff check <paths-alterados>`
   - `uv run mypy <paths-alterados>`
 - [ ] 4.3 Executar lint dos artefatos OpenSpec alterados:
@@ -77,6 +77,10 @@
 - Evidência da task 4.1:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k totals -q` -> `4 passed`.
   - `uv run pytest tests/integration/test_case_repositories.py -k monitoring -q` -> `1 passed`.
+- Evidência da task 4.2:
+  - `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py tests/integration/test_dashboard_pages.py tests/integration/test_case_repositories.py tests/unit/test_case_monitoring_service.py` -> sem issues.
+  - `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py tests/integration/test_dashboard_pages.py tests/integration/test_case_repositories.py tests/unit/test_case_monitoring_service.py` -> sem issues.
+  - Observação: `ruff` não foi aplicado ao template Jinja (`*.html`) por não ser arquivo Python.
 - Verificações executadas neste slice:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or outcome" -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k operational_outcome -q`
