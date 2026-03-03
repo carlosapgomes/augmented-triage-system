@@ -277,7 +277,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "## Decisão sugerida:" in summary_body
     assert "## Suporte recomendado:" in summary_body
     assert "## Motivo objetivo:" in summary_body
-    assert "## Conduta sugerida:" in summary_body
+    assert "## Conduta sugerida:" not in summary_body
     assert "## Histórico de negativa recente:" in summary_body
     assert "- Tipo da negativa mais recente: negado na triagem." in summary_body
     assert "- Motivo da negativa mais recente: prior denial" in summary_body
@@ -298,7 +298,6 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "- Pendências de laboratório: não informado" in summary_body
     assert "- Decisão negar com suporte anestesista." in summary_body
     assert "- Informacoes insuficientes" in summary_body
-    assert "- Reavaliar após resolução das pendências críticas." in summary_body
     assert "```json" not in summary_body
     assert summary_formatted_body is not None
     assert "<h1>Resumo técnico da triagem</h1>" in summary_formatted_body
@@ -310,7 +309,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "<h2>Decisão sugerida:</h2>" in summary_formatted_body
     assert "<h2>Suporte recomendado:</h2>" in summary_formatted_body
     assert "<h2>Motivo objetivo:</h2>" in summary_formatted_body
-    assert "<h2>Conduta sugerida:</h2>" in summary_formatted_body
+    assert "<h2>Conduta sugerida:</h2>" not in summary_formatted_body
     assert "<h2>Dados extraídos:</h2>" not in summary_formatted_body
     assert "<h2>Recomendação do sistema:</h2>" not in summary_formatted_body
     assert "<li>Hb: 10.5</li>" in summary_formatted_body

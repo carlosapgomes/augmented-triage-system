@@ -33,9 +33,17 @@ def _extract_markdown_section_lines(
     return [line.strip() for line in chunk.splitlines() if line.strip()]
 
 
-def _extract_html_section_chunk(*, body: str, section: str, next_section: str) -> str:
+def _extract_html_section_chunk(
+    *,
+    body: str,
+    section: str,
+    next_section: str | None,
+) -> str:
     start = body.index(section) + len(section)
-    end = body.index(next_section, start)
+    if next_section is None:
+        end = len(body)
+    else:
+        end = body.index(next_section, start)
     return body[start:end]
 
 
@@ -136,7 +144,7 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "## Decisão sugerida:" in body
     assert "## Suporte recomendado:" in body
     assert "## Motivo objetivo:" in body
-    assert "## Conduta sugerida:" in body
+    assert "## Conduta sugerida:" not in body
     assert "## Dados extraídos:" not in body
     assert "## Recomendação do sistema:" not in body
     section_order = [
@@ -146,7 +154,6 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
         "## Decisão sugerida:",
         "## Suporte recomendado:",
         "## Motivo objetivo:",
-        "## Conduta sugerida:",
     ]
     section_positions = [body.index(section) for section in section_order]
     assert section_positions == sorted(section_positions)
@@ -166,7 +173,7 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "aceitar" in body
     assert "accept" not in body
     assert "Achados críticos" in body
-    assert "Conduta sugerida" in body
+    assert "Conduta sugerida" not in body
     assert "```json" not in body
 
 
@@ -364,7 +371,7 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     assert "<h2>Decisão sugerida:</h2>" in body
     assert "<h2>Suporte recomendado:</h2>" in body
     assert "<h2>Motivo objetivo:</h2>" in body
-    assert "<h2>Conduta sugerida:</h2>" in body
+    assert "<h2>Conduta sugerida:</h2>" not in body
     assert "<h2>Dados extraídos:</h2>" not in body
     assert "<h2>Recomendação do sistema:</h2>" not in body
     section_order = [
@@ -374,7 +381,6 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
         "<h2>Decisão sugerida:</h2>",
         "<h2>Suporte recomendado:</h2>",
         "<h2>Motivo objetivo:</h2>",
-        "<h2>Conduta sugerida:</h2>",
     ]
     section_positions = [body.index(section) for section in section_order]
     assert section_positions == sorted(section_positions)
@@ -534,12 +540,11 @@ def test_room2_summary_decision_and_support_come_only_from_suggested_action_html
     assert "aceitar" not in decision_chunk + support_chunk
 
 
-def test_room2_summary_objective_reason_is_short_and_coherent_markdown() -> None:
+def test_room2_summary_objective_reason_keeps_full_text_when_within_limit_markdown() -> None:
     case_id = UUID("12121212-1212-1212-1212-121212121212")
-    long_reason = (
-        "Paciente com múltiplas comorbidades e necessidade de revisão laboratorial detalhada "
-        "antes do procedimento endoscópico para reduzir risco perioperatório em cenário de "
-        "instabilidade clínica potencial."
+    reason_within_limit = (
+        "Paciente com múltiplas comorbidades, necessidade de revisão laboratorial detalhada "
+        "e rastreio pré-procedimento para reduzir risco perioperatório antes da endoscopia."
     )
     body = build_room2_case_summary_message(
         case_id=case_id,
@@ -550,6 +555,36 @@ def test_room2_summary_objective_reason_is_short_and_coherent_markdown() -> None
         suggested_action={
             "suggestion": "deny",
             "support_recommendation": "anesthesist_icu",
+            "rationale": {"short_reason": reason_within_limit},
+        },
+    )
+
+    reason_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Motivo objetivo:\n\n",
+        next_section=None,
+    )
+
+    assert reason_lines == [
+        "- Decisão negar com suporte anestesista_uti.",
+        f"- {reason_within_limit}",
+    ]
+    assert "…" not in reason_lines[1]
+
+
+def test_room2_summary_objective_reason_truncates_only_when_exceeding_new_limit() -> None:
+    case_id = UUID("23232323-2323-2323-2323-232323232323")
+    long_reason = " ".join(["motivo" for _ in range(100)])
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "deny",
+            "support_recommendation": "anesthesist",
             "rationale": {"short_reason": long_reason},
         },
     )
@@ -557,13 +592,12 @@ def test_room2_summary_objective_reason_is_short_and_coherent_markdown() -> None
     reason_lines = _extract_markdown_section_lines(
         body=body,
         section="## Motivo objetivo:\n\n",
-        next_section="\n\n## Conduta sugerida:",
+        next_section=None,
     )
-    reason_text = "\n".join(reason_lines)
 
-    assert 1 <= len(reason_lines) <= 2
-    assert "negar" in reason_text
-    assert "anestesista_uti" in reason_text
+    assert len(reason_lines) == 2
+    assert reason_lines[1].startswith("- motivo motivo")
+    assert reason_lines[1].endswith("…")
 
 
 def test_room2_summary_critical_sections_use_nao_informado_fallback() -> None:
@@ -618,12 +652,12 @@ def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_insta
         suggested_action={"suggestion": "accept", "support_recommendation": "anesthesist_icu"},
     )
 
-    conduct_lines = _extract_markdown_section_lines(
+    reason_lines = _extract_markdown_section_lines(
         body=body,
-        section="## Conduta sugerida:\n\n",
+        section="## Motivo objetivo:\n\n",
         next_section=None,
     )
-    assert any("PRIORIDADE EMERGENTE" in line for line in conduct_lines)
+    assert any("PRIORIDADE EMERGENTE" in line for line in reason_lines)
 
 
 def test_room2_summary_does_not_include_emergent_priority_phrase_without_instability() -> None:
@@ -637,12 +671,12 @@ def test_room2_summary_does_not_include_emergent_priority_phrase_without_instabi
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
 
-    conduct_lines = _extract_markdown_section_lines(
+    reason_lines = _extract_markdown_section_lines(
         body=body,
-        section="## Conduta sugerida:\n\n",
+        section="## Motivo objetivo:\n\n",
         next_section=None,
     )
-    assert all("PRIORIDADE EMERGENTE" not in line for line in conduct_lines)
+    assert all("PRIORIDADE EMERGENTE" not in line for line in reason_lines)
 
 
 def test_room2_summary_emergent_priority_phrase_html() -> None:
@@ -659,12 +693,15 @@ def test_room2_summary_emergent_priority_phrase_html() -> None:
         suggested_action={"suggestion": "accept", "support_recommendation": "anesthesist_icu"},
     )
 
-    start = body.index("<h2>Conduta sugerida:</h2>") + len("<h2>Conduta sugerida:</h2>")
-    conduct_chunk = body[start:]
-    assert "PRIORIDADE EMERGENTE" in conduct_chunk
+    reason_chunk = _extract_html_section_chunk(
+        body=body,
+        section="<h2>Motivo objetivo:</h2>",
+        next_section=None,
+    )
+    assert "PRIORIDADE EMERGENTE" in reason_chunk
 
 
-def test_room2_summary_conduct_targets_three_bullets_by_default() -> None:
+def test_room2_summary_does_not_include_conduta_section_markdown_or_html() -> None:
     case_id = UUID("90909090-9090-9090-9090-909090909090")
     body = build_room2_case_summary_message(
         case_id=case_id,
@@ -674,36 +711,17 @@ def test_room2_summary_conduct_targets_three_bullets_by_default() -> None:
         summary_text="Caso estável, sem urgência imediata.",
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
-
-    conduct_lines = _extract_markdown_section_lines(
-        body=body,
-        section="## Conduta sugerida:\n\n",
-        next_section=None,
-    )
-    assert len(conduct_lines) == 3
-
-
-def test_room2_summary_conduct_has_max_four_bullets_with_emergent_priority() -> None:
-    case_id = UUID("91919191-9191-9191-9191-919191919191")
-    body = build_room2_case_summary_message(
+    formatted_body = build_room2_case_summary_formatted_html(
         case_id=case_id,
         agency_record_number="12345",
         patient_name="JOSE",
-        structured_data={
-            "eda": {"indication_category": "bleeding"},
-            "policy_precheck": {"notes": "Instabilidade hemodinâmica e hipotensão."},
-        },
-        summary_text="Paciente com melena e PAS 80, instável.",
-        suggested_action={"suggestion": "deny", "support_recommendation": "anesthesist_icu"},
+        structured_data={"eda": {"indication_category": "dyspepsia"}},
+        summary_text="Caso estável, sem urgência imediata.",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
 
-    conduct_lines = _extract_markdown_section_lines(
-        body=body,
-        section="## Conduta sugerida:\n\n",
-        next_section=None,
-    )
-    assert len(conduct_lines) <= 4
-    assert len(conduct_lines) >= 3
+    assert "## Conduta sugerida:" not in body
+    assert "<h2>Conduta sugerida:</h2>" not in formatted_body
 
 
 def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
@@ -724,7 +742,7 @@ def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
     reason_chunk = _extract_html_section_chunk(
         body=body,
         section="<h2>Motivo objetivo:</h2>",
-        next_section="<h2>Conduta sugerida:</h2>",
+        next_section=None,
     )
 
     assert 1 <= reason_chunk.count("<li>") <= 2
@@ -750,7 +768,7 @@ def test_room2_summary_objective_reason_coherence_with_conflicting_short_reason(
     reason_lines = _extract_markdown_section_lines(
         body=body,
         section="## Motivo objetivo:\n\n",
-        next_section="\n\n## Conduta sugerida:",
+        next_section=None,
     )
 
     assert "negar" in reason_lines[0]
