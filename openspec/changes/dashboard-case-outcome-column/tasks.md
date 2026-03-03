@@ -13,7 +13,7 @@
 ## 3. Renderização da nova coluna na tabela de casos
 
 - [x] 3.1 Atualizar `src/triage_automation/infrastructure/http/templates/dashboard/partials/cases_list_fragment.html` para incluir a coluna de desfecho na listagem.
-- [ ] 3.2 Garantir que a página continue exibindo identificador, status e atividade mais recente sem regressões de paginação/filtros.
+- [x] 3.2 Garantir que a página continue exibindo identificador, status e atividade mais recente sem regressões de paginação/filtros.
 
 ## 4. Verificação de qualidade do slice
 
@@ -37,3 +37,7 @@
 - Evidência para 3.1 (template):
   - Green: `uv run pytest tests/integration/test_dashboard_pages.py -k outcome -q`
     - Passou após renderização da coluna `Desfecho` com `item.case_outcome` na tabela.
+- Evidência para 3.2 (não regressão de listagem/paginação/filtros):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k outcome_column_header -q`
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "case_list_page_renders_filters_and_paginated_rows_with_unpoly or case_list_fragment_update_respects_filters_and_pagination or outcome" -q`
+  - Ambos passaram, confirmando presença contínua de `Status`, `Atividade mais recente`, identificadores de caso e comportamento de filtros/paginação.
