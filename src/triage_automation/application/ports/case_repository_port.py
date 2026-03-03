@@ -9,6 +9,8 @@ from uuid import UUID
 
 from triage_automation.domain.case_status import CaseStatus
 
+CaseOutcome = Literal["ACEITO", "NEGADO", "EM_ANDAMENTO"]
+
 
 class DuplicateCaseOriginEventError(ValueError):
     """Raised when a case with the same room1 origin event already exists."""
@@ -153,11 +155,16 @@ class CaseMonitoringListFilter:
 
 @dataclass(frozen=True)
 class CaseMonitoringListItem:
-    """Case row projection returned by monitoring list queries."""
+    """Case row projection returned by monitoring list queries.
+
+    The `case_outcome` field is a user-facing operational summary for dashboard
+    list rendering and is independent from the technical workflow status.
+    """
 
     case_id: UUID
     status: CaseStatus
     latest_activity_at: datetime
+    case_outcome: CaseOutcome = "EM_ANDAMENTO"
     patient_name: str | None = None
     agency_record_number: str | None = None
 
