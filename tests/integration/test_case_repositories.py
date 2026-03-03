@@ -406,3 +406,24 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
     assert outcomes_by_case_id[denied_by_appt_case_id] == "NEGADO"
     assert outcomes_by_case_id[denied_by_doctor_case_id] == "NEGADO"
     assert outcomes_by_case_id[in_progress_case_id] == "EM_ANDAMENTO"
+
+    assert result.totals.total == 4
+    assert result.totals.accepted == 1
+    assert result.totals.denied == 2
+    assert result.totals.in_progress == 1
+
+    paged_result = await case_repo.list_cases_for_monitoring(
+        filters=CaseMonitoringListFilter(
+            status=None,
+            activity_from=None,
+            activity_to=None,
+            page=1,
+            page_size=1,
+        )
+    )
+
+    assert len(paged_result.items) == 1
+    assert paged_result.totals.total == 4
+    assert paged_result.totals.accepted == 1
+    assert paged_result.totals.denied == 2
+    assert paged_result.totals.in_progress == 1

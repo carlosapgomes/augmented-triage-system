@@ -12,7 +12,7 @@
 - [x] 2.1 Atualizar o contrato de listagem em `src/triage_automation/application/ports/case_repository_port.py` para incluir estrutura explícita de totais agregados por desfecho.
 - [x] 2.2 Ajustar `src/triage_automation/application/services/case_monitoring_service.py` para propagar os totais agregados sem alterar o comportamento dos filtros padrão existentes.
 - [x] 2.3 Implementar em `src/triage_automation/infrastructure/db/case_repository.py` a agregação SQL de totais por desfecho usando os mesmos filtros do conjunto listado.
-- [ ] 2.4 Adicionar/ajustar teste em `tests/integration/test_case_repositories.py` para validar precedência de classificação e consistência dos totais agregados.
+- [x] 2.4 Adicionar/ajustar teste em `tests/integration/test_case_repositories.py` para validar precedência de classificação e consistência dos totais agregados.
 
 ## 3. Renderização da totalização no dashboard
 
@@ -57,6 +57,11 @@
   - Implementação presente em `src/triage_automation/infrastructure/db/case_repository.py` com `aggregate_statement` baseado no mesmo `from_clause` e `where_clauses` da listagem paginada, garantindo coerência de filtros.
   - Execução de cobertura funcional (via dashboard): `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or full_filtered_result_not_current_page or no_results_renders_zeroed_totals" -q`.
   - Qualidade: `uv run ruff check src/triage_automation/infrastructure/db/case_repository.py` e `uv run mypy src/triage_automation/infrastructure/db/case_repository.py`.
+- Evidência da task 2.4:
+  - Teste de integração ajustado: `tests/integration/test_case_repositories.py::test_case_monitoring_list_derives_operational_outcome_from_decision_fields`.
+  - Execução: `uv run pytest tests/integration/test_case_repositories.py -k derives_operational_outcome -q`.
+  - Valida precedência (`confirmed > denied por agendamento > denied por médico > em andamento`) e consistência dos totais agregados independentemente da paginação (`page_size=10` e `page_size=1`).
+  - Qualidade: `uv run ruff check tests/integration/test_case_repositories.py` e `uv run mypy tests/integration/test_case_repositories.py`.
 - Verificações executadas neste slice:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or outcome" -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k operational_outcome -q`
