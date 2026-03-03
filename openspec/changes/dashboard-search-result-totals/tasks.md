@@ -3,7 +3,7 @@
 ## 1. Cobertura de testes (TDD) para totalização do dashboard
 
 - [x] 1.1 Adicionar/ajustar teste de integração em `tests/integration/test_dashboard_pages.py` para validar que a totalização abaixo da tabela exibe `total`, `ACEITO`, `NEGADO` e `EM_ANDAMENTO`.
-- [ ] 1.2 Cobrir em teste que os totais representam o universo completo da busca filtrada (não apenas os itens da página atual).
+- [x] 1.2 Cobrir em teste que os totais representam o universo completo da busca filtrada (não apenas os itens da página atual).
 - [ ] 1.3 Cobrir cenário de busca inicial (`GET /dashboard/cases` sem filtros explícitos) com totalização renderizada para o dia atual.
 - [ ] 1.4 Cobrir cenário sem resultados com bloco de totalização visível e contadores zerados.
 
@@ -36,6 +36,9 @@
 - Evidência TDD da task 1.1:
   - Red: `uv run pytest tests/integration/test_dashboard_pages.py -k search_totals_summary -q` (falhou por ausência da totalização no HTML).
   - Green: `uv run pytest tests/integration/test_dashboard_pages.py -k search_totals_summary -q` (passou após renderização do bloco com total/aceitos/negados/em processamento).
+- Evidência da task 1.2:
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k full_filtered_result_not_current_page -q`
+  - Resultado: `1 passed`, cobrindo que a página (com `page_size=1`) mostra apenas um caso, mas a totalização mantém o universo filtrado completo (`3`, `1`, `1`, `1`).
 - Verificações executadas neste slice:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "search_totals_summary or outcome" -q`
   - `uv run pytest tests/integration/test_case_repositories.py -k operational_outcome -q`
