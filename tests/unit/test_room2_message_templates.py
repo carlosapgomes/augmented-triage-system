@@ -750,7 +750,7 @@ def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
     assert "anestesista" in reason_chunk
 
 
-def test_room2_summary_objective_reason_coherence_with_conflicting_short_reason() -> None:
+def test_room2_summary_objective_reason_deny_never_mentions_acceptance_or_support() -> None:
     case_id = UUID("62626262-6262-6262-6262-626262626262")
     body = build_room2_case_summary_message(
         case_id=case_id,
@@ -771,8 +771,9 @@ def test_room2_summary_objective_reason_coherence_with_conflicting_short_reason(
         next_section=None,
     )
 
-    assert "negar" in reason_lines[0]
-    assert "anestesista" in reason_lines[0]
+    assert any("negar" in line for line in reason_lines)
+    assert all("aceitar" not in line.lower() for line in reason_lines)
+    assert all("suporte" not in line.lower() for line in reason_lines)
 
 
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
