@@ -540,7 +540,7 @@ def test_room2_summary_decision_and_support_come_only_from_suggested_action_html
     assert "aceitar" not in decision_chunk + support_chunk
 
 
-def test_room2_summary_objective_reason_keeps_full_text_when_within_limit_markdown() -> None:
+def test_room2_summary_objective_reason_deny_ignores_short_rationale_text() -> None:
     case_id = UUID("12121212-1212-1212-1212-121212121212")
     reason_within_limit = (
         "Paciente com múltiplas comorbidades, necessidade de revisão laboratorial detalhada "
@@ -565,14 +565,10 @@ def test_room2_summary_objective_reason_keeps_full_text_when_within_limit_markdo
         next_section=None,
     )
 
-    assert reason_lines == [
-        "- Decisão negar com suporte anestesista_uti.",
-        f"- {reason_within_limit}",
-    ]
-    assert "…" not in reason_lines[1]
+    assert reason_lines == ["- Negado por: critérios mínimos de segurança não atendidos."]
 
 
-def test_room2_summary_objective_reason_truncates_only_when_exceeding_new_limit() -> None:
+def test_room2_summary_objective_reason_deny_ignores_long_rationale_text() -> None:
     case_id = UUID("23232323-2323-2323-2323-232323232323")
     long_reason = " ".join(["motivo" for _ in range(100)])
 
@@ -595,9 +591,7 @@ def test_room2_summary_objective_reason_truncates_only_when_exceeding_new_limit(
         next_section=None,
     )
 
-    assert len(reason_lines) == 2
-    assert reason_lines[1].startswith("- motivo motivo")
-    assert reason_lines[1].endswith("…")
+    assert reason_lines == ["- Negado por: critérios mínimos de segurança não atendidos."]
 
 
 def test_room2_summary_critical_sections_use_nao_informado_fallback() -> None:
