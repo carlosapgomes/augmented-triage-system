@@ -16,7 +16,7 @@
 - [x] 2.2 Implementar composição de negativa com causas explícitas e auditáveis, priorizando sinais clínicos/precheck definidos no spec.
 - [x] 2.3 Garantir que, em `deny`, o `Motivo objetivo` não inclua texto de suporte e não reutilize texto livre contraditório de `rationale.short_reason`.
 - [x] 2.4 Garantir que, em `accept`, o `Motivo objetivo` seja frase curta com suporte (ou sem suporte) e sem explicações adicionais.
-- [ ] 2.5 Ajustar regra de prioridade emergente para aparecer somente quando o caso for de sangramento instável com sugestão final `accept`.
+- [x] 2.5 Ajustar regra de prioridade emergente para aparecer somente quando o caso for de sangramento instável com sugestão final `accept`.
 - [ ] 2.6 Preservar renderização consistente entre Markdown e HTML (`formatted_body`) para todas as novas regras de `Motivo objetivo`.
 
 ## 3. Validar qualidade, registrar evidências e preparar handoff

@@ -616,7 +616,6 @@ def _build_room2_objective_reason_lines(
         return _build_room2_objective_reason_deny_lines(
             structured_data=structured_data,
             suggested_action=suggested_action,
-            include_emergent_phrase=include_emergent_phrase,
         )
     if decision_key == "accept":
         return _build_room2_objective_reason_accept_lines(
@@ -637,7 +636,6 @@ def _build_room2_objective_reason_deny_lines(
     *,
     structured_data: dict[str, object],
     suggested_action: dict[str, object],
-    include_emergent_phrase: bool,
 ) -> list[str]:
     """Build objective reason lines for deny suggestion branch."""
 
@@ -650,15 +648,7 @@ def _build_room2_objective_reason_deny_lines(
     if len(causes) > 2:
         cause_text = f"{cause_text}; e outras pendências críticas"
 
-    lines = [f"- Negado por: {cause_text}."]
-    if include_emergent_phrase:
-        lines.append(
-            (
-                "- PRIORIDADE EMERGENTE: estabilizar hemodinamicamente e seguir via "
-                "urgente sem atraso por pendências não críticas."
-            ),
-        )
-    return lines
+    return [f"- Negado por: {cause_text}."]
 
 
 def _build_room2_objective_deny_causes(

@@ -660,6 +660,30 @@ def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_insta
     assert any("PRIORIDADE EMERGENTE" in line for line in reason_lines)
 
 
+def test_room2_summary_does_not_include_emergent_phrase_for_deny_even_with_instability() -> None:
+    case_id = UUID("78777777-7877-7877-7877-787777777777")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "eda": {"indication_category": "bleeding"},
+            "policy_precheck": {
+                "notes": "Instabilidade hemodinâmica documentada com hipotensão importante.",
+            },
+        },
+        summary_text="Paciente com hematêmese e PA 78/50.",
+        suggested_action={"suggestion": "deny", "support_recommendation": "none"},
+    )
+
+    reason_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Motivo objetivo:\n\n",
+        next_section=None,
+    )
+    assert all("PRIORIDADE EMERGENTE" not in line for line in reason_lines)
+
+
 def test_room2_summary_does_not_include_emergent_priority_phrase_without_instability() -> None:
     case_id = UUID("78787878-7878-7878-7878-787878787878")
     body = build_room2_case_summary_message(
