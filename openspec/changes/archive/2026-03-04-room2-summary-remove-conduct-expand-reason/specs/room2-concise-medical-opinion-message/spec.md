@@ -13,7 +13,7 @@ The system SHALL publish a concise medical-opinion summary in Room-2 focused on 
 - **AND** the message MUST NOT include full flattened listings equivalent to complete LLM1/LLM2 structured payloads
 - **AND** the message MUST NOT include a standalone `Conduta sugerida` section
 
-### Requirement: Room-2 Summary SHALL Include Mandatory Six-Block Layout
+### Requirement: Room-2 Summary SHALL Include Mandatory Seven-Block Layout
 
 The system SHALL render the Room-2 summary with a fixed six-block layout to standardize medical reading flow.
 
