@@ -49,6 +49,20 @@ def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_portuguese() -> N
     assert "Validate all runtime services are running after rollback" in runbook
 
 
+def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_portuguese() -> None:
+    runbook = _read("docs/ansible_ops_runbook.md")
+
+    assert "## Agendamento gerenciado do scheduler da Room-4" in runbook
+    assert "ats_room4_scheduler_cron_enabled" in runbook
+    assert "ats_room4_scheduler_cron_timezone" in runbook
+    assert "ats_room4_scheduler_cron_minute" in runbook
+    assert "ats_room4_scheduler_cron_hour" in runbook
+    assert "ats_room4_scheduler_cron_log_file" in runbook
+    assert "crontab -u ats -l" in runbook
+    assert "ATS Room-4 Scheduler" in runbook
+    assert "post_room4_summary" in runbook
+
+
 def test_ansible_ops_runbook_documents_first_level_troubleshooting_in_portuguese() -> None:
     runbook = _read("docs/ansible_ops_runbook.md")
 
@@ -100,6 +114,20 @@ def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_english() -> None
     assert "ats_runtime_rollback_image_tag=v1.0.0" in runbook
     assert rollback_command in runbook
     assert "Validate all runtime services are running after rollback" in runbook
+
+
+def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_english() -> None:
+    runbook = _read("docs/en/ansible_ops_runbook.md")
+
+    assert "## Managed Room-4 Scheduler Cron" in runbook
+    assert "ats_room4_scheduler_cron_enabled" in runbook
+    assert "ats_room4_scheduler_cron_timezone" in runbook
+    assert "ats_room4_scheduler_cron_minute" in runbook
+    assert "ats_room4_scheduler_cron_hour" in runbook
+    assert "ats_room4_scheduler_cron_log_file" in runbook
+    assert "crontab -u ats -l" in runbook
+    assert "ATS Room-4 Scheduler" in runbook
+    assert "post_room4_summary" in runbook
 
 
 def test_ansible_ops_runbook_documents_first_level_troubleshooting_in_english() -> None:
