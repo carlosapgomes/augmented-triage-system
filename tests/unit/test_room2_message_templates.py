@@ -795,7 +795,7 @@ def test_room2_summary_objective_reason_deny_never_mentions_acceptance_or_suppor
         next_section=None,
     )
 
-    assert any("negar" in line for line in reason_lines)
+    assert any(line.lower().startswith("- negado por:") for line in reason_lines)
     assert all("aceitar" not in line.lower() for line in reason_lines)
     assert all("suporte" not in line.lower() for line in reason_lines)
 
