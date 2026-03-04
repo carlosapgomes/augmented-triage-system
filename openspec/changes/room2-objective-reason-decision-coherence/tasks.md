@@ -4,7 +4,7 @@
 
 - [x] 1.1 Ajustar testes unitários de `tests/unit/test_room2_message_templates.py` para falhar quando `Motivo objetivo` de `deny` contiver frase de aceite ou menção de suporte.
 - [x] 1.2 Adicionar/ajustar testes unitários para validar derivação determinística das causas de negativa na ordem: exclusão EDA, pendência laboratorial obrigatória, ECG obrigatório ausente, fallback de segurança.
-- [ ] 1.3 Adicionar/ajustar testes unitários para validar limite de até 2 causas no `Motivo objetivo` de `deny`, com marcador equivalente a `e outras pendências críticas` quando houver causas adicionais.
+- [x] 1.3 Adicionar/ajustar testes unitários para validar limite de até 2 causas no `Motivo objetivo` de `deny`, com marcador equivalente a `e outras pendências críticas` quando houver causas adicionais.
 - [ ] 1.4 Ajustar testes unitários para validar que, em `accept`, `Motivo objetivo` usa apenas frase curta de aceite com suporte e não adiciona linhas explicativas extras.
 - [ ] 1.5 Ajustar testes unitários para garantir que `rationale.short_reason` conflitante não vaze contradição no resumo renderizado.
 - [ ] 1.6 Ajustar testes de integração em `tests/integration/test_post_room2_widget.py` para refletir o novo contrato textual de coerência entre `Decisão sugerida` e `Motivo objetivo`.

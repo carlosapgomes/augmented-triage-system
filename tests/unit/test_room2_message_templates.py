@@ -905,6 +905,41 @@ def test_room2_summary_objective_reason_deny_uses_fallback_when_no_known_cause()
     assert "critérios mínimos de segurança não atendidos" in reason_text
 
 
+def test_room2_summary_objective_reason_deny_limits_two_causes_with_marker() -> None:
+    case_id = UUID("67676767-6767-6767-6767-676767676767")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": True,
+                "exclusion_reason": "fora do escopo",
+                "labs_required": True,
+                "labs_pass": "no",
+                "labs_failed_items": ["INR não informado"],
+                "ecg_required": True,
+                "ecg_present": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "deny", "support_recommendation": "none"},
+    )
+
+    reason_text = " ".join(
+        _extract_markdown_section_lines(
+            body=body,
+            section="## Motivo objetivo:\n\n",
+            next_section=None,
+        )
+    ).lower()
+
+    assert "fora do escopo eda" in reason_text
+    assert "pendência laboratorial obrigatória" in reason_text
+    assert "e outras pendências críticas" in reason_text
+    assert "ecg obrigatório ausente" not in reason_text
+
+
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
     case_id = UUID("44444444-4444-4444-4444-444444444444")
 
