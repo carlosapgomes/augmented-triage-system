@@ -724,8 +724,32 @@ def test_room2_summary_does_not_include_conduta_section_markdown_or_html() -> No
     assert "<h2>Conduta sugerida:</h2>" not in formatted_body
 
 
-def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
+def test_room2_summary_objective_reason_accept_is_single_short_line_markdown() -> None:
     case_id = UUID("34343434-3434-3434-3434-343434343434")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "accept",
+            "support_recommendation": "anesthesist",
+            "rationale": {"short_reason": "Apto com suporte especializado."},
+        },
+    )
+
+    reason_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Motivo objetivo:\n\n",
+        next_section=None,
+    )
+
+    assert reason_lines == ["- Aceito com suporte de anestesista."]
+
+
+def test_room2_summary_objective_reason_accept_is_single_short_line_html() -> None:
+    case_id = UUID("35353535-3535-3535-3535-353535353535")
     body = build_room2_case_summary_formatted_html(
         case_id=case_id,
         agency_record_number="12345",
@@ -745,9 +769,9 @@ def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
         next_section=None,
     )
 
-    assert 1 <= reason_chunk.count("<li>") <= 2
-    assert "aceitar" in reason_chunk
-    assert "anestesista" in reason_chunk
+    assert reason_chunk.count("<li>") == 1
+    assert "Aceito com suporte de anestesista." in reason_chunk
+    assert "Apto com suporte especializado." not in reason_chunk
 
 
 def test_room2_summary_objective_reason_deny_never_mentions_acceptance_or_support() -> None:
