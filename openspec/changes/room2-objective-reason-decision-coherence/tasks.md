@@ -8,7 +8,7 @@
 - [x] 1.4 Ajustar testes unitários para validar que, em `accept`, `Motivo objetivo` usa apenas frase curta de aceite com suporte e não adiciona linhas explicativas extras.
 - [x] 1.5 Ajustar testes unitários para garantir que `rationale.short_reason` conflitante não vaze contradição no resumo renderizado.
 - [x] 1.6 Ajustar testes de integração em `tests/integration/test_post_room2_widget.py` para refletir o novo contrato textual de coerência entre `Decisão sugerida` e `Motivo objetivo`.
-- [ ] 1.7 Executar `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q` e registrar evidência de falha inicial (red).
+- [x] 1.7 Executar `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q` e registrar evidência de falha inicial (red).
 
 ## 2. Implementar regras determinísticas do motivo objetivo na Sala 2
 
@@ -32,3 +32,6 @@
 - Decisão de produto confirmada: quando a decisão final for `deny`, o texto do `Motivo objetivo` deve focar exclusivamente no motivo objetivo da recusa.
 - Decisão de produto confirmada: em negativas com múltiplas pendências, listar até 2 causas explícitas e resumir excedentes com marcador curto.
 - Decisão de produto confirmada: frase de prioridade emergente não deve coexistir com mensagem final de negativa.
+- Evidência TDD (red) consolidada do bloco 1:
+  - `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q`
+  - Resultado: `10 failed, 29 passed` (falhas esperadas antes da implementação das regras determinísticas de `Motivo objetivo`).
