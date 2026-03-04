@@ -21,7 +21,7 @@
 
 ## 3. Validar qualidade, registrar evidências e preparar handoff
 
-- [ ] 3.1 Executar suíte alvo green: `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q`.
+- [x] 3.1 Executar suíte alvo green: `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q`.
 - [ ] 3.2 Executar `uv run ruff check src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`.
 - [ ] 3.3 Executar `uv run mypy src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`.
 - [ ] 3.4 Executar `markdownlint-cli2 "openspec/changes/room2-objective-reason-decision-coherence/**/*.md"`.
