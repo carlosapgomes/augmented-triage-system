@@ -605,11 +605,97 @@ def _build_room2_objective_reason_lines(
         else "não informado"
     )
 
-    lines = [f"- Decisão {decision_label} com suporte {support_label}."]
-    if _should_include_room2_emergent_priority_phrase(
+    include_emergent_phrase = _should_include_room2_emergent_priority_phrase(
         structured_data=structured_data,
         summary_text=summary_text,
-    ):
+    )
+    reason = _extract_room2_short_reason(suggested_action)
+
+    decision_key = decision.strip().lower() if isinstance(decision, str) else ""
+    if decision_key == "deny":
+        return _build_room2_objective_reason_deny_lines(
+            decision_label=decision_label,
+            support_label=support_label,
+            include_emergent_phrase=include_emergent_phrase,
+            reason=reason,
+        )
+    if decision_key == "accept":
+        return _build_room2_objective_reason_accept_lines(
+            decision_label=decision_label,
+            support_label=support_label,
+            include_emergent_phrase=include_emergent_phrase,
+            reason=reason,
+        )
+    return _build_room2_objective_reason_unknown_decision_lines(
+        decision_label=decision_label,
+        support_label=support_label,
+        include_emergent_phrase=include_emergent_phrase,
+        reason=reason,
+    )
+
+
+def _build_room2_objective_reason_deny_lines(
+    *,
+    decision_label: str,
+    support_label: str,
+    include_emergent_phrase: bool,
+    reason: str | None,
+) -> list[str]:
+    """Build objective reason lines for deny suggestion branch."""
+
+    return _build_room2_objective_reason_default_lines(
+        decision_label=decision_label,
+        support_label=support_label,
+        include_emergent_phrase=include_emergent_phrase,
+        reason=reason,
+    )
+
+
+def _build_room2_objective_reason_accept_lines(
+    *,
+    decision_label: str,
+    support_label: str,
+    include_emergent_phrase: bool,
+    reason: str | None,
+) -> list[str]:
+    """Build objective reason lines for accept suggestion branch."""
+
+    return _build_room2_objective_reason_default_lines(
+        decision_label=decision_label,
+        support_label=support_label,
+        include_emergent_phrase=include_emergent_phrase,
+        reason=reason,
+    )
+
+
+def _build_room2_objective_reason_unknown_decision_lines(
+    *,
+    decision_label: str,
+    support_label: str,
+    include_emergent_phrase: bool,
+    reason: str | None,
+) -> list[str]:
+    """Build objective reason lines for missing or unknown suggestion branch."""
+
+    return _build_room2_objective_reason_default_lines(
+        decision_label=decision_label,
+        support_label=support_label,
+        include_emergent_phrase=include_emergent_phrase,
+        reason=reason,
+    )
+
+
+def _build_room2_objective_reason_default_lines(
+    *,
+    decision_label: str,
+    support_label: str,
+    include_emergent_phrase: bool,
+    reason: str | None,
+) -> list[str]:
+    """Build legacy objective reason lines shared across decision branches."""
+
+    lines = [f"- Decisão {decision_label} com suporte {support_label}."]
+    if include_emergent_phrase:
         lines.append(
             (
                 "- PRIORIDADE EMERGENTE: estabilizar hemodinamicamente e seguir via "
@@ -617,7 +703,6 @@ def _build_room2_objective_reason_lines(
             ),
         )
 
-    reason = _extract_room2_short_reason(suggested_action)
     if reason:
         lines.append(f"- {_truncate_room2_reason_line(reason)}")
     return lines
