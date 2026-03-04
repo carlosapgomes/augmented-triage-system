@@ -27,7 +27,44 @@
 
 ## 5. Verificação e fechamento do change
 
-- [ ] 5.1 Executar testes-alvo de Ansible e runtime relacionados ao novo cron gerenciado.
-- [ ] 5.2 Executar `uv run ruff check` e `uv run mypy` nos paths alterados.
-- [ ] 5.3 Executar `markdownlint-cli2` nos artefatos OpenSpec e docs alterados.
-- [ ] 5.4 Atualizar este `tasks.md` com evidências de verificação, observações de rollout e estratégia de rollback operacional.
+- [x] 5.1 Executar testes-alvo de Ansible e runtime relacionados ao novo cron gerenciado.
+- [x] 5.2 Executar `uv run ruff check` e `uv run mypy` nos paths alterados.
+- [x] 5.3 Executar `markdownlint-cli2` nos artefatos OpenSpec e docs alterados.
+- [x] 5.4 Atualizar este `tasks.md` com evidências de verificação, observações de rollout e estratégia de rollback operacional.
+
+## Evidências de verificação e observações de rollout/rollback
+
+### Evidências de verificação
+
+- Testes-alvo (Ansible + runtime relacionado ao scheduler one-shot):
+  - `uv run pytest tests/unit/test_ansible_variables.py tests/unit/test_ansible_app_runtime_role.py tests/unit/test_ansible_room4_scheduler_cron_role.py tests/unit/test_ansible_deploy_role.py tests/unit/test_ansible_upgrade_playbook.py tests/unit/test_ansible_rollback_playbook.py tests/unit/test_ansible_ops_runbook_docs.py tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py tests/unit/test_supervisor_summary_scheduler_main.py tests/integration/test_supervisor_summary_scheduler_runtime.py -q` → `27 passed`
+- Lint e tipagem Python (paths alterados):
+  - `uv run ruff check tests/unit/test_ansible_variables.py tests/unit/test_ansible_app_runtime_role.py tests/unit/test_ansible_room4_scheduler_cron_role.py tests/unit/test_ansible_deploy_role.py tests/unit/test_ansible_upgrade_playbook.py tests/unit/test_ansible_rollback_playbook.py tests/unit/test_ansible_ops_runbook_docs.py` → sem erros
+  - `uv run mypy tests/unit/test_ansible_variables.py tests/unit/test_ansible_app_runtime_role.py tests/unit/test_ansible_room4_scheduler_cron_role.py tests/unit/test_ansible_deploy_role.py tests/unit/test_ansible_upgrade_playbook.py tests/unit/test_ansible_rollback_playbook.py tests/unit/test_ansible_ops_runbook_docs.py` → sem erros
+- Markdown lint (OpenSpec + docs):
+  - `markdownlint-cli2 "docs/ansible_ops_runbook.md" "docs/en/ansible_ops_runbook.md" "openspec/changes/ansible-room4-scheduler-cronjob/**/*.md"` → sem erros
+- Validação do change:
+  - `openspec validate ansible-room4-scheduler-cronjob` → válido
+
+### Observações de rollout
+
+- O cron da Room-4 é convergido por Ansible em `deploy`, `upgrade` e `rollback` via role `room4_scheduler_cron`.
+- Execução ocorre no usuário de serviço (`ats_service_user`) com ambiente rootless explícito no crontab (`CRON_TZ`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`).
+- Defaults operacionais aplicados:
+  - `ats_room4_scheduler_cron_enabled: true`
+  - `ats_room4_scheduler_cron_timezone: America/Bahia`
+  - `ats_room4_scheduler_cron_minute: "0"`
+  - `ats_room4_scheduler_cron_hour: "7,19"`
+  - `ats_room4_scheduler_cron_log_file: {{ ats_runtime_root }}/logs/room4-scheduler-cron.log`
+- Verificação pós-deploy recomendada no runbook:
+  - conferir `crontab -u ats -l`
+  - checar arquivo de log do scheduler
+  - confirmar enfileiramento de `post_room4_summary`
+
+### Estratégia de rollback operacional
+
+- Rollback de versão de aplicação mantém convergência do cron (playbook `rollback.yml` também aplica a role).
+- Para interromper agendamentos periódicos sem remover restante do runtime:
+  - definir `ats_room4_scheduler_cron_enabled: false` no inventário do host
+  - reaplicar `deploy.yml`, `upgrade.yml` ou `rollback.yml`
+- A remoção do cron é idempotente e não remove serviços principais (`bot-api`, `bot-matrix`, `worker`).
