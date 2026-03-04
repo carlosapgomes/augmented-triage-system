@@ -6,7 +6,7 @@
 - [x] 1.2 Adicionar/ajustar testes unitários para validar derivação determinística das causas de negativa na ordem: exclusão EDA, pendência laboratorial obrigatória, ECG obrigatório ausente, fallback de segurança.
 - [x] 1.3 Adicionar/ajustar testes unitários para validar limite de até 2 causas no `Motivo objetivo` de `deny`, com marcador equivalente a `e outras pendências críticas` quando houver causas adicionais.
 - [x] 1.4 Ajustar testes unitários para validar que, em `accept`, `Motivo objetivo` usa apenas frase curta de aceite com suporte e não adiciona linhas explicativas extras.
-- [ ] 1.5 Ajustar testes unitários para garantir que `rationale.short_reason` conflitante não vaze contradição no resumo renderizado.
+- [x] 1.5 Ajustar testes unitários para garantir que `rationale.short_reason` conflitante não vaze contradição no resumo renderizado.
 - [ ] 1.6 Ajustar testes de integração em `tests/integration/test_post_room2_widget.py` para refletir o novo contrato textual de coerência entre `Decisão sugerida` e `Motivo objetivo`.
 - [ ] 1.7 Executar `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q` e registrar evidência de falha inicial (red).
 
