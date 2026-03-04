@@ -27,8 +27,15 @@ def test_upgrade_playbook_declares_versioned_upgrade_and_post_deploy_checks() ->
     assert "Validate explicit deploy image tag" in playbook
     assert explicit_tag_guard in playbook
     assert "name: app_runtime" in playbook
+    assert "name: room4_scheduler_cron" in playbook
     assert "name: deploy" in playbook
     assert "post_tasks:" in playbook
+
+    app_runtime_index = playbook.index("name: app_runtime")
+    scheduler_index = playbook.index("name: room4_scheduler_cron")
+    deploy_index = playbook.index("name: deploy")
+
+    assert app_runtime_index < scheduler_index < deploy_index
     assert "docker compose" in playbook
     assert "ps --services --filter status=running" in playbook
     assert "register: ats_upgrade_running_services" in playbook

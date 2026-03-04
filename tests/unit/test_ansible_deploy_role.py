@@ -58,8 +58,8 @@ def test_deploy_role_declares_rootless_service_startup_tasks() -> None:
     assert "XDG_RUNTIME_DIR" in tasks
 
 
-def test_deploy_playbook_wires_runtime_render_and_deploy_roles() -> None:
-    """Ensure deploy playbook includes app_runtime and deploy roles."""
+def test_deploy_playbook_wires_runtime_render_scheduler_cron_and_deploy_roles() -> None:
+    """Ensure deploy playbook includes app_runtime, scheduler cron, and deploy roles."""
 
     deploy_playbook = _read("ansible/playbooks/deploy.yml")
     explicit_tag_guard = (
@@ -73,4 +73,11 @@ def test_deploy_playbook_wires_runtime_render_and_deploy_roles() -> None:
     assert explicit_tag_guard in deploy_playbook
     assert "Deploy target image: {{ ats_runtime_image }}" in deploy_playbook
     assert "name: app_runtime" in deploy_playbook
+    assert "name: room4_scheduler_cron" in deploy_playbook
     assert "name: deploy" in deploy_playbook
+
+    app_runtime_index = deploy_playbook.index("name: app_runtime")
+    scheduler_index = deploy_playbook.index("name: room4_scheduler_cron")
+    deploy_index = deploy_playbook.index("name: deploy")
+
+    assert app_runtime_index < scheduler_index < deploy_index

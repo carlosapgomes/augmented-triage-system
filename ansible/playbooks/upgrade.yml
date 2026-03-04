@@ -24,6 +24,10 @@
       ansible.builtin.include_role:
         name: app_runtime
 
+    - name: Converge Room-4 scheduler cron configuration
+      ansible.builtin.include_role:
+        name: room4_scheduler_cron
+
     - name: Upgrade runtime services with rootless Docker
       ansible.builtin.include_role:
         name: deploy

@@ -15,9 +15,9 @@
 
 ## 3. Wiring nos playbooks oficiais
 
-- [ ] 3.1 Adicionar cobertura de testes para wiring da nova role nos playbooks (`deploy.yml`, `upgrade.yml` e decisão explícita para `rollback.yml`).
-- [ ] 3.2 Integrar execução da role de cron no fluxo de deploy/upgrade após renderização de runtime.
-- [ ] 3.3 Garantir convergência de estado do cron em reruns idempotentes dos playbooks.
+- [x] 3.1 Adicionar cobertura de testes para wiring da nova role nos playbooks (`deploy.yml`, `upgrade.yml` e decisão explícita para `rollback.yml`).
+- [x] 3.2 Integrar execução da role de cron no fluxo de deploy/upgrade após renderização de runtime.
+- [x] 3.3 Garantir convergência de estado do cron em reruns idempotentes dos playbooks.
 
 ## 4. Documentação operacional e espelhos bilíngues
 

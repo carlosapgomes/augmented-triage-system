@@ -32,8 +32,15 @@ def test_rollback_playbook_declares_target_tag_and_validation_flow() -> None:
     assert "ats_runtime_image_tag: \"{{ ats_runtime_rollback_image_tag }}\"" in playbook
     assert "Rollback target image: {{ ats_runtime_image }}" in playbook
     assert "name: app_runtime" in playbook
+    assert "name: room4_scheduler_cron" in playbook
     assert "name: deploy" in playbook
     assert "post_tasks:" in playbook
+
+    app_runtime_index = playbook.index("name: app_runtime")
+    scheduler_index = playbook.index("name: room4_scheduler_cron")
+    deploy_index = playbook.index("name: deploy")
+
+    assert app_runtime_index < scheduler_index < deploy_index
     assert "ps --services --filter status=running" in playbook
     assert "register: ats_rollback_running_services" in playbook
     assert running_services_guard in playbook
