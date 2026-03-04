@@ -25,7 +25,7 @@
 - [x] 3.2 Executar `uv run ruff check src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`.
 - [x] 3.3 Executar `uv run mypy src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`.
 - [x] 3.4 Executar `markdownlint-cli2 "openspec/changes/room2-objective-reason-decision-coherence/**/*.md"`.
-- [ ] 3.5 Registrar resultados, observações e eventuais desvios na seção `Notes` do próprio `tasks.md`.
+- [x] 3.5 Registrar resultados, observações e eventuais desvios na seção `Notes` do próprio `tasks.md`.
 
 ## Notes
 
@@ -35,3 +35,17 @@
 - Evidência TDD (red) consolidada do bloco 1:
   - `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q`
   - Resultado: `10 failed, 29 passed` (falhas esperadas antes da implementação das regras determinísticas de `Motivo objetivo`).
+- Evidência TDD (green) após implementação:
+  - `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q`
+  - Resultado: `41 passed` (com 4 warnings de deprecação do adaptador datetime do sqlite em ambiente de teste).
+- Qualidade estática:
+  - `uv run ruff check src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`
+  - Resultado: sem erros.
+- Tipagem:
+  - `uv run mypy src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`
+  - Resultado: sem erros.
+- Lint de Markdown OpenSpec:
+  - `markdownlint-cli2 "openspec/changes/room2-objective-reason-decision-coherence/**/*.md"`
+  - Resultado: `0 error(s)`.
+- Desvio registrado:
+  - Dois testes unitários legados de `deny` que validavam reaproveitamento de `rationale.short_reason` foram atualizados para o novo contrato (negação determinística por causa objetiva).
