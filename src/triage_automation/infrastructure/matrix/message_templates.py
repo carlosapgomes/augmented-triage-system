@@ -614,10 +614,9 @@ def _build_room2_objective_reason_lines(
     decision_key = decision.strip().lower() if isinstance(decision, str) else ""
     if decision_key == "deny":
         return _build_room2_objective_reason_deny_lines(
-            decision_label=decision_label,
-            support_label=support_label,
+            structured_data=structured_data,
+            suggested_action=suggested_action,
             include_emergent_phrase=include_emergent_phrase,
-            reason=reason,
         )
     if decision_key == "accept":
         return _build_room2_objective_reason_accept_lines(
@@ -636,19 +635,99 @@ def _build_room2_objective_reason_lines(
 
 def _build_room2_objective_reason_deny_lines(
     *,
-    decision_label: str,
-    support_label: str,
+    structured_data: dict[str, object],
+    suggested_action: dict[str, object],
     include_emergent_phrase: bool,
-    reason: str | None,
 ) -> list[str]:
     """Build objective reason lines for deny suggestion branch."""
 
-    return _build_room2_objective_reason_default_lines(
-        decision_label=decision_label,
-        support_label=support_label,
-        include_emergent_phrase=include_emergent_phrase,
-        reason=reason,
+    causes = _build_room2_objective_deny_causes(
+        structured_data=structured_data,
+        suggested_action=suggested_action,
     )
+    visible_causes = causes[:2]
+    cause_text = "; ".join(visible_causes)
+    if len(causes) > 2:
+        cause_text = f"{cause_text}; e outras pendências críticas"
+
+    lines = [f"- Negado por: {cause_text}."]
+    if include_emergent_phrase:
+        lines.append(
+            (
+                "- PRIORIDADE EMERGENTE: estabilizar hemodinamicamente e seguir via "
+                "urgente sem atraso por pendências não críticas."
+            ),
+        )
+    return lines
+
+
+def _build_room2_objective_deny_causes(
+    *,
+    structured_data: dict[str, object],
+    suggested_action: dict[str, object],
+) -> list[str]:
+    """Return ordered deny causes derived from deterministic precheck signals."""
+
+    causes: list[str] = []
+
+    excluded_from_flow = _extract_room2_nested_value(
+        structured_data,
+        "policy_precheck",
+        "excluded_from_eda_flow",
+    )
+    excluded_request = _extract_room2_nested_value(
+        suggested_action,
+        "policy_alignment",
+        "excluded_request",
+    )
+    if excluded_from_flow is True or excluded_request is True:
+        exclusion_reason = _extract_room2_nested_value(
+            structured_data,
+            "policy_precheck",
+            "exclusion_reason",
+        )
+        if isinstance(exclusion_reason, str) and exclusion_reason.strip():
+            causes.append(
+                f"solicitação fora do escopo EDA ({' '.join(exclusion_reason.split())})",
+            )
+        else:
+            causes.append("solicitação fora do escopo EDA")
+
+    labs_required = _extract_room2_nested_value(structured_data, "policy_precheck", "labs_required")
+    labs_pass = _extract_room2_nested_value(structured_data, "policy_precheck", "labs_pass")
+    if labs_required is True and not _is_room2_yes_precheck_value(labs_pass):
+        failed_items = _extract_room2_nested_value(
+            structured_data,
+            "policy_precheck",
+            "labs_failed_items",
+        )
+        if isinstance(failed_items, list):
+            normalized_items = [str(item).strip() for item in failed_items if str(item).strip()]
+            if normalized_items:
+                causes.append(
+                    "pendência laboratorial obrigatória "
+                    f"({', '.join(normalized_items)})",
+                )
+            else:
+                causes.append("pendência laboratorial obrigatória")
+        else:
+            causes.append("pendência laboratorial obrigatória")
+
+    ecg_required = _extract_room2_nested_value(structured_data, "policy_precheck", "ecg_required")
+    ecg_present = _extract_room2_nested_value(structured_data, "policy_precheck", "ecg_present")
+    if ecg_required is True and not _is_room2_yes_precheck_value(ecg_present):
+        causes.append("ECG obrigatório ausente")
+
+    if not causes:
+        causes.append("critérios mínimos de segurança não atendidos")
+
+    return causes
+
+
+def _is_room2_yes_precheck_value(value: object) -> bool:
+    """Return True when precheck enum-like value explicitly means yes."""
+
+    return isinstance(value, str) and value.strip().lower() == "yes"
 
 
 def _build_room2_objective_reason_accept_lines(
