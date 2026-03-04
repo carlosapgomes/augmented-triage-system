@@ -964,6 +964,42 @@ def test_room2_summary_objective_reason_deny_limits_two_causes_with_marker() -> 
     assert "ecg obrigatório ausente" not in reason_text
 
 
+def test_room2_summary_deny_ignores_conflicting_short_reason_when_cause_available() -> None:
+    case_id = UUID("68686868-6868-6868-6868-686868686868")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": False,
+                "labs_required": True,
+                "labs_pass": "no",
+                "labs_failed_items": ["INR não informado"],
+                "ecg_required": False,
+                "ecg_present": "yes",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "deny",
+            "support_recommendation": "none",
+            "rationale": {"short_reason": "Aceitar sem suporte por estabilidade."},
+        },
+    )
+
+    reason_text = " ".join(
+        _extract_markdown_section_lines(
+            body=body,
+            section="## Motivo objetivo:\n\n",
+            next_section=None,
+        )
+    ).lower()
+
+    assert "pendência laboratorial obrigatória" in reason_text
+    assert "aceitar sem suporte por estabilidade" not in reason_text
+
+
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
     case_id = UUID("44444444-4444-4444-4444-444444444444")
 
