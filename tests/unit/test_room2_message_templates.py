@@ -988,6 +988,65 @@ def test_room2_summary_objective_reason_deny_limits_two_causes_with_marker() -> 
     assert "ecg obrigatório ausente" not in reason_text
 
 
+def test_room2_summary_deny_reason_consistent_between_markdown_and_html() -> None:
+    case_id = UUID("69696969-6969-6969-6969-696969696969")
+    structured_data: dict[str, object] = {
+        "policy_precheck": {
+            "excluded_from_eda_flow": True,
+            "exclusion_reason": "fora do escopo",
+            "labs_required": True,
+            "labs_pass": "no",
+            "labs_failed_items": ["INR não informado"],
+            "ecg_required": True,
+            "ecg_present": "no",
+        },
+    }
+    suggested_action: dict[str, object] = {
+        "suggestion": "deny",
+        "support_recommendation": "none",
+    }
+
+    markdown_body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data=structured_data,
+        summary_text="Resumo clínico base",
+        suggested_action=suggested_action,
+    )
+    html_body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data=structured_data,
+        summary_text="Resumo clínico base",
+        suggested_action=suggested_action,
+    )
+
+    markdown_reason = " ".join(
+        _extract_markdown_section_lines(
+            body=markdown_body,
+            section="## Motivo objetivo:\n\n",
+            next_section=None,
+        )
+    )
+    html_reason = _extract_html_section_chunk(
+        body=html_body,
+        section="<h2>Motivo objetivo:</h2>",
+        next_section=None,
+    )
+
+    assert "Negado por: solicitação fora do escopo EDA (fora do escopo)" in markdown_reason
+    assert "pendência laboratorial obrigatória (INR não informado)" in markdown_reason
+    assert "e outras pendências críticas" in markdown_reason
+    assert "PRIORIDADE EMERGENTE" not in markdown_reason
+
+    assert "Negado por: solicitação fora do escopo EDA (fora do escopo)" in html_reason
+    assert "pendência laboratorial obrigatória (INR não informado)" in html_reason
+    assert "e outras pendências críticas" in html_reason
+    assert "PRIORIDADE EMERGENTE" not in html_reason
+
+
 def test_room2_summary_deny_ignores_conflicting_short_reason_when_cause_available() -> None:
     case_id = UUID("68686868-6868-6868-6868-686868686868")
     body = build_room2_case_summary_message(
