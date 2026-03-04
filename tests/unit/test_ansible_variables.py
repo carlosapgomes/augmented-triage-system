@@ -48,6 +48,10 @@ def test_ansible_group_vars_declares_public_ghcr_baseline_and_required_env() -> 
         "ROOM1_ID",
         "ROOM2_ID",
         "ROOM3_ID",
+        "ROOM4_ID",
+        "SUPERVISOR_SUMMARY_TIMEZONE",
+        "SUPERVISOR_SUMMARY_MORNING_HOUR",
+        "SUPERVISOR_SUMMARY_EVENING_HOUR",
         "MATRIX_HOMESERVER_URL",
         "MATRIX_BOT_USER_ID",
         "MATRIX_ACCESS_TOKEN",
@@ -56,3 +60,19 @@ def test_ansible_group_vars_declares_public_ghcr_baseline_and_required_env() -> 
     )
     for key in required_env_keys:
         assert f"  {key}:" in variables, f"Missing mandatory env key declaration: {key}"
+
+
+def test_ansible_group_vars_declares_room4_scheduler_cron_defaults() -> None:
+    """Ensure scheduler cron defaults for Room-4 are declared in group_vars."""
+
+    variables = _read("ansible/inventory/group_vars/all.yml")
+
+    cron_tokens = (
+        "ats_room4_scheduler_cron_enabled:",
+        "ats_room4_scheduler_cron_timezone:",
+        "ats_room4_scheduler_cron_minute:",
+        "ats_room4_scheduler_cron_hour:",
+        "ats_room4_scheduler_cron_log_file:",
+    )
+    for token in cron_tokens:
+        assert token in variables, f"Missing Room-4 scheduler cron token: {token}"

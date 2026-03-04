@@ -43,3 +43,16 @@ def test_app_runtime_role_templates_exist_with_expected_placeholders() -> None:
     assert "worker:" in compose_template
     assert "{{ ats_runtime_image }}" in compose_template
     assert "{{ ats_runtime_env_file }}" in compose_template
+
+
+def test_app_runtime_role_validates_room4_summary_env_when_scheduler_cron_enabled() -> None:
+    """Ensure app runtime role fails early for missing Room-4 summary env when cron is enabled."""
+
+    tasks = _read("ansible/roles/app_runtime/tasks/main.yml")
+
+    assert "ats_room4_scheduler_cron_enabled | bool" in tasks
+    assert "ROOM4_ID" in tasks
+    assert "SUPERVISOR_SUMMARY_TIMEZONE" in tasks
+    assert "SUPERVISOR_SUMMARY_MORNING_HOUR" in tasks
+    assert "SUPERVISOR_SUMMARY_EVENING_HOUR" in tasks
+    assert "Room-4 scheduler cron requires non-empty summary env keys" in tasks

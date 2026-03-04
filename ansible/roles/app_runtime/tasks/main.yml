@@ -3,6 +3,19 @@
   ansible.builtin.set_fact:
     ats_runtime_env: "{{ ats_runtime_env_defaults | combine(ats_runtime_env_optional) | combine(ats_runtime_env_required) }}"
 
+- name: Validate Room-4 summary env prerequisites when scheduler cron is enabled
+  ansible.builtin.assert:
+    that:
+      - (ats_runtime_env.get('ROOM4_ID', '') | string | trim | length) > 0
+      - (ats_runtime_env.get('SUPERVISOR_SUMMARY_TIMEZONE', '') | string | trim | length) > 0
+      - (ats_runtime_env.get('SUPERVISOR_SUMMARY_MORNING_HOUR', '') | string | trim | length) > 0
+      - (ats_runtime_env.get('SUPERVISOR_SUMMARY_EVENING_HOUR', '') | string | trim | length) > 0
+    fail_msg: >-
+      Room-4 scheduler cron requires non-empty summary env keys:
+      ROOM4_ID, SUPERVISOR_SUMMARY_TIMEZONE,
+      SUPERVISOR_SUMMARY_MORNING_HOUR, SUPERVISOR_SUMMARY_EVENING_HOUR.
+  when: ats_room4_scheduler_cron_enabled | bool
+
 - name: Ensure runtime root directory exists for templated config
   ansible.builtin.file:
     path: "{{ ats_runtime_root }}"
