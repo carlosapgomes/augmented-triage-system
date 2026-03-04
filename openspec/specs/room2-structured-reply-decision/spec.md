@@ -3,10 +3,12 @@
 ## Purpose
 
 TBD - created by archiving change room2-single-path-matrix-reply. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Room-2 SHALL Publish Three-Message Decision Combo
 
-The system SHALL publish a deterministic three-message combo in Room-2 for each case requiring doctor decision. Message II MUST use concise clinical-opinion formatting for physician reading speed while preserving decision support clarity.
+The system SHALL publish a deterministic three-message combo in Room-2 for each case requiring doctor decision. Message II MUST use concise clinical-opinion formatting for physician reading speed while preserving strict coherence between displayed decision fields and objective reason text.
 
 #### Scenario: Case enters Room-2 doctor decision stage
 
@@ -14,7 +16,9 @@ The system SHALL publish a deterministic three-message combo in Room-2 for each 
 - **THEN** the bot MUST post message I with the original PDF report
 - **AND** the bot MUST post message II with concise clinical summary and recommendation blocks, including at least: `Resumo clínico`, `Achados críticos`, `Pendências críticas`, `Decisão sugerida`, `Suporte recomendado`, and `Motivo objetivo`
 - **AND** message II MUST NOT include `Conduta sugerida` as a standalone section
-- **AND** `Motivo objetivo` MUST prioritize complete and objective rationale within the concise-summary limits defined for Room-2
+- **AND** `Motivo objetivo` MUST be coherent with the final displayed `Decisão sugerida`
+- **AND** when `Decisão sugerida` is `negar`, `Motivo objetivo` MUST report objective denial causes and MUST NOT contain acceptance or support phrasing
+- **AND** when `Decisão sugerida` is `aceitar`, `Motivo objetivo` MUST be a short acceptance phrase with support context only
 - **AND** message II MUST avoid full flattened dump of complete LLM1/LLM2 structured payloads
 - **AND** the bot MUST post message III with strict reply template and instructions to reply to message I
 
@@ -136,4 +140,3 @@ The system SHALL treat positive reaction on the Room-2 decision confirmation mes
 - **WHEN** reaction key is not a supported positive acknowledgment key, or no reaction is sent
 - **THEN** the system MUST continue normal workflow without blocking
 - **AND** no rollback or re-opening of decision state MUST occur
-
