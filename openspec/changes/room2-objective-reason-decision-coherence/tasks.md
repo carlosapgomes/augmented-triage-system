@@ -14,7 +14,7 @@
 
 - [x] 2.1 Refatorar `src/triage_automation/infrastructure/matrix/message_templates.py` para bifurcar construção de `Motivo objetivo` por decisão final (`deny` vs `accept`).
 - [x] 2.2 Implementar composição de negativa com causas explícitas e auditáveis, priorizando sinais clínicos/precheck definidos no spec.
-- [ ] 2.3 Garantir que, em `deny`, o `Motivo objetivo` não inclua texto de suporte e não reutilize texto livre contraditório de `rationale.short_reason`.
+- [x] 2.3 Garantir que, em `deny`, o `Motivo objetivo` não inclua texto de suporte e não reutilize texto livre contraditório de `rationale.short_reason`.
 - [ ] 2.4 Garantir que, em `accept`, o `Motivo objetivo` seja frase curta com suporte (ou sem suporte) e sem explicações adicionais.
 - [ ] 2.5 Ajustar regra de prioridade emergente para aparecer somente quando o caso for de sangramento instável com sugestão final `accept`.
 - [ ] 2.6 Preservar renderização consistente entre Markdown e HTML (`formatted_body`) para todas as novas regras de `Motivo objetivo`.
