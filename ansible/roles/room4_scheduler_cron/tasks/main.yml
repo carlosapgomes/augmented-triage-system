@@ -1,0 +1,59 @@
+---
+- name: Resolve service user uid for Room-4 scheduler cron
+  ansible.builtin.command: "id -u {{ ats_service_user }}"
+  register: ats_room4_scheduler_service_user_uid
+  changed_when: false
+
+- name: Build Room-4 scheduler cron runtime context
+  ansible.builtin.set_fact:
+    ats_room4_scheduler_xdg_runtime_dir: "/run/user/{{ ats_room4_scheduler_service_user_uid.stdout }}"
+    ats_room4_scheduler_docker_host: >-
+      unix:///run/user/{{ ats_room4_scheduler_service_user_uid.stdout }}/docker.sock
+    ats_room4_scheduler_cron_state: >-
+      {{ 'present' if (ats_room4_scheduler_cron_enabled | bool) else 'absent' }}
+
+- name: Ensure Room-4 scheduler cron log directory exists
+  ansible.builtin.file:
+    path: "{{ ats_room4_scheduler_cron_log_file | dirname }}"
+    state: directory
+    owner: "{{ ats_service_user }}"
+    group: "{{ ats_service_group }}"
+    mode: "0750"
+  when: ats_room4_scheduler_cron_enabled | bool
+
+- name: Manage Room-4 scheduler cron timezone env
+  ansible.builtin.cron:
+    name: CRON_TZ
+    env: true
+    job: "{{ ats_room4_scheduler_cron_timezone }}"
+    user: "{{ ats_service_user }}"
+    state: "{{ ats_room4_scheduler_cron_state }}"
+
+- name: Manage Room-4 scheduler cron XDG runtime env
+  ansible.builtin.cron:
+    name: XDG_RUNTIME_DIR
+    env: true
+    job: "{{ ats_room4_scheduler_xdg_runtime_dir }}"
+    user: "{{ ats_service_user }}"
+    state: "{{ ats_room4_scheduler_cron_state }}"
+
+- name: Manage Room-4 scheduler cron Docker host env
+  ansible.builtin.cron:
+    name: DOCKER_HOST
+    env: true
+    job: "{{ ats_room4_scheduler_docker_host }}"
+    user: "{{ ats_service_user }}"
+    state: "{{ ats_room4_scheduler_cron_state }}"
+
+- name: Manage Room-4 scheduler cron job
+  ansible.builtin.cron:
+    name: "{{ ats_room4_scheduler_cron_job_name }}"
+    minute: "{{ ats_room4_scheduler_cron_minute }}"
+    hour: "{{ ats_room4_scheduler_cron_hour }}"
+    user: "{{ ats_service_user }}"
+    job: >-
+      docker compose --project-name {{ ats_runtime_compose_project_name }}
+      --file {{ ats_runtime_compose_file }}
+      run --rm --no-deps worker uv run python -m apps.scheduler.main
+      >> {{ ats_room4_scheduler_cron_log_file }} 2>&1
+    state: "{{ ats_room4_scheduler_cron_state }}"
