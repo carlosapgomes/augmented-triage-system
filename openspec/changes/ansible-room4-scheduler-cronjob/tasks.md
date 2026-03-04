@@ -8,10 +8,10 @@
 
 ## 2. Role de agendamento cron no contexto rootless
 
-- [ ] 2.1 Criar testes para a nova role/tarefas de cron garantindo uso do `ats_service_user` e idempotência.
-- [ ] 2.2 Implementar role para gerenciar entradas de ambiente no crontab (`XDG_RUNTIME_DIR`, `DOCKER_HOST`, `CRON_TZ`) no usuário de serviço.
-- [ ] 2.3 Implementar entrada de job cron que execute `docker compose ... run --rm --no-deps worker uv run python -m apps.scheduler.main` com redirecionamento de log configurável.
-- [ ] 2.4 Implementar comportamento de remoção do cron quando `enabled=false`, sem deixar entradas órfãs.
+- [x] 2.1 Criar testes para a nova role/tarefas de cron garantindo uso do `ats_service_user` e idempotência.
+- [x] 2.2 Implementar role para gerenciar entradas de ambiente no crontab (`XDG_RUNTIME_DIR`, `DOCKER_HOST`, `CRON_TZ`) no usuário de serviço.
+- [x] 2.3 Implementar entrada de job cron que execute `docker compose ... run --rm --no-deps worker uv run python -m apps.scheduler.main` com redirecionamento de log configurável.
+- [x] 2.4 Implementar comportamento de remoção do cron quando `enabled=false`, sem deixar entradas órfãs.
 
 ## 3. Wiring nos playbooks oficiais
 
