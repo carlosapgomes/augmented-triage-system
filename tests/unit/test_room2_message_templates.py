@@ -776,6 +776,135 @@ def test_room2_summary_objective_reason_deny_never_mentions_acceptance_or_suppor
     assert all("suporte" not in line.lower() for line in reason_lines)
 
 
+def test_room2_summary_objective_reason_deny_prioritizes_exclusion_cause() -> None:
+    case_id = UUID("63636363-6363-6363-6363-636363636363")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": True,
+                "exclusion_reason": "gastrostomia",
+                "labs_required": True,
+                "labs_pass": "no",
+                "labs_failed_items": ["INR não informado"],
+                "ecg_required": True,
+                "ecg_present": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "deny", "support_recommendation": "none"},
+    )
+
+    reason_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Motivo objetivo:\n\n",
+        next_section=None,
+    )
+
+    assert "fora do escopo eda" in " ".join(reason_lines).lower()
+
+
+def test_room2_summary_objective_reason_deny_orders_labs_before_ecg() -> None:
+    case_id = UUID("64646464-6464-6464-6464-646464646464")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": False,
+                "labs_required": True,
+                "labs_pass": "no",
+                "labs_failed_items": ["INR não informado"],
+                "ecg_required": True,
+                "ecg_present": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "deny", "support_recommendation": "none"},
+    )
+
+    reason_text = " ".join(
+        _extract_markdown_section_lines(
+            body=body,
+            section="## Motivo objetivo:\n\n",
+            next_section=None,
+        )
+    ).lower()
+
+    assert "pendência laboratorial obrigatória" in reason_text
+    assert "ecg obrigatório ausente" in reason_text
+    assert reason_text.index("pendência laboratorial obrigatória") < reason_text.index(
+        "ecg obrigatório ausente"
+    )
+
+
+def test_room2_summary_objective_reason_deny_uses_ecg_cause_when_isolated() -> None:
+    case_id = UUID("65656565-6565-6565-6565-656565656565")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": False,
+                "labs_required": False,
+                "labs_pass": "yes",
+                "labs_failed_items": [],
+                "ecg_required": True,
+                "ecg_present": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "deny", "support_recommendation": "none"},
+    )
+
+    reason_text = " ".join(
+        _extract_markdown_section_lines(
+            body=body,
+            section="## Motivo objetivo:\n\n",
+            next_section=None,
+        )
+    ).lower()
+
+    assert "ecg obrigatório ausente" in reason_text
+    assert "pendência laboratorial obrigatória" not in reason_text
+    assert "fora do escopo eda" not in reason_text
+
+
+def test_room2_summary_objective_reason_deny_uses_fallback_when_no_known_cause() -> None:
+    case_id = UUID("66666666-6666-6666-6666-666666666666")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": False,
+                "labs_required": False,
+                "labs_pass": "yes",
+                "labs_failed_items": [],
+                "ecg_required": False,
+                "ecg_present": "yes",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "deny", "support_recommendation": "none"},
+    )
+
+    reason_text = " ".join(
+        _extract_markdown_section_lines(
+            body=body,
+            section="## Motivo objetivo:\n\n",
+            next_section=None,
+        )
+    ).lower()
+
+    assert "critérios mínimos de segurança não atendidos" in reason_text
+
+
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
     case_id = UUID("44444444-4444-4444-4444-444444444444")
 
