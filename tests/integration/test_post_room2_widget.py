@@ -296,8 +296,9 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "- Pré-check laboratório: sim" in summary_body
     assert "- Pré-check ECG: sim" in summary_body
     assert "- Pendências de laboratório: não informado" in summary_body
-    assert "- Decisão negar com suporte anestesista." in summary_body
-    assert "- Informacoes insuficientes" in summary_body
+    assert "- Decisão negar com suporte anestesista." not in summary_body
+    assert "- Informacoes insuficientes" not in summary_body
+    assert "- Negado por: critérios mínimos de segurança não atendidos" in summary_body
     assert "```json" not in summary_body
     assert summary_formatted_body is not None
     assert "<h1>Resumo técnico da triagem</h1>" in summary_formatted_body
@@ -315,7 +316,12 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "<li>Hb: 10.5</li>" in summary_formatted_body
     assert "<li>Plaquetas: 130000</li>" in summary_formatted_body
     assert "<li>INR: 1.2</li>" in summary_formatted_body
-    assert "<li>Decisão negar com suporte anestesista.</li>" in summary_formatted_body
+    assert "<li>Decisão negar com suporte anestesista.</li>" not in summary_formatted_body
+    assert "<li>Informacoes insuficientes</li>" not in summary_formatted_body
+    assert (
+        "<li>Negado por: critérios mínimos de segurança não atendidos"
+        in summary_formatted_body
+    )
 
     (
         instructions_room_id,
