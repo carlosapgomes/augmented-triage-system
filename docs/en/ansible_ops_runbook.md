@@ -90,6 +90,49 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy.yml \
 - runtime artifacts rendered under `{{ ats_runtime_root }}` on the remote host.
 - playbook completes without failures.
 
+## Managed Room-4 Scheduler Cron
+
+The Room-4 periodic summary cron is managed by Ansible during `deploy`,
+`upgrade`, and `rollback`, always in the service-user context (`ats`).
+
+Operational variables (override in `ansible/host_vars/<host>.yml` when needed):
+
+```yaml
+ats_room4_scheduler_cron_enabled: true
+ats_room4_scheduler_cron_timezone: "America/Bahia"
+ats_room4_scheduler_cron_minute: "0"
+ats_room4_scheduler_cron_hour: "7,19"
+ats_room4_scheduler_cron_log_file: "/home/ats/augmented-triage-system/logs/room4-scheduler-cron.log"
+```
+
+Managed cron command:
+
+- `docker compose ... run --rm --no-deps worker uv run python -m apps.scheduler.main`
+
+Post-deploy checklist to validate scheduling and execution:
+
+1. Verify managed entries in service-user crontab:
+
+```bash
+crontab -u ats -l | grep -E "ATS Room-4 Scheduler|CRON_TZ|XDG_RUNTIME_DIR|DOCKER_HOST"
+```
+
+1. Check scheduler logs:
+
+```bash
+tail -n 50 /home/ats/augmented-triage-system/logs/room4-scheduler-cron.log
+```
+
+1. Check enqueue evidence for `post_room4_summary`:
+
+```bash
+docker compose \
+  --project-name augmented-triage-system \
+  --file /home/ats/augmented-triage-system/docker-compose.yml \
+  exec -T postgres psql -U triage -d triage \
+  -c "SELECT job_id, job_type, status, created_at FROM jobs WHERE job_type = 'post_room4_summary' ORDER BY job_id DESC LIMIT 5;"
+```
+
 ## Image pull policy in deploy/upgrade
 
 Current runtime default policy:
@@ -158,6 +201,15 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/bootstrap.yml
 - symptom: error contains `Deploy approval gate failed.`.
 - immediate action: validate service status on host and fix runtime configuration before retrying.
 - rerun the corresponding playbook command (`deploy.yml`, `upgrade.yml`, or `rollback.yml`).
+
+1. Room-4 cron is configured but execution fails:
+
+- symptom: `ATS Room-4 Scheduler` entry exists in `crontab -u ats -l`, but there is no recent `post_room4_summary` enqueue evidence.
+- immediate action:
+  - validate cron environment variables (`CRON_TZ`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`);
+  - validate compose reachability in rootless context with `docker compose ... ps` under `ats` user;
+  - inspect `ats_room4_scheduler_cron_log_file` for command/permission errors.
+- if the issue persists after adjustment and a new `deploy/upgrade/rollback` run, escalate to development.
 
 ## Escalation Boundaries to Development
 

@@ -21,9 +21,9 @@
 
 ## 4. Documentação operacional e espelhos bilíngues
 
-- [ ] 4.1 Atualizar `docs/ansible_ops_runbook.md` com seção de cron gerenciado para Room-4 (modelo operacional, validação e troubleshooting).
-- [ ] 4.2 Sincronizar `docs/en/ansible_ops_runbook.md` mantendo equivalência funcional da documentação.
-- [ ] 4.3 Registrar no runbook os comandos de verificação pós-deploy (crontab do usuário, logs do scheduler e evidência de enfileiramento `post_room4_summary`).
+- [x] 4.1 Atualizar `docs/ansible_ops_runbook.md` com seção de cron gerenciado para Room-4 (modelo operacional, validação e troubleshooting).
+- [x] 4.2 Sincronizar `docs/en/ansible_ops_runbook.md` mantendo equivalência funcional da documentação.
+- [x] 4.3 Registrar no runbook os comandos de verificação pós-deploy (crontab do usuário, logs do scheduler e evidência de enfileiramento `post_room4_summary`).
 
 ## 5. Verificação e fechamento do change
 
