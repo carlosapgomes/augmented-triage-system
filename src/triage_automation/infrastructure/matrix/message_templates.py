@@ -739,12 +739,22 @@ def _build_room2_objective_reason_accept_lines(
 ) -> list[str]:
     """Build objective reason lines for accept suggestion branch."""
 
-    return _build_room2_objective_reason_default_lines(
-        decision_label=decision_label,
-        support_label=support_label,
-        include_emergent_phrase=include_emergent_phrase,
-        reason=reason,
-    )
+    _ = decision_label, reason
+    first_line = "- Aceito com suporte a definir."
+    if support_label == "nenhum":
+        first_line = "- Aceito sem suporte adicional."
+    elif support_label in {"anestesista", "anestesista_uti"}:
+        first_line = f"- Aceito com suporte de {support_label}."
+
+    lines = [first_line]
+    if include_emergent_phrase:
+        lines.append(
+            (
+                "- PRIORIDADE EMERGENTE: estabilizar hemodinamicamente e seguir via "
+                "urgente sem atraso por pendências não críticas."
+            ),
+        )
+    return lines
 
 
 def _build_room2_objective_reason_unknown_decision_lines(
