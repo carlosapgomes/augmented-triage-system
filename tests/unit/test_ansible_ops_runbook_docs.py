@@ -58,6 +58,9 @@ def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_portuguese() -> N
     assert "ats_room4_scheduler_cron_minute" in runbook
     assert "ats_room4_scheduler_cron_hour" in runbook
     assert "ats_room4_scheduler_cron_log_file" in runbook
+    assert 'ats_room4_scheduler_cron_timezone: "UTC"' in runbook
+    assert 'ats_room4_scheduler_cron_hour: "10,22"' in runbook
+    assert "07:00 e 19:00 em America/Bahia" in runbook
     assert "crontab -u ats -l" in runbook
     assert "ATS Room-4 Scheduler" in runbook
     assert "post_room4_summary" in runbook
@@ -125,6 +128,9 @@ def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_english() -> None
     assert "ats_room4_scheduler_cron_minute" in runbook
     assert "ats_room4_scheduler_cron_hour" in runbook
     assert "ats_room4_scheduler_cron_log_file" in runbook
+    assert 'ats_room4_scheduler_cron_timezone: "UTC"' in runbook
+    assert 'ats_room4_scheduler_cron_hour: "10,22"' in runbook
+    assert "07:00 and 19:00 in America/Bahia" in runbook
     assert "crontab -u ats -l" in runbook
     assert "ATS Room-4 Scheduler" in runbook
     assert "post_room4_summary" in runbook
