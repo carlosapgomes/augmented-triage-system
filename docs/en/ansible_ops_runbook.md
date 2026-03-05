@@ -99,11 +99,14 @@ Operational variables (override in `ansible/host_vars/<host>.yml` when needed):
 
 ```yaml
 ats_room4_scheduler_cron_enabled: true
-ats_room4_scheduler_cron_timezone: "America/Bahia"
+ats_room4_scheduler_cron_timezone: "UTC"
 ats_room4_scheduler_cron_minute: "0"
-ats_room4_scheduler_cron_hour: "7,19"
+ats_room4_scheduler_cron_hour: "10,22"
 ats_room4_scheduler_cron_log_file: "/home/ats/augmented-triage-system/logs/room4-scheduler-cron.log"
 ```
+
+Note: in the current baseline, the host clock runs in UTC; `10,22` in UTC
+maps to `07:00 and 19:00 in America/Bahia`.
 
 Managed cron command:
 

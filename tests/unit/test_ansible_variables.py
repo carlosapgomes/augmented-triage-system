@@ -76,3 +76,8 @@ def test_ansible_group_vars_declares_room4_scheduler_cron_defaults() -> None:
     )
     for token in cron_tokens:
         assert token in variables, f"Missing Room-4 scheduler cron token: {token}"
+
+    assert "ats_room4_scheduler_cron_enabled: true" in variables
+    assert 'ats_room4_scheduler_cron_timezone: "UTC"' in variables
+    assert 'ats_room4_scheduler_cron_minute: "0"' in variables
+    assert 'ats_room4_scheduler_cron_hour: "10,22"' in variables

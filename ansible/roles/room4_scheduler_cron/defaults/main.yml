@@ -1,7 +1,8 @@
 ---
 ats_room4_scheduler_cron_enabled: true
 ats_room4_scheduler_cron_job_name: "ATS Room-4 Scheduler"
-ats_room4_scheduler_cron_timezone: "America/Bahia"
+# Host baseline assumes UTC clock; 10:00/22:00 UTC == 07:00/19:00 America/Bahia.
+ats_room4_scheduler_cron_timezone: "UTC"
 ats_room4_scheduler_cron_minute: "0"
-ats_room4_scheduler_cron_hour: "7,19"
+ats_room4_scheduler_cron_hour: "10,22"
 ats_room4_scheduler_cron_log_file: "{{ ats_runtime_root }}/logs/room4-scheduler-cron.log"
