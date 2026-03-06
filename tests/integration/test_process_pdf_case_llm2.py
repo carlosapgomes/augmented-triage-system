@@ -41,8 +41,10 @@ class FakeMatrixMediaClient:
 class FakeLlmClient:
     def __init__(self, response_text: str) -> None:
         self._response_text = response_text
+        self.calls: list[tuple[str, str]] = []
 
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
+        self.calls.append((system_prompt, user_prompt))
         return self._response_text
 
 
@@ -188,6 +190,18 @@ def _valid_llm2_payload(case_id: str, agency_record_number: str) -> dict[str, ob
     }
 
 
+def _llm1_payload_with_exam_type(
+    agency_record_number: str,
+    *,
+    exam_type: str,
+) -> dict[str, object]:
+    payload = _valid_llm1_payload(agency_record_number)
+    preop_screening = payload["preop_screening"]
+    assert isinstance(preop_screening, dict)
+    preop_screening["exam_type"] = exam_type
+    return payload
+
+
 def _decode_json(value: Any) -> dict[str, Any]:
     if isinstance(value, str):
         parsed = json.loads(value)
@@ -297,6 +311,118 @@ async def test_llm2_persists_suggestion_and_enqueues_room2_widget_job(tmp_path: 
     assert llm2_output["raw_response"] == json.dumps(
         _valid_llm2_payload(str(case.case_id), "12345")
     )
+
+
+@pytest.mark.asyncio
+async def test_non_eda_scope_requires_manual_review_without_accept_or_deny(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_non_eda_scope_gate.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-scope-non-eda",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_service = Llm1Service(
+        llm_client=FakeLlmClient(
+            json.dumps(_llm1_payload_with_exam_type("12345", exam_type="non_eda"))
+        )
+    )
+    llm2_client = FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
+    llm2_service = Llm2Service(llm_client=llm2_client)
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=llm1_service,
+        llm2_service=llm2_service,
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+
+    assert suggested_action.get("decision") == "manual_review_required"
+    assert suggested_action.get("suggestion") not in {"accept", "deny"}
+
+
+@pytest.mark.asyncio
+async def test_unknown_scope_requires_manual_review_without_accept_or_deny(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_unknown_scope_gate.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-scope-unknown",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_service = Llm1Service(
+        llm_client=FakeLlmClient(
+            json.dumps(_llm1_payload_with_exam_type("12345", exam_type="unknown"))
+        )
+    )
+    llm2_client = FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
+    llm2_service = Llm2Service(llm_client=llm2_client)
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=llm1_service,
+        llm2_service=llm2_service,
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+
+    assert suggested_action.get("decision") == "manual_review_required"
+    assert suggested_action.get("suggestion") not in {"accept", "deny"}
 
 
 @pytest.mark.asyncio
