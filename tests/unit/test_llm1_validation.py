@@ -91,6 +91,33 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
     }
 
 
+def _with_preop_screening(
+    payload: dict[str, object],
+    *,
+    exam_type: str,
+    has_cardiovascular_disease: str,
+    has_active_respiratory_symptoms: str,
+    has_prior_respiratory_disease: str,
+    has_ecg_report: str,
+    has_chest_xray_report: str,
+    hb_g_dl: float | None,
+    platelets_per_mm3: int | None,
+    inr: float | None,
+) -> dict[str, object]:
+    payload["preop_screening"] = {
+        "exam_type": exam_type,
+        "has_cardiovascular_disease": has_cardiovascular_disease,
+        "has_active_respiratory_symptoms": has_active_respiratory_symptoms,
+        "has_prior_respiratory_disease": has_prior_respiratory_disease,
+        "has_ecg_report": has_ecg_report,
+        "has_chest_xray_report": has_chest_xray_report,
+        "hb_g_dl": hb_g_dl,
+        "platelets_per_mm3": platelets_per_mm3,
+        "inr": inr,
+    }
+    return payload
+
+
 @pytest.mark.asyncio
 async def test_valid_llm1_response_parses_and_returns_artifacts() -> None:
     agency_record = "12345"
@@ -105,6 +132,86 @@ async def test_valid_llm1_response_parses_and_returns_artifacts() -> None:
 
     assert result.summary_text == "Resumo clinico"
     assert result.structured_data_json["agency_record_number"] == agency_record
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_preop_screening_scope_and_risk_fields() -> None:
+    agency_record = "12345"
+    payload = _with_preop_screening(
+        _valid_llm1_payload(agency_record),
+        exam_type="eda",
+        has_cardiovascular_disease="yes",
+        has_active_respiratory_symptoms="no",
+        has_prior_respiratory_disease="unknown",
+        has_ecg_report="yes",
+        has_chest_xray_report="no",
+        hb_g_dl=10.2,
+        platelets_per_mm3=140000,
+        inr=1.1,
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    try:
+        result = await service.run(
+            case_id=uuid4(),
+            agency_record_number=agency_record,
+            clean_text="texto limpo",
+        )
+    except Llm1RetriableError as error:
+        pytest.fail(f"unexpected LLM1 validation failure: {error}")
+
+    assert result.structured_data_json["preop_screening"] == {
+        "exam_type": "eda",
+        "has_cardiovascular_disease": "yes",
+        "has_active_respiratory_symptoms": "no",
+        "has_prior_respiratory_disease": "unknown",
+        "has_ecg_report": "yes",
+        "has_chest_xray_report": "no",
+        "hb_g_dl": 10.2,
+        "platelets_per_mm3": 140000,
+        "inr": 1.1,
+    }
+
+
+@pytest.mark.asyncio
+async def test_llm1_preop_screening_accepts_unknown_fallback_values() -> None:
+    agency_record = "12345"
+    payload = _with_preop_screening(
+        _valid_llm1_payload(agency_record),
+        exam_type="unknown",
+        has_cardiovascular_disease="unknown",
+        has_active_respiratory_symptoms="unknown",
+        has_prior_respiratory_disease="unknown",
+        has_ecg_report="unknown",
+        has_chest_xray_report="unknown",
+        hb_g_dl=None,
+        platelets_per_mm3=None,
+        inr=None,
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    try:
+        result = await service.run(
+            case_id=uuid4(),
+            agency_record_number=agency_record,
+            clean_text="texto sem evidencias objetivas",
+        )
+    except Llm1RetriableError as error:
+        pytest.fail(f"unexpected LLM1 validation failure: {error}")
+
+    assert result.structured_data_json["preop_screening"] == {
+        "exam_type": "unknown",
+        "has_cardiovascular_disease": "unknown",
+        "has_active_respiratory_symptoms": "unknown",
+        "has_prior_respiratory_disease": "unknown",
+        "has_ecg_report": "unknown",
+        "has_chest_xray_report": "unknown",
+        "hb_g_dl": None,
+        "platelets_per_mm3": None,
+        "inr": None,
+    }
 
 
 @pytest.mark.asyncio

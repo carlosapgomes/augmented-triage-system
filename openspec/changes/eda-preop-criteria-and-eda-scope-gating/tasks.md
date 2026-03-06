@@ -2,7 +2,7 @@
 
 ## 1. Contratos de extração objetiva no LLM1
 
-- [ ] 1.1 Adicionar testes (red) para extração de `exam_type` (`eda|non_eda|unknown`) e campos objetivos de risco/documentação (`has_cardiovascular_disease`, `has_active_respiratory_symptoms`, `has_prior_respiratory_disease`, `has_ecg_report`, `has_chest_xray_report`, `hb_g_dl`, `platelets_per_mm3`, `inr`) com fallback `unknown` quando não houver evidência textual.
+- [x] 1.1 Adicionar testes (red) para extração de `exam_type` (`eda|non_eda|unknown`) e campos objetivos de risco/documentação (`has_cardiovascular_disease`, `has_active_respiratory_symptoms`, `has_prior_respiratory_disease`, `has_ecg_report`, `has_chest_xray_report`, `hb_g_dl`, `platelets_per_mm3`, `inr`) com fallback `unknown` quando não houver evidência textual.
 - [ ] 1.2 Implementar atualização de DTO/schema do LLM1 e prompt de extração para exigir evidência textual e proibir inferência de ASA/Mallampati/OSA.
 - [ ] 1.3 Adicionar cobertura para `evidence_spans` na saída de extração e persistência de campos necessários para decisão determinística.
 
@@ -35,3 +35,10 @@
 - [ ] 5.1 Atualizar documentação operacional e runbook manual E2E para cenários de escopo `non_eda|unknown`, revisão manual no Room-1 e negações determinísticas por ausência de ECG/RX.
 - [ ] 5.2 Executar validações obrigatórias do change: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
 - [ ] 5.3 Registrar evidências de verificação e observações de rollout/rollback neste `tasks.md` após conclusão da implementação.
+
+## Notes
+
+- Slice 1.1 (red) executado com:
+  - `uv run pytest tests/unit/test_llm1_validation.py -k preop_screening -q` -> 2 falhas esperadas (`preop_screening` ainda não aceito no schema atual).
+  - `uv run ruff check tests/unit/test_llm1_validation.py` -> sem erros.
+  - `uv run mypy tests/unit/test_llm1_validation.py` -> sem erros.
