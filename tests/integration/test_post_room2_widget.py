@@ -564,3 +564,84 @@ async def test_post_room2_widget_omits_prior_denial_block_without_recent_denial(
     assert "Motivo da negativa mais recente" not in summary_body
     assert summary_formatted_body is not None
     assert "<h2>Histórico de negativa recente:</h2>" not in summary_formatted_body
+
+
+@pytest.mark.asyncio
+async def test_post_room2_widget_skips_scope_gated_manual_review_cases(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "post_room2_widget_scope_manual_review.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-current-scope-gated",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/current-scope-gated",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=_structured_data("12345"),
+        summary_text="Resumo LLM1",
+    )
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json={
+            "schema_version": "1.1",
+            "language": "pt-BR",
+            "case_id": str(current_case.case_id),
+            "agency_record_number": "12345",
+            "decision": "manual_review_required",
+            "suggestion": "manual_review_required",
+            "reason_code": "non_eda_request",
+            "reason_text": "Relatorio fora de escopo EDA; revisao manual obrigatoria.",
+            "exam_type": "non_eda",
+            "evidence_spans": [],
+            "preop_gate": {
+                "decision": "manual_review_required",
+                "reason_code": "non_eda_request",
+                "reason_text": "Relatorio fora de escopo EDA; revisao manual obrigatoria.",
+                "evidence_spans": [],
+            },
+        },
+    )
+
+    service = PostRoom2WidgetService(
+        room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        prior_case_queries=prior_queries,
+        matrix_poster=matrix_poster,
+    )
+
+    await service.post_widget(case_id=current_case.case_id)
+
+    assert matrix_poster.send_calls == []
+    assert matrix_poster.send_file_calls == []
+    assert matrix_poster.reply_calls == []
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        status = connection.execute(
+            sa.text("SELECT status FROM cases WHERE case_id = :case_id"),
+            {"case_id": current_case.case_id.hex},
+        ).scalar_one()
+
+    assert status == "LLM_SUGGEST"

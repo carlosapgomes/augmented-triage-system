@@ -27,7 +27,7 @@
 
 - [x] 4.1 Adicionar testes (red) para contrato de saída determinística com `decision`, `reason_code`, `reason_text`, `evidence_spans` e bloco compatível (`preop_gate`) sem quebrar consumidores legados de `suggestion`.
 - [x] 4.2 Implementar serialização/persistência do bloco `preop_gate` e reason codes aprovados no design.
-- [ ] 4.3 Implementar regra de não publicação de resumo de recomendação no Room-2 quando o caso for `manual_review_required` por escopo.
+- [x] 4.3 Implementar regra de não publicação de resumo de recomendação no Room-2 quando o caso for `manual_review_required` por escopo.
 - [ ] 4.4 Implementar explicação textual concisa no Room-2 para negações por ausência de ECG/RX em contexto de risco.
 
 ## 5. Qualidade, validação e documentação operacional
@@ -129,3 +129,10 @@
   - `uv run pytest tests/integration/test_worker_runtime_service_wiring.py -q` -> 3 passed.
   - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+- Slice 4.3 (red->green) executado com:
+  - `uv run pytest tests/integration/test_post_room2_widget.py -k "scope_gated_manual_review_cases" -q` -> 1 falha esperada (serviço Room-2 ainda publicava payload mesmo em `manual_review_required` por escopo).
+  - `uv run pytest tests/integration/test_post_room2_widget.py -k "scope_gated_manual_review_cases" -q` -> 1 passed após aplicar guarda explícita para `non_eda_request|unknown_exam_type`.
+  - `uv run pytest tests/integration/test_post_room2_widget.py -q` -> 3 passed.
+  - `uv run pytest tests/integration/test_worker_runtime_service_wiring.py -q` -> 3 passed.
+  - `uv run ruff check src/triage_automation/application/services/post_room2_widget_service.py tests/integration/test_post_room2_widget.py` -> sem erros.
+  - `uv run mypy src/triage_automation/application/services/post_room2_widget_service.py tests/integration/test_post_room2_widget.py` -> sem erros.

@@ -167,6 +167,27 @@ class PostRoom2WidgetService:
         assert structured_data_json is not None
         assert summary_text is not None
         assert suggested_action_json is not None
+
+        if _is_scope_gated_manual_review(suggested_action_json=suggested_action_json):
+            reason_code = _extract_reason_code(suggested_action_json=suggested_action_json)
+            logger.info(
+                (
+                    "room2_widget_post_skipped_scope_gated_manual_review "
+                    "case_id=%s reason_code=%s"
+                ),
+                case.case_id,
+                reason_code,
+            )
+            await self._audit_repository.append_event(
+                AuditEventCreateInput(
+                    case_id=case.case_id,
+                    actor_type="system",
+                    event_type="ROOM2_WIDGET_SKIPPED_SCOPE_GATED_MANUAL_REVIEW",
+                    payload={"reason_code": reason_code},
+                )
+            )
+            return {}
+
         patient_name, _ = extract_patient_name_age(structured_data_json)
 
         prior_context = await self._prior_case_queries.lookup_recent_context(
@@ -584,6 +605,37 @@ def _extract_suggestion(suggested_action_json: dict[str, Any]) -> str:
         cause="room2",
         details="suggested_action_json.suggestion must be a string",
     )
+
+
+def _is_scope_gated_manual_review(*, suggested_action_json: dict[str, Any]) -> bool:
+    reason_code = _extract_reason_code(suggested_action_json=suggested_action_json)
+    if reason_code not in {"non_eda_request", "unknown_exam_type"}:
+        return False
+
+    decision = suggested_action_json.get("decision")
+    if isinstance(decision, str):
+        return decision == "manual_review_required"
+
+    preop_gate = suggested_action_json.get("preop_gate")
+    if not isinstance(preop_gate, dict):
+        return False
+    preop_decision = preop_gate.get("decision")
+    return isinstance(preop_decision, str) and preop_decision == "manual_review_required"
+
+
+def _extract_reason_code(*, suggested_action_json: dict[str, Any]) -> str | None:
+    reason_code = suggested_action_json.get("reason_code")
+    if isinstance(reason_code, str):
+        return reason_code
+
+    preop_gate = suggested_action_json.get("preop_gate")
+    if not isinstance(preop_gate, dict):
+        return None
+
+    preop_reason_code = preop_gate.get("reason_code")
+    if isinstance(preop_reason_code, str):
+        return preop_reason_code
+    return None
 
 
 def _extract_rationale(suggested_action_json: dict[str, Any]) -> str | None:
