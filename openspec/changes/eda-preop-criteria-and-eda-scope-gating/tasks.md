@@ -32,7 +32,7 @@
 
 ## 5. Qualidade, validação e documentação operacional
 
-- [ ] 5.1 Atualizar documentação operacional e runbook manual E2E para cenários de escopo `non_eda|unknown`, revisão manual no Room-1 e negações determinísticas por ausência de ECG/RX.
+- [x] 5.1 Atualizar documentação operacional e runbook manual E2E para cenários de escopo `non_eda|unknown`, revisão manual no Room-1 e negações determinísticas por ausência de ECG/RX.
 - [ ] 5.2 Executar validações obrigatórias do change: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
 - [ ] 5.3 Registrar evidências de verificação e observações de rollout/rollback neste `tasks.md` após conclusão da implementação.
 
@@ -143,3 +143,9 @@
   - `uv run pytest tests/integration/test_post_room2_widget.py -q` -> 3 passed.
   - `uv run ruff check src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py` -> sem erros.
   - `uv run mypy src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py` -> sem erros.
+- Slice 5.1 (docs) executado com:
+  - Atualização do runbook manual E2E em `docs/manual_e2e_runbook.md` cobrindo:
+    - caminho `non_eda|unknown` -> `manual_review_required` com fechamento Room-1;
+    - negações determinísticas por ausência de ECG/RX em contexto de risco.
+  - Sincronização obrigatória em inglês em `docs/en/manual_e2e_runbook.md` no mesmo slice.
+  - `markdownlint-cli2 "docs/manual_e2e_runbook.md" "docs/en/manual_e2e_runbook.md"` -> sem erros.

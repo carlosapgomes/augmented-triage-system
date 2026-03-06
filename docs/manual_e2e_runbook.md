@@ -76,6 +76,59 @@ uv run python -m apps.worker.main
 - próximo job `post_room3_request` é enfileirado
 - auditoria inclui sender Matrix como ator e outcome
 
+## Caminho de revisão manual por escopo EDA (`non_eda|unknown`)
+
+1. Execute dois casos manuais com `preop_screening.exam_type` diferente:
+
+- caso A: `non_eda`
+- caso B: `unknown`
+
+1. Valide resultado determinístico no `suggested_action_json` de cada caso:
+
+- `decision = manual_review_required`
+- `suggestion` não pode ser `accept` nem `deny`
+- `preop_gate.decision = manual_review_required`
+- `reason_code` esperado:
+  - `non_eda_request` para caso A
+  - `unknown_exam_type` para caso B
+
+1. Valide auditoria e roteamento:
+
+- existe evento `EDA_SCOPE_GATED_MANUAL_REVIEW` com `reason_code`, `reason_text` e `evidence_spans`
+- job `post_room1_final_scope_manual_review` é enfileirado/executado
+- mensagem final na Room-1 informa que a solicitação não é EDA (ou está indefinida) e exige revisão manual
+
+1. Valide ausência de recomendação automática na Room-2 no mesmo ciclo:
+
+- não deve existir publicação de resumo de recomendação para esse caso na Room-2
+
+## Negações determinísticas por ausência de ECG/RX em contexto de risco
+
+1. Execute caso EDA com risco cardiovascular e sem ECG:
+
+- `has_cardiovascular_disease = yes`
+- `has_ecg_report = no`
+
+1. Execute caso EDA com risco respiratório e sem RX tórax:
+
+- (`has_active_respiratory_symptoms = yes` **ou** `has_prior_respiratory_disease = yes`)
+- `has_chest_xray_report = no`
+
+1. Para ambos, valide saída determinística persistida:
+
+- `suggestion = deny`
+- `preop_gate.decision = deny`
+- `preop_gate.reason_code` esperado:
+  - `missing_ecg_with_cardiovascular_disease`
+  - `missing_chest_xray_with_respiratory_risk`
+- `preop_gate.evidence_spans` preenchido quando houver evidência textual
+
+1. Valide mensagem II da Room-2 (resumo técnico):
+
+- texto deve explicar de forma objetiva a ausência de ECG em risco cardiovascular
+- texto deve explicar de forma objetiva a ausência de RX tórax em risco respiratório
+- linguagem orientada à decisão médica, sem texto genérico de fallback quando o `reason_code` estiver disponível
+
 ## Checagens negativas de auth do widget
 
 1. Enviar sem Authorization header (without Authorization):

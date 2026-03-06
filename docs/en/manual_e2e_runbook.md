@@ -76,6 +76,59 @@ uv run python -m apps.worker.main
 - A next job `post_room3_request` is enqueued
 - Audit includes the Matrix sender as actor and outcome
 
+## EDA scope-gated manual-review path (`non_eda|unknown`)
+
+1. Execute two manual cases with different `preop_screening.exam_type` values:
+
+- case A: `non_eda`
+- case B: `unknown`
+
+1. Validate deterministic result in each case `suggested_action_json`:
+
+- `decision = manual_review_required`
+- `suggestion` must not be `accept` or `deny`
+- `preop_gate.decision = manual_review_required`
+- expected `reason_code`:
+  - `non_eda_request` for case A
+  - `unknown_exam_type` for case B
+
+1. Validate audit and routing:
+
+- event `EDA_SCOPE_GATED_MANUAL_REVIEW` exists with `reason_code`, `reason_text`, and `evidence_spans`
+- `post_room1_final_scope_manual_review` job is enqueued/executed
+- final Room-1 message states the request is not EDA (or exam type is unknown) and requires manual review
+
+1. Validate no automatic Room-2 recommendation in the same cycle:
+
+- no Room-2 recommendation summary should be published for the case
+
+## Deterministic denials for missing ECG/chest X-ray under reported risk
+
+1. Execute an EDA case with cardiovascular risk and missing ECG:
+
+- `has_cardiovascular_disease = yes`
+- `has_ecg_report = no`
+
+1. Execute an EDA case with respiratory risk and missing chest X-ray:
+
+- (`has_active_respiratory_symptoms = yes` **or** `has_prior_respiratory_disease = yes`)
+- `has_chest_xray_report = no`
+
+1. For both, validate deterministic persisted output:
+
+- `suggestion = deny`
+- `preop_gate.decision = deny`
+- expected `preop_gate.reason_code`:
+  - `missing_ecg_with_cardiovascular_disease`
+  - `missing_chest_xray_with_respiratory_risk`
+- `preop_gate.evidence_spans` is filled when textual evidence is present
+
+1. Validate Room-2 message II (technical summary):
+
+- text must explicitly state missing ECG with cardiovascular risk
+- text must explicitly state missing chest X-ray with respiratory risk
+- wording must stay decision-oriented for physician review, avoiding generic fallback text when `reason_code` is available
+
 ## Widget Negative Auth Checks
 
 1. Submit without Authorization header (without Authorization):
