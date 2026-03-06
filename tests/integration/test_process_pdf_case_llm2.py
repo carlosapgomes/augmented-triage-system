@@ -217,6 +217,20 @@ def _decode_json(value: Any) -> dict[str, Any]:
     return value
 
 
+def _assert_preop_gate_contract(
+    suggested_action: dict[str, Any],
+    *,
+    expected_decision: str,
+) -> None:
+    preop_gate = suggested_action.get("preop_gate")
+    assert isinstance(preop_gate, dict)
+    assert preop_gate.get("decision") == expected_decision
+    assert isinstance(preop_gate.get("reason_code"), str)
+    assert isinstance(preop_gate.get("reason_text"), str)
+    evidence_spans = preop_gate.get("evidence_spans")
+    assert isinstance(evidence_spans, list)
+
+
 @pytest.mark.asyncio
 async def test_llm2_persists_suggestion_and_enqueues_room2_widget_job(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "llm2_ok.db")
@@ -286,6 +300,10 @@ async def test_llm2_persists_suggestion_and_enqueues_room2_widget_job(tmp_path: 
 
     assert row["status"] == "LLM_SUGGEST"
     assert suggested_action["suggestion"] == "accept"
+    _assert_preop_gate_contract(suggested_action, expected_decision="accept")
+    preop_gate = suggested_action["preop_gate"]
+    assert isinstance(preop_gate, dict)
+    assert preop_gate.get("decision") == suggested_action["suggestion"]
     assert job_count == 1
     assert len(interaction_rows) == 2
 
@@ -400,6 +418,13 @@ async def test_non_eda_scope_requires_manual_review_without_accept_or_deny(tmp_p
 
     assert suggested_action.get("decision") == "manual_review_required"
     assert suggested_action.get("suggestion") not in {"accept", "deny"}
+    _assert_preop_gate_contract(
+        suggested_action,
+        expected_decision="manual_review_required",
+    )
+    preop_gate = suggested_action["preop_gate"]
+    assert isinstance(preop_gate, dict)
+    assert preop_gate.get("decision") == suggested_action.get("decision")
     assert int(room2_jobs) == 0
     assert int(room1_manual_review_jobs) == 1
     assert scope_gate_audit_payload["reason_code"] == "non_eda_request"
