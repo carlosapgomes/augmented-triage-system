@@ -191,3 +191,51 @@ def test_operational_indications_deny_inr_equal_to_1_5() -> None:
 
     assert result["decision"] == "deny"
     assert result["reason_code"] == "inr_above_threshold"
+
+
+def test_baseline_non_operational_eda_deny_hb_below_7() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    eda["indication_category"] = "other"
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["hb_g_dl"] = 6.9
+    preop["platelets_per_mm3"] = 180000
+    preop["inr"] = 1.1
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "hb_below_threshold"
+
+
+def test_baseline_non_operational_eda_deny_platelets_below_50k() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    eda["indication_category"] = "other"
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["hb_g_dl"] = 10.5
+    preop["platelets_per_mm3"] = 49999
+    preop["inr"] = 1.1
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "platelets_below_threshold"
+
+
+def test_baseline_non_operational_eda_deny_inr_above_2() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    eda["indication_category"] = "other"
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["hb_g_dl"] = 10.5
+    preop["platelets_per_mm3"] = 180000
+    preop["inr"] = 2.1
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "inr_above_threshold"

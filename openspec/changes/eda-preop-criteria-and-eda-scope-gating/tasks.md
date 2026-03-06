@@ -17,7 +17,7 @@
 
 - [x] 3.1 Adicionar testes (red) para precedência de cenário local: exclusões (`gastrostomia`, `dilatação esofágica`), exceção de corpo estranho e regras de hemorragia/dor/dispepsia.
 - [x] 3.2 Implementar regras determinísticas de hemorragia/dor/dispepsia: negar com `hb <= 7`, `platelets <= 100000`, `inr >= 1.5` e ausência de ECG.
-- [ ] 3.3 Implementar fallback baseline CHD para demais EDA (`hb < 7`, `platelets < 50000`, `inr > 2`).
+- [x] 3.3 Implementar fallback baseline CHD para demais EDA (`hb < 7`, `platelets < 50000`, `inr > 2`).
 - [ ] 3.4 Implementar negação para todas as EDA quando houver risco relatado sem exame obrigatório correspondente:
 - [ ] 3.5 doença cardiovascular relatada + sem ECG -> `missing_ecg_with_cardiovascular_disease`.
 - [ ] 3.6 sintoma respiratório ativo ou patologia respiratória prévia + sem RX tórax -> `missing_chest_xray_with_respiratory_risk`.
@@ -94,5 +94,10 @@
 - Slice 3.2 (red->green) executado com:
   - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 9 falhas esperadas após ampliar cobertura (`platelets <= 100000` e `inr >= 1.5`) enquanto módulo ainda não existia.
   - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 9 passed após implementar `eda_preop_policy`.
+  - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.
+  - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.
+- Slice 3.3 (red->green) executado com:
+  - `uv run pytest tests/unit/test_eda_preop_policy.py -k "baseline_non_operational" -q` -> 3 falhas esperadas (fallback baseline CHD ainda não aplicado para indicações não operacionais).
+  - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 12 passed após implementar fallback baseline CHD (`hb < 7`, `platelets < 50000`, `inr > 2`).
   - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.
   - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.

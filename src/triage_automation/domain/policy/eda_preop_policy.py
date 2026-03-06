@@ -104,6 +104,32 @@ def evaluate_eda_preop_policy(*, structured_data: dict[str, object]) -> dict[str
                 reason_text="ECG obrigatório ausente para cenário operacional.",
                 structured_data=structured_data,
             )
+    else:
+        hb = _extract_float(preop_payload, "hb_g_dl")
+        if hb is not None and hb < 7:
+            return _deny(
+                reason_code="hb_below_threshold",
+                reason_text="HB < 7 para baseline CHD em demais indicações EDA.",
+                structured_data=structured_data,
+            )
+
+        platelets = _extract_int(preop_payload, "platelets_per_mm3")
+        if platelets is not None and platelets < 50000:
+            return _deny(
+                reason_code="platelets_below_threshold",
+                reason_text=(
+                    "Plaquetas < 50000 para baseline CHD em demais indicações EDA."
+                ),
+                structured_data=structured_data,
+            )
+
+        inr = _extract_float(preop_payload, "inr")
+        if inr is not None and inr > 2:
+            return _deny(
+                reason_code="inr_above_threshold",
+                reason_text="INR > 2 para baseline CHD em demais indicações EDA.",
+                structured_data=structured_data,
+            )
 
     return EdaPreopDecision(
         decision="accept",
