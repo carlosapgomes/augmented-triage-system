@@ -52,13 +52,28 @@ def test_prompt_templates_table_exists_with_required_columns_and_seed_rows(
             )
         ).mappings().all()
 
-    assert len(rows) == 12
     expected_names = {"llm1_system", "llm1_user", "llm2_system", "llm2_user"}
     assert {str(row["name"]) for row in rows} == expected_names
+
     active_rows = [row for row in rows if bool(row["is_active"])]
-    assert len(active_rows) == 4
-    assert all(int(row["version"]) == 3 for row in active_rows)
-    assert all(int(row["version"]) in {1, 2, 3} for row in rows)
+    assert len(active_rows) == len(expected_names)
+
+    versions_by_name: dict[str, list[int]] = {}
+    for row in rows:
+        name = str(row["name"])
+        version = int(row["version"])
+        versions_by_name.setdefault(name, []).append(version)
+
+    active_version_by_name = {
+        str(row["name"]): int(row["version"])
+        for row in active_rows
+    }
+    for name in expected_names:
+        versions = versions_by_name[name]
+        assert min(versions) == 1
+        assert active_version_by_name[name] == max(versions)
+
+    assert all(int(row["version"]) > 0 for row in rows)
     assert all(str(row["content"]).strip() != "" for row in rows)
 
 

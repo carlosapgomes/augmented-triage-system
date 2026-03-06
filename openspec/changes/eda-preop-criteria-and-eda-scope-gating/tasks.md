@@ -165,3 +165,9 @@
   - Rollback documentado:
     - estratégia primária: revert dos commits do change para restaurar caminho anterior (`suggestion` sem `preop_gate` e sem bloqueios de publicação Room-2 por escopo).
     - estratégia mínima: rollback dos commits de integração de runtime/mensageria (`process_pdf_case_service` e `post_room2_widget_service`) preservando trilha de auditoria já gravada.
+- Pós-conclusão (hotfix de CI quality) executado com:
+  - Ajuste de testes de integração de prompt templates para baseline pós-migration `0015`.
+  - `uv run pytest tests/integration/test_migration_prompt_templates.py tests/integration/test_prompt_template_repository.py -q` -> 6 passed.
+  - `uv run ruff check tests/integration/test_migration_prompt_templates.py tests/integration/test_prompt_template_repository.py` -> sem erros.
+  - `uv run mypy tests/integration/test_migration_prompt_templates.py tests/integration/test_prompt_template_repository.py` -> sem erros.
+  - `uv run pytest -q` -> 535 passed.

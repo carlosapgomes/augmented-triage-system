@@ -36,7 +36,7 @@ async def test_repository_returns_seeded_active_prompt(tmp_path: Path) -> None:
 
     assert prompt is not None
     assert prompt.name == "llm1_system"
-    assert prompt.version == 3
+    assert prompt.version >= 3
     assert prompt.content.strip() != ""
 
 
@@ -59,6 +59,18 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
+        current_active_version = connection.execute(
+            sa.text(
+                "SELECT version FROM prompt_templates "
+                "WHERE name = :name AND is_active = 1"
+            ),
+            {"name": "llm1_system"},
+        ).scalar_one()
+        assert isinstance(current_active_version, int)
+
+        inactive_version = current_active_version + 1
+        active_version = current_active_version + 2
+
         connection.execute(
             sa.text(
                 "INSERT INTO prompt_templates (id, name, version, content, is_active) "
@@ -67,7 +79,7 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
             {
                 "id": uuid4().hex,
                 "name": "llm1_system",
-                "version": 4,
+                "version": inactive_version,
                 "content": "inactive version",
                 "is_active": False,
             },
@@ -75,9 +87,9 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
         connection.execute(
             sa.text(
                 "UPDATE prompt_templates SET is_active = 0 "
-                "WHERE name = :name AND version = 3"
+                "WHERE name = :name AND version = :version"
             ),
-            {"name": "llm1_system"},
+            {"name": "llm1_system", "version": current_active_version},
         )
         connection.execute(
             sa.text(
@@ -87,8 +99,8 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
             {
                 "id": uuid4().hex,
                 "name": "llm1_system",
-                "version": 5,
-                "content": "active version 5",
+                "version": active_version,
+                "content": f"active version {active_version}",
                 "is_active": True,
             },
         )
@@ -96,5 +108,5 @@ async def test_repository_resolves_only_active_version_for_same_name(tmp_path: P
     prompt = await repo.get_active_by_name(name="llm1_system")
 
     assert prompt is not None
-    assert prompt.version == 5
-    assert prompt.content == "active version 5"
+    assert prompt.version == active_version
+    assert prompt.content == f"active version {active_version}"
