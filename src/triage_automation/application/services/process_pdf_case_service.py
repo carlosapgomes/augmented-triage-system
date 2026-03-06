@@ -202,6 +202,21 @@ class ProcessPdfCaseService:
                         case_id,
                         scope_gate_payload.get("exam_type"),
                     )
+                    if self._audit_repository is not None:
+                        await self._audit_repository.append_event(
+                            AuditEventCreateInput(
+                                case_id=case_id,
+                                actor_type="system",
+                                event_type="EDA_SCOPE_GATED_MANUAL_REVIEW",
+                                payload={
+                                    "decision": scope_gate_payload.get("decision"),
+                                    "reason_code": scope_gate_payload.get("reason_code"),
+                                    "reason_text": scope_gate_payload.get("reason_text"),
+                                    "exam_type": scope_gate_payload.get("exam_type"),
+                                    "evidence_spans": scope_gate_payload.get("evidence_spans", []),
+                                },
+                            )
+                        )
 
                     assert self._job_queue is not None  # ensured by __init__
                     await self._job_queue.enqueue(

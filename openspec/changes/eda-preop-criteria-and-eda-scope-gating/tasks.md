@@ -11,7 +11,7 @@
 - [x] 2.1 Adicionar testes (red) garantindo que `non_eda` e `unknown` resultem em `manual_review_required` sem recomendação automática `accept|deny`.
 - [x] 2.2 Implementar gate determinístico de escopo antes da recomendação clínica e impedir enfileiramento do fluxo automático de recomendação EDA quando escopo não for EDA.
 - [x] 2.3 Implementar mensagem de encerramento no Room-1 para casos fora de escopo/indefinidos com texto de revisão manual obrigatória.
-- [ ] 2.4 Implementar auditoria determinística para esses casos com `reason_code`, `reason_text` e `evidence_spans`.
+- [x] 2.4 Implementar auditoria determinística para esses casos com `reason_code`, `reason_text` e `evidence_spans`.
 
 ## 3. Política determinística de critérios pré-procedimento EDA
 
@@ -76,6 +76,14 @@
   - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "scope_requires_manual_review" -q` -> 2 passed.
   - `uv run pytest tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py -q` -> 8 passed.
   - `uv run pytest tests/integration/test_process_pdf_case_llm2.py tests/integration/test_worker_runtime_service_wiring.py tests/e2e/test_full_case_flow.py -q` -> 10 passed.
+  - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room1_final_service.py src/triage_automation/infrastructure/matrix/message_templates.py apps/worker/main.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py` -> sem erros.
+  - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room1_final_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py` -> sem erros.
+  - `uv run mypy -m apps.worker.main` -> sem erros.
+- Slice 2.4 (red->green) executado com:
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "scope_requires_manual_review" -q` -> 2 falhas esperadas (evento de auditoria `EDA_SCOPE_GATED_MANUAL_REVIEW` ainda não persistido).
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "scope_requires_manual_review" -q` -> 2 passed.
+  - `uv run pytest tests/integration/test_room1_final_reply_jobs.py -q` -> 1 passed.
+  - `uv run pytest tests/unit/test_worker_main.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_worker_runtime_service_wiring.py tests/e2e/test_full_case_flow.py -q` -> 17 passed.
   - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room1_final_service.py src/triage_automation/infrastructure/matrix/message_templates.py apps/worker/main.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py` -> sem erros.
   - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room1_final_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py` -> sem erros.
   - `uv run mypy -m apps.worker.main` -> sem erros.

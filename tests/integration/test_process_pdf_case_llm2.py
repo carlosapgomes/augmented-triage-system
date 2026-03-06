@@ -199,6 +199,12 @@ def _llm1_payload_with_exam_type(
     preop_screening = payload["preop_screening"]
     assert isinstance(preop_screening, dict)
     preop_screening["exam_type"] = exam_type
+    preop_screening["evidence_spans"] = [
+        {
+            "field_path": "preop_screening.exam_type",
+            "excerpt": f"solicitacao classificada como {exam_type}",
+        }
+    ]
     return payload
 
 
@@ -320,6 +326,7 @@ async def test_non_eda_scope_requires_manual_review_without_accept_or_deny(tmp_p
 
     case_repo = SqlAlchemyCaseRepository(session_factory)
     queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
 
     case = await case_repo.create_case(
         CaseCreateInput(
@@ -351,6 +358,7 @@ async def test_non_eda_scope_requires_manual_review_without_accept_or_deny(tmp_p
         text_extractor=PdfTextExtractor(),
         llm1_service=llm1_service,
         llm2_service=llm2_service,
+        audit_repository=audit_repo,
         job_queue=queue_repo,
     )
 
@@ -377,13 +385,31 @@ async def test_non_eda_scope_requires_manual_review_without_accept_or_deny(tmp_p
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        scope_gate_audit_payload_raw = connection.execute(
+            sa.text(
+                "SELECT payload FROM case_events "
+                "WHERE case_id = :case_id "
+                "AND event_type = 'EDA_SCOPE_GATED_MANUAL_REVIEW' "
+                "ORDER BY id DESC LIMIT 1"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
 
     suggested_action = _decode_json(row["suggested_action_json"])
+    scope_gate_audit_payload = _decode_json(scope_gate_audit_payload_raw)
 
     assert suggested_action.get("decision") == "manual_review_required"
     assert suggested_action.get("suggestion") not in {"accept", "deny"}
     assert int(room2_jobs) == 0
     assert int(room1_manual_review_jobs) == 1
+    assert scope_gate_audit_payload["reason_code"] == "non_eda_request"
+    assert scope_gate_audit_payload["reason_text"]
+    assert scope_gate_audit_payload["evidence_spans"] == [
+        {
+            "field_path": "preop_screening.exam_type",
+            "excerpt": "solicitacao classificada como non_eda",
+        }
+    ]
     assert len(llm2_client.calls) == 0
 
 
@@ -394,6 +420,7 @@ async def test_unknown_scope_requires_manual_review_without_accept_or_deny(tmp_p
 
     case_repo = SqlAlchemyCaseRepository(session_factory)
     queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
 
     case = await case_repo.create_case(
         CaseCreateInput(
@@ -425,6 +452,7 @@ async def test_unknown_scope_requires_manual_review_without_accept_or_deny(tmp_p
         text_extractor=PdfTextExtractor(),
         llm1_service=llm1_service,
         llm2_service=llm2_service,
+        audit_repository=audit_repo,
         job_queue=queue_repo,
     )
 
@@ -451,13 +479,31 @@ async def test_unknown_scope_requires_manual_review_without_accept_or_deny(tmp_p
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        scope_gate_audit_payload_raw = connection.execute(
+            sa.text(
+                "SELECT payload FROM case_events "
+                "WHERE case_id = :case_id "
+                "AND event_type = 'EDA_SCOPE_GATED_MANUAL_REVIEW' "
+                "ORDER BY id DESC LIMIT 1"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
 
     suggested_action = _decode_json(row["suggested_action_json"])
+    scope_gate_audit_payload = _decode_json(scope_gate_audit_payload_raw)
 
     assert suggested_action.get("decision") == "manual_review_required"
     assert suggested_action.get("suggestion") not in {"accept", "deny"}
     assert int(room2_jobs) == 0
     assert int(room1_manual_review_jobs) == 1
+    assert scope_gate_audit_payload["reason_code"] == "unknown_exam_type"
+    assert scope_gate_audit_payload["reason_text"]
+    assert scope_gate_audit_payload["evidence_spans"] == [
+        {
+            "field_path": "preop_screening.exam_type",
+            "excerpt": "solicitacao classificada como unknown",
+        }
+    ]
     assert len(llm2_client.calls) == 0
 
 
