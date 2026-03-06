@@ -16,7 +16,7 @@
 ## 3. Política determinística de critérios pré-procedimento EDA
 
 - [x] 3.1 Adicionar testes (red) para precedência de cenário local: exclusões (`gastrostomia`, `dilatação esofágica`), exceção de corpo estranho e regras de hemorragia/dor/dispepsia.
-- [ ] 3.2 Implementar regras determinísticas de hemorragia/dor/dispepsia: negar com `hb <= 7`, `platelets <= 100000`, `inr >= 1.5` e ausência de ECG.
+- [x] 3.2 Implementar regras determinísticas de hemorragia/dor/dispepsia: negar com `hb <= 7`, `platelets <= 100000`, `inr >= 1.5` e ausência de ECG.
 - [ ] 3.3 Implementar fallback baseline CHD para demais EDA (`hb < 7`, `platelets < 50000`, `inr > 2`).
 - [ ] 3.4 Implementar negação para todas as EDA quando houver risco relatado sem exame obrigatório correspondente:
 - [ ] 3.5 doença cardiovascular relatada + sem ECG -> `missing_ecg_with_cardiovascular_disease`.
@@ -91,3 +91,8 @@
   - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 7 falhas esperadas (`triage_automation.domain.policy.eda_preop_policy` ainda inexistente neste ponto).
   - `uv run ruff check tests/unit/test_eda_preop_policy.py` -> sem erros.
   - `uv run mypy tests/unit/test_eda_preop_policy.py` -> sem erros.
+- Slice 3.2 (red->green) executado com:
+  - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 9 falhas esperadas após ampliar cobertura (`platelets <= 100000` e `inr >= 1.5`) enquanto módulo ainda não existia.
+  - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 9 passed após implementar `eda_preop_policy`.
+  - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.
+  - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.

@@ -157,3 +157,37 @@ def test_operational_indications_require_ecg_report() -> None:
     result = _evaluate_preop_policy(structured_data=payload)
 
     assert result["decision"] == "deny"
+
+
+def test_operational_indications_deny_platelets_equal_to_100k() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    eda["indication_category"] = "abdominal_pain"
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["hb_g_dl"] = 10.5
+    preop["platelets_per_mm3"] = 100000
+    preop["inr"] = 1.1
+    preop["has_ecg_report"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "platelets_below_threshold"
+
+
+def test_operational_indications_deny_inr_equal_to_1_5() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    eda["indication_category"] = "bleeding"
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["hb_g_dl"] = 10.5
+    preop["platelets_per_mm3"] = 150000
+    preop["inr"] = 1.5
+    preop["has_ecg_report"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "inr_above_threshold"
