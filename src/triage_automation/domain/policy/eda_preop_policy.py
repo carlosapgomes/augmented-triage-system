@@ -71,6 +71,29 @@ def evaluate_eda_preop_policy(*, structured_data: dict[str, object]) -> dict[str
             structured_data=structured_data,
         )
 
+    has_active_respiratory_symptoms = _extract_text(
+        preop_payload,
+        "has_active_respiratory_symptoms",
+    )
+    has_prior_respiratory_disease = _extract_text(
+        preop_payload,
+        "has_prior_respiratory_disease",
+    )
+    has_chest_xray_report = _extract_text(preop_payload, "has_chest_xray_report")
+    respiratory_risk_reported = (
+        has_active_respiratory_symptoms == "yes"
+        or has_prior_respiratory_disease == "yes"
+    )
+    if respiratory_risk_reported and has_chest_xray_report != "yes":
+        return _deny(
+            reason_code="missing_chest_xray_with_respiratory_risk",
+            reason_text=(
+                "Risco respiratório relatado sem laudo de RX de tórax obrigatório para "
+                "recomendação automática EDA."
+            ),
+            structured_data=structured_data,
+        )
+
     indication_category = _extract_text(eda_payload, "indication_category")
     if indication_category == "foreign_body":
         return EdaPreopDecision(
