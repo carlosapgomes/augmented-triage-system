@@ -282,3 +282,15 @@ def test_all_eda_deny_when_respiratory_risk_and_missing_chest_xray(
 
     assert result["decision"] == "deny"
     assert result["reason_code"] == "missing_chest_xray_with_respiratory_risk"
+
+
+def test_pediatric_case_sets_flag_and_explicit_reason_text_signal() -> None:
+    payload = _base_llm1_structured_data()
+    patient = cast(dict[str, object], payload["patient"])
+    patient["age"] = 15
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["pediatric_flag"] is True
+    reason_text = cast(str, result["reason_text"])
+    assert "pedi" in reason_text.lower()

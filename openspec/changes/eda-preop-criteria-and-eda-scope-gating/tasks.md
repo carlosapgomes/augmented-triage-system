@@ -21,7 +21,7 @@
 - [x] 3.4 Implementar negação para todas as EDA quando houver risco relatado sem exame obrigatório correspondente:
 - [x] 3.5 doença cardiovascular relatada + sem ECG -> `missing_ecg_with_cardiovascular_disease`.
 - [x] 3.6 sintoma respiratório ativo ou patologia respiratória prévia + sem RX tórax -> `missing_chest_xray_with_respiratory_risk`.
-- [ ] 3.7 Implementar sinalização pediátrica (`age < 16`) no output explicável.
+- [x] 3.7 Implementar sinalização pediátrica (`age < 16`) no output explicável.
 
 ## 4. Contrato de saída explicável e integração com mensagens
 
@@ -111,5 +111,11 @@
   - `uv run pytest tests/unit/test_eda_preop_policy.py -k "respiratory_risk_and_missing_chest_xray" -q` -> 2 falhas esperadas (casos com risco respiratório sem RX tórax ainda aceitavam).
   - `uv run pytest tests/unit/test_eda_preop_policy.py -k "respiratory_risk_and_missing_chest_xray" -q` -> 2 passed após aplicar gate cardiorrespiratório global para RX tórax.
   - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 15 passed.
+  - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.
+  - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.
+- Slice 3.7 (red->green) executado com:
+  - `uv run pytest tests/unit/test_eda_preop_policy.py -k "pediatric_case_sets_flag" -q` -> 1 falha esperada (texto explicável ainda sem sinalização pediátrica explícita).
+  - `uv run pytest tests/unit/test_eda_preop_policy.py -k "pediatric_case_sets_flag" -q` -> 1 passed após adicionar sinalização pediátrica no `reason_text`.
+  - `uv run pytest tests/unit/test_eda_preop_policy.py -q` -> 16 passed.
   - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.
   - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py` -> sem erros.

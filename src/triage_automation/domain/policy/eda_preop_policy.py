@@ -37,26 +37,31 @@ def evaluate_eda_preop_policy(*, structured_data: dict[str, object]) -> dict[str
 
     eda_payload = _extract_dict(structured_data, "eda")
     preop_payload = _extract_dict(structured_data, "preop_screening")
+    pediatric_flag = _is_pediatric(structured_data)
 
     exclusion_type = _extract_text(eda_payload, "exclusion_type")
     if exclusion_type == "gastrostomy":
         return EdaPreopDecision(
             decision="excluded",
             reason_code="excluded_gastrostomy",
-            reason_text="Solicitação de gastrostomia fora de escopo da política automática EDA.",
+            reason_text=_with_pediatric_signal(
+                "Solicitação de gastrostomia fora de escopo da política automática EDA.",
+                pediatric_flag,
+            ),
             evidence_spans=_extract_evidence_spans(preop_payload),
-            pediatric_flag=_is_pediatric(structured_data),
+            pediatric_flag=pediatric_flag,
         ).to_dict()
 
     if exclusion_type == "esophageal_dilation":
         return EdaPreopDecision(
             decision="excluded",
             reason_code="excluded_esophageal_dilation",
-            reason_text=(
-                "Solicitação de dilatação esofágica fora de escopo da política automática EDA."
+            reason_text=_with_pediatric_signal(
+                "Solicitação de dilatação esofágica fora de escopo da política automática EDA.",
+                pediatric_flag,
             ),
             evidence_spans=_extract_evidence_spans(preop_payload),
-            pediatric_flag=_is_pediatric(structured_data),
+            pediatric_flag=pediatric_flag,
         ).to_dict()
 
     has_cardiovascular_disease = _extract_text(preop_payload, "has_cardiovascular_disease")
@@ -99,9 +104,12 @@ def evaluate_eda_preop_policy(*, structured_data: dict[str, object]) -> dict[str
         return EdaPreopDecision(
             decision="accept",
             reason_code="foreign_body_exception",
-            reason_text="Exceção de corpo estranho: sem gate laboratorial de rotina nesta etapa.",
+            reason_text=_with_pediatric_signal(
+                "Exceção de corpo estranho: sem gate laboratorial de rotina nesta etapa.",
+                pediatric_flag,
+            ),
             evidence_spans=_extract_evidence_spans(preop_payload),
-            pediatric_flag=_is_pediatric(structured_data),
+            pediatric_flag=pediatric_flag,
         ).to_dict()
 
     if indication_category in _OPERATIONAL_INDICATIONS:
@@ -169,9 +177,12 @@ def evaluate_eda_preop_policy(*, structured_data: dict[str, object]) -> dict[str
     return EdaPreopDecision(
         decision="accept",
         reason_code="criteria_met",
-        reason_text="Critérios determinísticos avaliados sem gatilhos de negação nesta etapa.",
+        reason_text=_with_pediatric_signal(
+            "Critérios determinísticos avaliados sem gatilhos de negação nesta etapa.",
+            pediatric_flag,
+        ),
         evidence_spans=_extract_evidence_spans(preop_payload),
-        pediatric_flag=_is_pediatric(structured_data),
+        pediatric_flag=pediatric_flag,
     ).to_dict()
 
 
@@ -182,12 +193,13 @@ def _deny(
     structured_data: dict[str, object],
 ) -> dict[str, object]:
     preop_payload = _extract_dict(structured_data, "preop_screening")
+    pediatric_flag = _is_pediatric(structured_data)
     return EdaPreopDecision(
         decision="deny",
         reason_code=reason_code,
-        reason_text=reason_text,
+        reason_text=_with_pediatric_signal(reason_text, pediatric_flag),
         evidence_spans=_extract_evidence_spans(preop_payload),
-        pediatric_flag=_is_pediatric(structured_data),
+        pediatric_flag=pediatric_flag,
     ).to_dict()
 
 
@@ -245,6 +257,12 @@ def _extract_evidence_spans(preop_payload: dict[str, object]) -> list[dict[str, 
             continue
         spans.append({"field_path": normalized_path, "excerpt": normalized_excerpt})
     return spans
+
+
+def _with_pediatric_signal(reason_text: str, pediatric_flag: bool) -> str:
+    if not pediatric_flag:
+        return reason_text
+    return f"{reason_text} Sinalização pediátrica: paciente com idade < 16 anos."
 
 
 def _is_pediatric(structured_data: dict[str, object]) -> bool:
