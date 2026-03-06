@@ -26,7 +26,7 @@
 ## 4. Contrato de saída explicável e integração com mensagens
 
 - [x] 4.1 Adicionar testes (red) para contrato de saída determinística com `decision`, `reason_code`, `reason_text`, `evidence_spans` e bloco compatível (`preop_gate`) sem quebrar consumidores legados de `suggestion`.
-- [ ] 4.2 Implementar serialização/persistência do bloco `preop_gate` e reason codes aprovados no design.
+- [x] 4.2 Implementar serialização/persistência do bloco `preop_gate` e reason codes aprovados no design.
 - [ ] 4.3 Implementar regra de não publicação de resumo de recomendação no Room-2 quando o caso for `manual_review_required` por escopo.
 - [ ] 4.4 Implementar explicação textual concisa no Room-2 para negações por ausência de ECG/RX em contexto de risco.
 
@@ -123,3 +123,9 @@
   - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "persists_suggestion_and_enqueues_room2_widget_job or non_eda_scope_requires_manual_review_without_accept_or_deny" -q` -> 2 falhas esperadas (`preop_gate` ainda não persistido no contrato de saída).
   - `uv run ruff check tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `uv run mypy tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+- Slice 4.2 (green) executado com:
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "persists_suggestion_and_enqueues_room2_widget_job or non_eda_scope_requires_manual_review_without_accept_or_deny" -q` -> 2 passed após persistir `preop_gate` no payload final.
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -q` -> 5 passed.
+  - `uv run pytest tests/integration/test_worker_runtime_service_wiring.py -q` -> 3 passed.
+  - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+  - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.

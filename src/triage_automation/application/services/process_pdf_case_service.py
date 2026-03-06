@@ -22,6 +22,7 @@ from triage_automation.application.services.llm2_service import (
     Llm2Service,
 )
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.policy.eda_preop_policy import evaluate_eda_preop_policy
 from triage_automation.domain.record_number import (
     extract_and_strip_agency_record_number,
 )
@@ -185,6 +186,24 @@ class ProcessPdfCaseService:
                 )
 
                 if scope_gate_payload is not None:
+                    scope_gate_payload = _with_preop_gate_block(
+                        suggested_action_json=scope_gate_payload,
+                        preop_gate_payload={
+                            "decision": scope_gate_payload.get(
+                                "decision",
+                                "manual_review_required",
+                            ),
+                            "reason_code": scope_gate_payload.get(
+                                "reason_code",
+                                "manual_review_required_insufficient_data",
+                            ),
+                            "reason_text": scope_gate_payload.get(
+                                "reason_text",
+                                "Revisao manual obrigatoria por escopo nao deterministico.",
+                            ),
+                            "evidence_spans": scope_gate_payload.get("evidence_spans", []),
+                        },
+                    )
                     await self._case_repository.store_llm2_artifacts(
                         case_id=case_id,
                         suggested_action_json=scope_gate_payload,
@@ -266,9 +285,17 @@ class ProcessPdfCaseService:
                             details=str(error),
                         ) from error
 
+                    deterministic_preop_gate = evaluate_eda_preop_policy(
+                        structured_data=llm1_result.structured_data_json
+                    )
+                    llm2_suggested_action_json = _with_preop_gate_block(
+                        suggested_action_json=llm2_result.suggested_action_json,
+                        preop_gate_payload=deterministic_preop_gate,
+                    )
+
                     await self._case_repository.store_llm2_artifacts(
                         case_id=case_id,
-                        suggested_action_json=llm2_result.suggested_action_json,
+                        suggested_action_json=llm2_suggested_action_json,
                     )
                     logger.info(
                         (
@@ -276,7 +303,7 @@ class ProcessPdfCaseService:
                             "prompt_system=%s@%s prompt_user=%s@%s contradictions=%s"
                         ),
                         case_id,
-                        llm2_result.suggested_action_json.get("suggestion"),
+                        llm2_suggested_action_json.get("suggestion"),
                         llm2_result.prompt_system_name,
                         llm2_result.prompt_system_version,
                         llm2_result.prompt_user_name,
@@ -290,7 +317,7 @@ class ProcessPdfCaseService:
                             user_prompt_name=llm2_result.prompt_user_name,
                             user_prompt_version=llm2_result.prompt_user_version,
                         )
-                        llm2_payload["suggestion"] = llm2_result.suggested_action_json.get(
+                        llm2_payload["suggestion"] = llm2_suggested_action_json.get(
                             "suggestion"
                         )
                         await self._audit_repository.append_event(
@@ -369,6 +396,39 @@ def _extract_preop_evidence_spans(
             {"field_path": normalized_field_path, "excerpt": normalized_excerpt}
         )
     return evidence_spans
+
+
+def _with_preop_gate_block(
+    *,
+    suggested_action_json: dict[str, object],
+    preop_gate_payload: dict[str, object],
+) -> dict[str, object]:
+    decision_raw = preop_gate_payload.get("decision")
+    reason_code_raw = preop_gate_payload.get("reason_code")
+    reason_text_raw = preop_gate_payload.get("reason_text")
+    evidence_spans_raw = preop_gate_payload.get("evidence_spans")
+
+    decision = str(decision_raw) if isinstance(decision_raw, str) else "manual_review_required"
+    reason_code = (
+        str(reason_code_raw)
+        if isinstance(reason_code_raw, str)
+        else "manual_review_required_insufficient_data"
+    )
+    reason_text = (
+        str(reason_text_raw)
+        if isinstance(reason_text_raw, str)
+        else "Dados insuficientes para gate pre-procedimento deterministico."
+    )
+    evidence_spans = evidence_spans_raw if isinstance(evidence_spans_raw, list) else []
+
+    payload = dict(suggested_action_json)
+    payload["preop_gate"] = {
+        "decision": decision,
+        "reason_code": reason_code,
+        "reason_text": reason_text,
+        "evidence_spans": evidence_spans,
+    }
+    return payload
 
 
 def build_scope_gated_manual_review_payload(
