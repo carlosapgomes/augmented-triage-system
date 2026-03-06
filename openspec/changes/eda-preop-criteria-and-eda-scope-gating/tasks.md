@@ -33,7 +33,7 @@
 ## 5. Qualidade, validação e documentação operacional
 
 - [x] 5.1 Atualizar documentação operacional e runbook manual E2E para cenários de escopo `non_eda|unknown`, revisão manual no Room-1 e negações determinísticas por ausência de ECG/RX.
-- [ ] 5.2 Executar validações obrigatórias do change: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
+- [x] 5.2 Executar validações obrigatórias do change: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
 - [ ] 5.3 Registrar evidências de verificação e observações de rollout/rollback neste `tasks.md` após conclusão da implementação.
 
 ## Notes
@@ -149,3 +149,8 @@
     - negações determinísticas por ausência de ECG/RX em contexto de risco.
   - Sincronização obrigatória em inglês em `docs/en/manual_e2e_runbook.md` no mesmo slice.
   - `markdownlint-cli2 "docs/manual_e2e_runbook.md" "docs/en/manual_e2e_runbook.md"` -> sem erros.
+- Slice 5.2 (verificação obrigatória) executado com:
+  - `uv run pytest tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py tests/integration/test_room1_final_reply_jobs.py tests/integration/test_worker_runtime_service_wiring.py tests/e2e/test_full_case_flow.py tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` -> 76 passed (6 warnings depreciação sqlite adapter Python 3.12).
+  - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room2_widget_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py` -> sem erros.
+  - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room2_widget_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py` -> sem erros.
+  - `markdownlint-cli2 "openspec/changes/eda-preop-criteria-and-eda-scope-gating/**/*.md"` -> sem erros.
