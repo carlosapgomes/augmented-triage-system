@@ -117,8 +117,17 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
                 "abnormal_flag": "no",
                 "source_text_hint": None,
             },
-            "asa": {"class": "II", "confidence": "media", "rationale": None},
-            "cardiovascular_risk": {"level": "low", "confidence": "media", "rationale": None},
+        },
+        "preop_screening": {
+            "exam_type": "eda",
+            "has_cardiovascular_disease": "no",
+            "has_active_respiratory_symptoms": "no",
+            "has_prior_respiratory_disease": "no",
+            "has_ecg_report": "yes",
+            "has_chest_xray_report": "yes",
+            "hb_g_dl": 10.5,
+            "platelets_per_mm3": 130000,
+            "inr": 1.2,
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,
@@ -345,11 +354,13 @@ async def test_default_prompt_names_resolve_seeded_rows(tmp_path: Path) -> None:
     llm1_system_prompt, llm1_user_prompt = llm1_client.calls[0]
     assert "Retorne APENAS JSON valido" in llm1_system_prompt
     assert "portugues brasileiro (pt-BR)" in llm1_system_prompt
+    assert "Nao inferir, classificar ou estimar ASA" in llm1_system_prompt
     assert "Tarefa: extrair dados estruturados" in llm1_user_prompt
+    assert "evidencia textual" in llm1_user_prompt
     assert llm1_result.prompt_system_name == "llm1_system"
     assert llm1_result.prompt_user_name == "llm1_user"
-    assert llm1_result.prompt_system_version == 3
-    assert llm1_result.prompt_user_version == 3
+    assert llm1_result.prompt_system_version == 4
+    assert llm1_result.prompt_user_version == 4
 
     llm2_system_prompt, llm2_user_prompt = llm2_client.calls[0]
     assert "Retorne APENAS JSON valido" in llm2_system_prompt

@@ -225,14 +225,17 @@ def _default_system_prompt() -> str:
         "Escreva todos os campos narrativos em portugues brasileiro (pt-BR). "
         "Nao use palavras em ingles nos campos narrativos. "
         "Nao inclua markdown, blocos de codigo ou chaves extras. "
-        "Nao invente fatos; use null/unknown quando faltar informacao."
+        "Nao invente fatos; use null/unknown quando faltar informacao. "
+        "Nao inferir, classificar ou estimar ASA, Mallampati ou risco OSA."
     )
 
 
 def _default_user_prompt_template() -> str:
     return (
         "Tarefa: extrair dados estruturados e gerar resumo conciso de triagem "
-        "a partir de um relatorio clinico para triagem EDA."
+        "a partir de um relatorio clinico para triagem EDA. "
+        "Exigir evidencia textual explicita para cada campo objetivo. "
+        "Quando nao houver evidencia textual, retornar unknown (ou null para numericos)."
     )
 
 
@@ -249,7 +252,10 @@ def _render_user_prompt(
         f"agency_record_number: {agency_record_number}\n\n"
         "Retorne JSON schema_version 1.1 e preserve agency_record_number exatamente.\n"
         "Todos os campos narrativos devem estar em portugues brasileiro (pt-BR).\n"
-        "Nao use palavras em ingles nos campos narrativos.\n\n"
+        "Nao use palavras em ingles nos campos narrativos.\n"
+        "Nao inferir, classificar ou estimar ASA, Mallampati ou risco OSA.\n"
+        "Cada campo objetivo deve ter evidencia textual; se nao houver, usar unknown.\n"
+        "Para hb_g_dl, platelets_per_mm3 e inr sem evidencia numerica, usar null.\n\n"
         f"Texto clinico do relatorio:\n{clean_text}"
     )
 
@@ -292,8 +298,6 @@ def _collect_llm1_forbidden_terms(*, validated: Llm1Response) -> list[str]:
     optional_texts = [
         validated.policy_precheck.notes,
         validated.extraction_quality.notes,
-        validated.eda.asa.rationale,
-        validated.eda.cardiovascular_risk.rationale,
     ]
     texts.extend(text for text in optional_texts if text is not None)
     return collect_forbidden_terms(texts=texts)

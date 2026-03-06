@@ -57,16 +57,17 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
                 "abnormal_flag": "no",
                 "source_text_hint": None,
             },
-            "asa": {
-                "class": "II",
-                "confidence": "media",
-                "rationale": None,
-            },
-            "cardiovascular_risk": {
-                "level": "low",
-                "confidence": "media",
-                "rationale": None,
-            },
+        },
+        "preop_screening": {
+            "exam_type": "eda",
+            "has_cardiovascular_disease": "no",
+            "has_active_respiratory_symptoms": "no",
+            "has_prior_respiratory_disease": "no",
+            "has_ecg_report": "yes",
+            "has_chest_xray_report": "yes",
+            "hb_g_dl": 10.2,
+            "platelets_per_mm3": 140000,
+            "inr": 1.1,
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,
@@ -267,6 +268,30 @@ async def test_agency_record_number_is_injected_exactly_into_prompt() -> None:
     assert len(client.calls) == 1
     _, user_prompt = client.calls[0]
     assert f"agency_record_number: {agency_record}" in user_prompt
+
+
+@pytest.mark.asyncio
+async def test_llm1_prompt_requires_textual_evidence_and_forbids_asa_mallampati_osa() -> None:
+    agency_record = "54321"
+    client = FakeLlmClient(json.dumps(_valid_llm1_payload(agency_record)))
+    service = Llm1Service(llm_client=client)
+
+    await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="texto limpo",
+    )
+
+    system_prompt, user_prompt = client.calls[0]
+    lowered_system = system_prompt.lower()
+    lowered_user = user_prompt.lower()
+
+    assert "nao inferir" in lowered_system
+    assert "asa" in lowered_system
+    assert "mallampati" in lowered_system
+    assert "osa" in lowered_system
+    assert "evidencia textual" in lowered_user
+    assert "unknown" in lowered_user
 
 
 @pytest.mark.asyncio

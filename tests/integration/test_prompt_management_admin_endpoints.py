@@ -137,8 +137,8 @@ async def test_admin_lists_prompt_versions_with_active_flags(tmp_path: Path) -> 
         _insert_prompt_template(
             connection,
             prompt_name="llm1_system",
-            version=4,
-            content="inactive llm1_system v4",
+            version=5,
+            content="inactive llm1_system v5",
             is_active=False,
         )
 
@@ -150,8 +150,8 @@ async def test_admin_lists_prompt_versions_with_active_flags(tmp_path: Path) -> 
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["items"][0] == {"name": "llm1_system", "version": 4, "is_active": False}
-    assert {"name": "llm1_system", "version": 3, "is_active": True} in payload["items"]
+    assert payload["items"][0] == {"name": "llm1_system", "version": 5, "is_active": False}
+    assert {"name": "llm1_system", "version": 4, "is_active": True} in payload["items"]
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,7 @@ async def test_admin_gets_active_prompt_version_by_name(tmp_path: Path) -> None:
         )
 
     assert response.status_code == 200
-    assert response.json() == {"name": "llm1_system", "version": 3, "is_active": True}
+    assert response.json() == {"name": "llm1_system", "version": 4, "is_active": True}
 
 
 @pytest.mark.asyncio
@@ -300,8 +300,8 @@ async def test_admin_renders_prompt_management_html_page_with_versions(tmp_path:
         _insert_prompt_template(
             connection,
             prompt_name="llm1_system",
-            version=4,
-            content="inactive llm1_system v4",
+            version=5,
+            content="inactive llm1_system v5",
             is_active=False,
         )
 
@@ -315,7 +315,7 @@ async def test_admin_renders_prompt_management_html_page_with_versions(tmp_path:
     assert response.headers["content-type"].startswith("text/html")
     assert "Gestao de Prompts" in response.text
     assert "llm1_system" in response.text
-    assert 'href="/admin/prompts/llm1_system/versions/4"' in response.text
+    assert 'href="/admin/prompts/llm1_system/versions/5"' in response.text
     assert 'class="d-flex justify-content-end align-items-center gap-2 flex-wrap"' in response.text
     assert 'action="/admin/prompts/llm1_system/activate-form"' in response.text
     assert 'class="d-inline mb-0"' in response.text
@@ -345,14 +345,14 @@ async def test_admin_renders_prompt_version_content_page(tmp_path: Path) -> None
         _insert_prompt_template(
             connection,
             prompt_name="llm1_user",
-            version=4,
-            content="PROMPT V4 CONTENT",
+            version=5,
+            content="PROMPT V5 CONTENT",
             is_active=False,
         )
 
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(
-            "/admin/prompts/llm1_user/versions/4",
+            "/admin/prompts/llm1_user/versions/5",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
@@ -360,7 +360,7 @@ async def test_admin_renders_prompt_version_content_page(tmp_path: Path) -> None
     assert response.headers["content-type"].startswith("text/html")
     assert "Conteudo do Prompt" in response.text
     assert "llm1_user" in response.text
-    assert "PROMPT V4 CONTENT" in response.text
+    assert "PROMPT V5 CONTENT" in response.text
     assert "Criar nova versao" in response.text
 
 
@@ -695,8 +695,8 @@ async def test_admin_activation_appends_prompt_audit_event(tmp_path: Path) -> No
         _insert_prompt_template(
             connection,
             prompt_name="llm1_user",
-            version=4,
-            content="inactive llm1_user v4",
+            version=5,
+            content="inactive llm1_user v5",
             is_active=False,
         )
 
@@ -704,7 +704,7 @@ async def test_admin_activation_appends_prompt_audit_event(tmp_path: Path) -> No
         response = client.post(
             "/admin/prompts/llm1_user/activate",
             headers={"Authorization": f"Bearer {admin_token}"},
-            json={"version": 4},
+            json={"version": 5},
         )
 
     assert response.status_code == 200
@@ -727,7 +727,7 @@ async def test_admin_activation_appends_prompt_audit_event(tmp_path: Path) -> No
     assert payload == {
         "action": "activate_prompt_version",
         "prompt_name": "llm1_user",
-        "version": 4,
+        "version": 5,
     }
     assert event_row["occurred_at"] is not None
 

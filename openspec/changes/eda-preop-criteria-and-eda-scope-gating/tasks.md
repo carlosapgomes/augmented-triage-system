@@ -3,7 +3,7 @@
 ## 1. Contratos de extração objetiva no LLM1
 
 - [x] 1.1 Adicionar testes (red) para extração de `exam_type` (`eda|non_eda|unknown`) e campos objetivos de risco/documentação (`has_cardiovascular_disease`, `has_active_respiratory_symptoms`, `has_prior_respiratory_disease`, `has_ecg_report`, `has_chest_xray_report`, `hb_g_dl`, `platelets_per_mm3`, `inr`) com fallback `unknown` quando não houver evidência textual.
-- [ ] 1.2 Implementar atualização de DTO/schema do LLM1 e prompt de extração para exigir evidência textual e proibir inferência de ASA/Mallampati/OSA.
+- [x] 1.2 Implementar atualização de DTO/schema do LLM1 e prompt de extração para exigir evidência textual e proibir inferência de ASA/Mallampati/OSA.
 - [ ] 1.3 Adicionar cobertura para `evidence_spans` na saída de extração e persistência de campos necessários para decisão determinística.
 
 ## 2. Gate de escopo EDA e roteamento para revisão manual
@@ -42,3 +42,15 @@
   - `uv run pytest tests/unit/test_llm1_validation.py -k preop_screening -q` -> 2 falhas esperadas (`preop_screening` ainda não aceito no schema atual).
   - `uv run ruff check tests/unit/test_llm1_validation.py` -> sem erros.
   - `uv run mypy tests/unit/test_llm1_validation.py` -> sem erros.
+- Slice 1.2 (green) executado com:
+  - `uv run pytest tests/unit/test_llm1_validation.py -q` -> 10 passed.
+  - `uv run pytest tests/unit/test_llm2_validation.py -q` -> 2 passed.
+  - `uv run pytest tests/integration/test_llm_prompt_loading_runtime.py -q` -> 3 passed.
+  - `uv run pytest tests/integration/test_prompt_management_admin_endpoints.py -q` -> 13 passed.
+  - `uv run pytest tests/integration/test_process_pdf_case_llm1.py -q` -> 2 passed.
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -q` -> 3 passed.
+  - `uv run pytest tests/integration/test_worker_runtime_service_wiring.py -q` -> 3 passed.
+  - `uv run pytest tests/integration/test_post_room2_widget.py -q` -> 2 passed.
+  - `uv run pytest tests/e2e/test_full_case_flow.py -q` -> 2 passed.
+  - `uv run ruff check <paths alterados>` -> sem erros.
+  - `uv run mypy src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py src/triage_automation/infrastructure/llm/deterministic_client.py` -> sem erros.

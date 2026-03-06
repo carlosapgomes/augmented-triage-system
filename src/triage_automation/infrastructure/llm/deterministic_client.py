@@ -50,12 +50,17 @@ def _build_llm1_payload(*, user_prompt: str) -> str:
                 "abnormal_flag": "no",
                 "source_text_hint": "deterministic",
             },
-            "asa": {"class": "II", "confidence": "media", "rationale": "deterministic"},
-            "cardiovascular_risk": {
-                "level": "low",
-                "confidence": "media",
-                "rationale": "deterministic",
-            },
+        },
+        "preop_screening": {
+            "exam_type": "eda",
+            "has_cardiovascular_disease": "no",
+            "has_active_respiratory_symptoms": "no",
+            "has_prior_respiratory_disease": "no",
+            "has_ecg_report": "yes",
+            "has_chest_xray_report": "yes",
+            "hb_g_dl": 11.0,
+            "platelets_per_mm3": 180000,
+            "inr": 1.1,
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,

@@ -46,22 +46,6 @@ class Llm1Ecg(StrictModel):
     source_text_hint: str | None
 
 
-class Llm1Asa(StrictModel):
-    """ASA class estimate and confidence."""
-
-    class_: Literal["I", "II", "III", "IV", "V", "unknown"] = Field(alias="class")
-    confidence: Literal["alta", "media", "baixa"]
-    rationale: str | None
-
-
-class Llm1CardiovascularRisk(StrictModel):
-    """Cardiovascular risk assessment and confidence."""
-
-    level: Literal["low", "moderate", "high", "unknown"]
-    confidence: Literal["alta", "media", "baixa"]
-    rationale: str | None
-
-
 class Llm1Eda(StrictModel):
     """EDA-focused structured clinical extraction fields."""
 
@@ -79,8 +63,20 @@ class Llm1Eda(StrictModel):
     requested_procedure: Llm1RequestedProcedure
     labs: Llm1Labs
     ecg: Llm1Ecg
-    asa: Llm1Asa
-    cardiovascular_risk: Llm1CardiovascularRisk
+
+
+class Llm1PreopScreening(StrictModel):
+    """Objective pre-procedure screening signals extracted from textual evidence."""
+
+    exam_type: Literal["eda", "non_eda", "unknown"]
+    has_cardiovascular_disease: Literal["yes", "no", "unknown"]
+    has_active_respiratory_symptoms: Literal["yes", "no", "unknown"]
+    has_prior_respiratory_disease: Literal["yes", "no", "unknown"]
+    has_ecg_report: Literal["yes", "no", "unknown"]
+    has_chest_xray_report: Literal["yes", "no", "unknown"]
+    hb_g_dl: float | None
+    platelets_per_mm3: int | None
+    inr: float | None
 
 
 class Llm1PolicyPrecheck(StrictModel):
@@ -120,6 +116,7 @@ class Llm1Response(StrictModel):
     agency_record_number: str = Field(pattern=r"^[0-9]{5,}$")
     patient: Llm1Patient
     eda: Llm1Eda
+    preop_screening: Llm1PreopScreening
     policy_precheck: Llm1PolicyPrecheck
     summary: Llm1Summary
     extraction_quality: Llm1ExtractionQuality
