@@ -59,6 +59,18 @@ def evaluate_eda_preop_policy(*, structured_data: dict[str, object]) -> dict[str
             pediatric_flag=_is_pediatric(structured_data),
         ).to_dict()
 
+    has_cardiovascular_disease = _extract_text(preop_payload, "has_cardiovascular_disease")
+    has_ecg_report = _extract_text(preop_payload, "has_ecg_report")
+    if has_cardiovascular_disease == "yes" and has_ecg_report != "yes":
+        return _deny(
+            reason_code="missing_ecg_with_cardiovascular_disease",
+            reason_text=(
+                "Risco cardiovascular relatado sem laudo de ECG obrigatório para "
+                "recomendação automática EDA."
+            ),
+            structured_data=structured_data,
+        )
+
     indication_category = _extract_text(eda_payload, "indication_category")
     if indication_category == "foreign_body":
         return EdaPreopDecision(

@@ -239,3 +239,21 @@ def test_baseline_non_operational_eda_deny_inr_above_2() -> None:
 
     assert result["decision"] == "deny"
     assert result["reason_code"] == "inr_above_threshold"
+
+
+def test_all_eda_deny_when_cardiovascular_risk_and_missing_ecg() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    eda["indication_category"] = "other"
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["has_cardiovascular_disease"] = "yes"
+    preop["has_ecg_report"] = "no"
+    preop["hb_g_dl"] = 10.5
+    preop["platelets_per_mm3"] = 180000
+    preop["inr"] = 1.1
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "missing_ecg_with_cardiovascular_disease"
