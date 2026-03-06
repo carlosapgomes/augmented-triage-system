@@ -104,6 +104,7 @@ def _with_preop_screening(
     hb_g_dl: float | None,
     platelets_per_mm3: int | None,
     inr: float | None,
+    evidence_spans: list[dict[str, str]] | None = None,
 ) -> dict[str, object]:
     payload["preop_screening"] = {
         "exam_type": exam_type,
@@ -115,6 +116,7 @@ def _with_preop_screening(
         "hb_g_dl": hb_g_dl,
         "platelets_per_mm3": platelets_per_mm3,
         "inr": inr,
+        "evidence_spans": evidence_spans or [],
     }
     return payload
 
@@ -172,6 +174,7 @@ async def test_llm1_extracts_preop_screening_scope_and_risk_fields() -> None:
         "hb_g_dl": 10.2,
         "platelets_per_mm3": 140000,
         "inr": 1.1,
+        "evidence_spans": [],
     }
 
 
@@ -212,7 +215,54 @@ async def test_llm1_preop_screening_accepts_unknown_fallback_values() -> None:
         "hb_g_dl": None,
         "platelets_per_mm3": None,
         "inr": None,
+        "evidence_spans": [],
     }
+
+
+@pytest.mark.asyncio
+async def test_llm1_preop_screening_preserves_evidence_spans() -> None:
+    agency_record = "12345"
+    payload = _with_preop_screening(
+        _valid_llm1_payload(agency_record),
+        exam_type="eda",
+        has_cardiovascular_disease="yes",
+        has_active_respiratory_symptoms="no",
+        has_prior_respiratory_disease="unknown",
+        has_ecg_report="yes",
+        has_chest_xray_report="unknown",
+        hb_g_dl=9.8,
+        platelets_per_mm3=125000,
+        inr=1.3,
+        evidence_spans=[
+            {
+                "field_path": "preop_screening.has_cardiovascular_disease",
+                "excerpt": "historia de cardiopatia hipertensiva",
+            },
+            {
+                "field_path": "preop_screening.has_ecg_report",
+                "excerpt": "eletrocardiograma anexo",
+            },
+        ],
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="texto limpo",
+    )
+
+    assert result.structured_data_json["preop_screening"]["evidence_spans"] == [
+        {
+            "field_path": "preop_screening.has_cardiovascular_disease",
+            "excerpt": "historia de cardiopatia hipertensiva",
+        },
+        {
+            "field_path": "preop_screening.has_ecg_report",
+            "excerpt": "eletrocardiograma anexo",
+        },
+    ]
 
 
 @pytest.mark.asyncio
@@ -292,6 +342,7 @@ async def test_llm1_prompt_requires_textual_evidence_and_forbids_asa_mallampati_
     assert "osa" in lowered_system
     assert "evidencia textual" in lowered_user
     assert "unknown" in lowered_user
+    assert "evidence_spans" in lowered_user
 
 
 @pytest.mark.asyncio

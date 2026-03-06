@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -84,6 +85,15 @@ def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
     return sync_url, async_url
 
 
+def _decode_json(value: Any) -> dict[str, Any]:
+    if isinstance(value, str):
+        parsed = json.loads(value)
+        assert isinstance(parsed, dict)
+        return parsed
+    assert isinstance(value, dict)
+    return value
+
+
 def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
     return {
         "schema_version": "1.1",
@@ -114,6 +124,12 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
             "hb_g_dl": 10.5,
             "platelets_per_mm3": 130000,
             "inr": 1.2,
+            "evidence_spans": [
+                {
+                    "field_path": "preop_screening.has_ecg_report",
+                    "excerpt": "ECG com laudo anexado",
+                }
+            ],
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,
@@ -178,6 +194,15 @@ async def test_valid_llm1_response_persists_structured_data_and_summary(tmp_path
 
     assert row["status"] == "LLM_STRUCT"
     assert row["structured_data_json"] is not None
+    structured_data = _decode_json(row["structured_data_json"])
+    assert structured_data["preop_screening"]["exam_type"] == "eda"
+    assert structured_data["preop_screening"]["has_ecg_report"] == "yes"
+    assert structured_data["preop_screening"]["evidence_spans"] == [
+        {
+            "field_path": "preop_screening.has_ecg_report",
+            "excerpt": "ECG com laudo anexado",
+        }
+    ]
     assert row["summary_text"] == "Resumo LLM1"
 
 

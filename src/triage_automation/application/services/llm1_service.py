@@ -235,7 +235,9 @@ def _default_user_prompt_template() -> str:
         "Tarefa: extrair dados estruturados e gerar resumo conciso de triagem "
         "a partir de um relatorio clinico para triagem EDA. "
         "Exigir evidencia textual explicita para cada campo objetivo. "
-        "Quando nao houver evidencia textual, retornar unknown (ou null para numericos)."
+        "Quando nao houver evidencia textual, retornar unknown (ou null para numericos). "
+        "Incluir preop_screening.evidence_spans com field_path e excerpt "
+        "sempre que houver evidencia."
     )
 
 
@@ -255,7 +257,8 @@ def _render_user_prompt(
         "Nao use palavras em ingles nos campos narrativos.\n"
         "Nao inferir, classificar ou estimar ASA, Mallampati ou risco OSA.\n"
         "Cada campo objetivo deve ter evidencia textual; se nao houver, usar unknown.\n"
-        "Para hb_g_dl, platelets_per_mm3 e inr sem evidencia numerica, usar null.\n\n"
+        "Para hb_g_dl, platelets_per_mm3 e inr sem evidencia numerica, usar null.\n"
+        "Incluir preop_screening.evidence_spans com itens {field_path, excerpt}.\n\n"
         f"Texto clinico do relatorio:\n{clean_text}"
     )
 

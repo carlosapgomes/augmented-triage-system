@@ -61,6 +61,12 @@ def _build_llm1_payload(*, user_prompt: str) -> str:
             "hb_g_dl": 11.0,
             "platelets_per_mm3": 180000,
             "inr": 1.1,
+            "evidence_spans": [
+                {
+                    "field_path": "preop_screening.has_ecg_report",
+                    "excerpt": "deterministic ECG report present",
+                }
+            ],
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,

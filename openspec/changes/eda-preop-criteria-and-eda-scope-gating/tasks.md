@@ -4,7 +4,7 @@
 
 - [x] 1.1 Adicionar testes (red) para extração de `exam_type` (`eda|non_eda|unknown`) e campos objetivos de risco/documentação (`has_cardiovascular_disease`, `has_active_respiratory_symptoms`, `has_prior_respiratory_disease`, `has_ecg_report`, `has_chest_xray_report`, `hb_g_dl`, `platelets_per_mm3`, `inr`) com fallback `unknown` quando não houver evidência textual.
 - [x] 1.2 Implementar atualização de DTO/schema do LLM1 e prompt de extração para exigir evidência textual e proibir inferência de ASA/Mallampati/OSA.
-- [ ] 1.3 Adicionar cobertura para `evidence_spans` na saída de extração e persistência de campos necessários para decisão determinística.
+- [x] 1.3 Adicionar cobertura para `evidence_spans` na saída de extração e persistência de campos necessários para decisão determinística.
 
 ## 2. Gate de escopo EDA e roteamento para revisão manual
 
@@ -53,4 +53,12 @@
   - `uv run pytest tests/integration/test_post_room2_widget.py -q` -> 2 passed.
   - `uv run pytest tests/e2e/test_full_case_flow.py -q` -> 2 passed.
   - `uv run ruff check <paths alterados>` -> sem erros.
+  - `uv run mypy src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py src/triage_automation/infrastructure/llm/deterministic_client.py` -> sem erros.
+- Slice 1.3 (red->green) executado com:
+  - `uv run pytest tests/unit/test_llm1_validation.py -k evidence_spans -q` -> 1 falha esperada (schema sem `evidence_spans`).
+  - `uv run pytest tests/integration/test_process_pdf_case_llm1.py -q` -> 1 falha esperada + 1 passed antes da implementação (payload com `evidence_spans` rejeitado).
+  - `uv run pytest tests/unit/test_llm1_validation.py -q` -> 11 passed.
+  - `uv run pytest tests/integration/test_process_pdf_case_llm1.py -q` -> 2 passed.
+  - `uv run pytest tests/unit/test_llm2_validation.py tests/integration/test_llm_prompt_loading_runtime.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_worker_runtime_service_wiring.py tests/integration/test_post_room2_widget.py tests/e2e/test_full_case_flow.py -q` -> 15 passed.
+  - `uv run ruff check src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py src/triage_automation/infrastructure/llm/deterministic_client.py tests/unit/test_llm1_validation.py tests/integration/test_process_pdf_case_llm1.py` -> sem erros.
   - `uv run mypy src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py src/triage_automation/infrastructure/llm/deterministic_client.py` -> sem erros.

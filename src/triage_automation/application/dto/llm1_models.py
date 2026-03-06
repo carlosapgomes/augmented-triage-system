@@ -65,6 +65,13 @@ class Llm1Eda(StrictModel):
     ecg: Llm1Ecg
 
 
+class Llm1EvidenceSpan(StrictModel):
+    """Source excerpt linked to an extracted field for deterministic explainability."""
+
+    field_path: str = Field(min_length=1)
+    excerpt: str = Field(min_length=1)
+
+
 class Llm1PreopScreening(StrictModel):
     """Objective pre-procedure screening signals extracted from textual evidence."""
 
@@ -77,6 +84,7 @@ class Llm1PreopScreening(StrictModel):
     hb_g_dl: float | None
     platelets_per_mm3: int | None
     inr: float | None
+    evidence_spans: list[Llm1EvidenceSpan] = Field(default_factory=list)
 
 
 class Llm1PolicyPrecheck(StrictModel):
