@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+import pytest
+
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_formatted_html,
     build_room2_case_decision_instructions_message,
@@ -914,6 +916,89 @@ def test_room2_summary_objective_reason_deny_uses_ecg_cause_when_isolated() -> N
     assert "ecg obrigatório ausente" in reason_text
     assert "pendência laboratorial obrigatória" not in reason_text
     assert "fora do escopo eda" not in reason_text
+
+
+@pytest.mark.parametrize(
+    ("reason_code", "expected_snippet"),
+    [
+        (
+            "missing_ecg_with_cardiovascular_disease",
+            "doença cardiovascular relatada sem laudo de ecg",
+        ),
+        (
+            "missing_chest_xray_with_respiratory_risk",
+            "risco respiratório relatado sem laudo de rx de tórax",
+        ),
+    ],
+)
+def test_room2_summary_objective_reason_deny_includes_missing_exam_context_from_preop_gate(
+    reason_code: str,
+    expected_snippet: str,
+) -> None:
+    case_id = UUID("65656565-6565-6565-6565-656565656565")
+    suggested_action: dict[str, object] = {
+        "suggestion": "deny",
+        "support_recommendation": "none",
+        "preop_gate": {
+            "decision": "deny",
+            "reason_code": reason_code,
+            "reason_text": "negação determinística por exame ausente",
+            "evidence_spans": [],
+        },
+    }
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": False,
+                "labs_required": False,
+                "labs_pass": "yes",
+                "labs_failed_items": [],
+                "ecg_required": False,
+                "ecg_present": "yes",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action=suggested_action,
+    )
+
+    reason_text = " ".join(
+        _extract_markdown_section_lines(
+            body=body,
+            section="## Motivo objetivo:\n\n",
+            next_section=None,
+        )
+    ).lower()
+
+    assert expected_snippet in reason_text
+    assert "critérios mínimos de segurança não atendidos" not in reason_text
+
+    formatted_body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": False,
+                "labs_required": False,
+                "labs_pass": "yes",
+                "labs_failed_items": [],
+                "ecg_required": False,
+                "ecg_present": "yes",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action=suggested_action,
+    )
+
+    reason_chunk = _extract_html_section_chunk(
+        body=formatted_body,
+        section="<h2>Motivo objetivo:</h2>",
+        next_section=None,
+    ).lower()
+    assert expected_snippet in reason_chunk
 
 
 def test_room2_summary_objective_reason_deny_uses_fallback_when_no_known_cause() -> None:

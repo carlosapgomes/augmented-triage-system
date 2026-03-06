@@ -661,6 +661,15 @@ def _build_room2_objective_deny_causes(
 
     causes: list[str] = []
 
+    preop_gate_reason_code = _extract_room2_preop_gate_reason_code(
+        suggested_action=suggested_action,
+    )
+    preop_gate_cause = _map_room2_preop_reason_code_to_deny_cause(
+        reason_code=preop_gate_reason_code,
+    )
+    if preop_gate_cause is not None:
+        causes.append(preop_gate_cause)
+
     excluded_from_flow = _extract_room2_nested_value(
         structured_data,
         "policy_precheck",
@@ -713,6 +722,36 @@ def _build_room2_objective_deny_causes(
         causes.append("critérios mínimos de segurança não atendidos")
 
     return causes
+
+
+def _extract_room2_preop_gate_reason_code(*, suggested_action: dict[str, object]) -> str | None:
+    """Extract deterministic preop gate reason-code from suggested action payload."""
+
+    preop_gate = suggested_action.get("preop_gate")
+    if isinstance(preop_gate, dict):
+        preop_reason_code = preop_gate.get("reason_code")
+        if isinstance(preop_reason_code, str):
+            normalized = preop_reason_code.strip().lower()
+            if normalized:
+                return normalized
+
+    reason_code = suggested_action.get("reason_code")
+    if isinstance(reason_code, str):
+        normalized = reason_code.strip().lower()
+        if normalized:
+            return normalized
+
+    return None
+
+
+def _map_room2_preop_reason_code_to_deny_cause(*, reason_code: str | None) -> str | None:
+    """Map deterministic preop reason-code to concise Room-2 deny explanation."""
+
+    if reason_code == "missing_ecg_with_cardiovascular_disease":
+        return "doença cardiovascular relatada sem laudo de ECG"
+    if reason_code == "missing_chest_xray_with_respiratory_risk":
+        return "risco respiratório relatado sem laudo de RX de tórax"
+    return None
 
 
 def _is_room2_yes_precheck_value(value: object) -> bool:
