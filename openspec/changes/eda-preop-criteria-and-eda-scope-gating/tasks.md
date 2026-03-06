@@ -34,7 +34,7 @@
 
 - [x] 5.1 Atualizar documentação operacional e runbook manual E2E para cenários de escopo `non_eda|unknown`, revisão manual no Room-1 e negações determinísticas por ausência de ECG/RX.
 - [x] 5.2 Executar validações obrigatórias do change: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
-- [ ] 5.3 Registrar evidências de verificação e observações de rollout/rollback neste `tasks.md` após conclusão da implementação.
+- [x] 5.3 Registrar evidências de verificação e observações de rollout/rollback neste `tasks.md` após conclusão da implementação.
 
 ## Notes
 
@@ -154,3 +154,14 @@
   - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room2_widget_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py` -> sem erros.
   - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/application/services/post_room2_widget_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py` -> sem erros.
   - `markdownlint-cli2 "openspec/changes/eda-preop-criteria-and-eda-scope-gating/**/*.md"` -> sem erros.
+- Slice 5.3 (rollout/rollback) registrado com:
+  - Rollout observado:
+    - `preop_gate` foi adicionado de forma compatível, preservando `suggestion` para consumidores legados.
+    - casos `non_eda|unknown` passam a encerrar em revisão manual no Room-1 e não publicam resumo de recomendação na Room-2.
+    - negações por ausência de ECG/RX em contexto de risco exibem motivo clínico objetivo no resumo Room-2.
+  - Monitoramento recomendado pós-rollout:
+    - acompanhar eventos `EDA_SCOPE_GATED_MANUAL_REVIEW` e `ROOM2_WIDGET_SKIPPED_SCOPE_GATED_MANUAL_REVIEW`.
+    - acompanhar distribuição de `preop_gate.reason_code` para calibragem operacional.
+  - Rollback documentado:
+    - estratégia primária: revert dos commits do change para restaurar caminho anterior (`suggestion` sem `preop_gate` e sem bloqueios de publicação Room-2 por escopo).
+    - estratégia mínima: rollback dos commits de integração de runtime/mensageria (`process_pdf_case_service` e `post_room2_widget_service`) preservando trilha de auditoria já gravada.
