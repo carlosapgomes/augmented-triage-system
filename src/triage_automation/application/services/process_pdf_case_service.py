@@ -174,94 +174,201 @@ class ProcessPdfCaseService:
                 )
 
             if self._llm2_service is not None:
+                scope_gate_payload = build_scope_gated_manual_review_payload(
+                    case_id=case_id,
+                    agency_record_number=record_result.agency_record_number,
+                    llm1_structured_data=llm1_result.structured_data_json,
+                )
                 await self._case_repository.update_status(
                     case_id=case_id,
                     status=CaseStatus.LLM_SUGGEST,
                 )
-                logger.info("process_pdf_case_llm2_started case_id=%s", case_id)
-                try:
-                    llm2_result = await self._llm2_service.run(
+
+                if scope_gate_payload is not None:
+                    await self._case_repository.store_llm2_artifacts(
                         case_id=case_id,
-                        agency_record_number=record_result.agency_record_number,
-                        llm1_structured_data=llm1_result.structured_data_json,
-                        interaction_repository=self._case_repository,
+                        suggested_action_json=scope_gate_payload,
                     )
-                except Llm2RetriableError as error:
+                    logger.info(
+                        "process_pdf_case_scope_gate_manual_review case_id=%s reason_code=%s",
+                        case_id,
+                        scope_gate_payload.get("reason_code"),
+                    )
+                    logger.info(
+                        (
+                            "process_pdf_case_skipped_llm2_for_scope_gate "
+                            "case_id=%s exam_scope=%s"
+                        ),
+                        case_id,
+                        scope_gate_payload.get("exam_type"),
+                    )
+                else:
+                    logger.info("process_pdf_case_llm2_started case_id=%s", case_id)
+                    try:
+                        llm2_result = await self._llm2_service.run(
+                            case_id=case_id,
+                            agency_record_number=record_result.agency_record_number,
+                            llm1_structured_data=llm1_result.structured_data_json,
+                            interaction_repository=self._case_repository,
+                        )
+                    except Llm2RetriableError as error:
+                        if self._audit_repository is not None:
+                            await self._audit_repository.append_event(
+                                AuditEventCreateInput(
+                                    case_id=case_id,
+                                    actor_type="system",
+                                    event_type="LLM2_FAILED",
+                                    payload={"error": str(error)},
+                                )
+                            )
+                        logger.warning(
+                            "process_pdf_case_llm2_failed case_id=%s error=%s",
+                            case_id,
+                            error,
+                        )
+                        raise ProcessPdfCaseRetriableError(
+                            cause="llm2",
+                            details=str(error),
+                        ) from error
+
+                    await self._case_repository.store_llm2_artifacts(
+                        case_id=case_id,
+                        suggested_action_json=llm2_result.suggested_action_json,
+                    )
+                    logger.info(
+                        (
+                            "process_pdf_case_llm2_ok case_id=%s suggestion=%s "
+                            "prompt_system=%s@%s prompt_user=%s@%s contradictions=%s"
+                        ),
+                        case_id,
+                        llm2_result.suggested_action_json.get("suggestion"),
+                        llm2_result.prompt_system_name,
+                        llm2_result.prompt_system_version,
+                        llm2_result.prompt_user_name,
+                        llm2_result.prompt_user_version,
+                        len(llm2_result.contradictions),
+                    )
                     if self._audit_repository is not None:
+                        llm2_payload = build_llm_prompt_version_audit_payload(
+                            system_prompt_name=llm2_result.prompt_system_name,
+                            system_prompt_version=llm2_result.prompt_system_version,
+                            user_prompt_name=llm2_result.prompt_user_name,
+                            user_prompt_version=llm2_result.prompt_user_version,
+                        )
+                        llm2_payload["suggestion"] = llm2_result.suggested_action_json.get(
+                            "suggestion"
+                        )
                         await self._audit_repository.append_event(
                             AuditEventCreateInput(
                                 case_id=case_id,
                                 actor_type="system",
-                                event_type="LLM2_FAILED",
-                                payload={"error": str(error)},
+                                event_type="LLM2_SUGGESTION_OK",
+                                payload=llm2_payload,
                             )
                         )
-                    logger.warning(
-                        "process_pdf_case_llm2_failed case_id=%s error=%s",
+
+                    if llm2_result.contradictions and self._audit_repository is not None:
+                        await self._audit_repository.append_event(
+                            AuditEventCreateInput(
+                                case_id=case_id,
+                                actor_type="system",
+                                event_type="LLM_CONTRADICTION_DETECTED",
+                                payload={"contradictions": llm2_result.contradictions},
+                            )
+                        )
+
+                    assert self._job_queue is not None  # ensured by __init__
+                    await self._job_queue.enqueue(
+                        JobEnqueueInput(
+                            job_type="post_room2_widget",
+                            case_id=case_id,
+                            payload={},
+                        )
+                    )
+                    logger.info(
+                        "process_pdf_case_enqueued_next_job case_id=%s job_type=post_room2_widget",
                         case_id,
-                        error,
                     )
-                    raise ProcessPdfCaseRetriableError(cause="llm2", details=str(error)) from error
-
-                await self._case_repository.store_llm2_artifacts(
-                    case_id=case_id,
-                    suggested_action_json=llm2_result.suggested_action_json,
-                )
-                logger.info(
-                    (
-                        "process_pdf_case_llm2_ok case_id=%s suggestion=%s "
-                        "prompt_system=%s@%s prompt_user=%s@%s contradictions=%s"
-                    ),
-                    case_id,
-                    llm2_result.suggested_action_json.get("suggestion"),
-                    llm2_result.prompt_system_name,
-                    llm2_result.prompt_system_version,
-                    llm2_result.prompt_user_name,
-                    llm2_result.prompt_user_version,
-                    len(llm2_result.contradictions),
-                )
-                if self._audit_repository is not None:
-                    llm2_payload = build_llm_prompt_version_audit_payload(
-                        system_prompt_name=llm2_result.prompt_system_name,
-                        system_prompt_version=llm2_result.prompt_system_version,
-                        user_prompt_name=llm2_result.prompt_user_name,
-                        user_prompt_version=llm2_result.prompt_user_version,
-                    )
-                    llm2_payload["suggestion"] = llm2_result.suggested_action_json.get("suggestion")
-                    await self._audit_repository.append_event(
-                        AuditEventCreateInput(
-                            case_id=case_id,
-                            actor_type="system",
-                            event_type="LLM2_SUGGESTION_OK",
-                            payload=llm2_payload,
-                        )
-                    )
-
-                if llm2_result.contradictions and self._audit_repository is not None:
-                    await self._audit_repository.append_event(
-                        AuditEventCreateInput(
-                            case_id=case_id,
-                            actor_type="system",
-                            event_type="LLM_CONTRADICTION_DETECTED",
-                            payload={"contradictions": llm2_result.contradictions},
-                        )
-                    )
-
-                assert self._job_queue is not None  # ensured by __init__
-                await self._job_queue.enqueue(
-                    JobEnqueueInput(
-                        job_type="post_room2_widget",
-                        case_id=case_id,
-                        payload={},
-                    )
-                )
-                logger.info(
-                    "process_pdf_case_enqueued_next_job case_id=%s job_type=post_room2_widget",
-                    case_id,
-                )
 
         logger.info("process_pdf_case_completed case_id=%s", case_id)
         return record_result.cleaned_text
+
+
+def _extract_preop_exam_type(*, llm1_structured_data: dict[str, object]) -> str | None:
+    preop_screening = llm1_structured_data.get("preop_screening")
+    if not isinstance(preop_screening, dict):
+        return None
+    exam_type = preop_screening.get("exam_type")
+    if isinstance(exam_type, str):
+        normalized = exam_type.strip().lower()
+        if normalized in {"eda", "non_eda", "unknown"}:
+            return normalized
+    return None
+
+
+def _extract_preop_evidence_spans(
+    *,
+    llm1_structured_data: dict[str, object],
+) -> list[dict[str, str]]:
+    preop_screening = llm1_structured_data.get("preop_screening")
+    if not isinstance(preop_screening, dict):
+        return []
+
+    evidence_spans_raw = preop_screening.get("evidence_spans")
+    if not isinstance(evidence_spans_raw, list):
+        return []
+
+    evidence_spans: list[dict[str, str]] = []
+    for item in evidence_spans_raw:
+        if not isinstance(item, dict):
+            continue
+        field_path = item.get("field_path")
+        excerpt = item.get("excerpt")
+        if not isinstance(field_path, str) or not isinstance(excerpt, str):
+            continue
+        normalized_field_path = field_path.strip()
+        normalized_excerpt = excerpt.strip()
+        if not normalized_field_path or not normalized_excerpt:
+            continue
+        evidence_spans.append(
+            {"field_path": normalized_field_path, "excerpt": normalized_excerpt}
+        )
+    return evidence_spans
+
+
+def build_scope_gated_manual_review_payload(
+    *,
+    case_id: UUID,
+    agency_record_number: str,
+    llm1_structured_data: dict[str, object],
+) -> dict[str, object] | None:
+    """Build deterministic manual-review payload for non-EDA or unknown exam scope."""
+
+    exam_type = _extract_preop_exam_type(llm1_structured_data=llm1_structured_data)
+    if exam_type not in {"non_eda", "unknown"}:
+        return None
+
+    reason_code = "non_eda_request" if exam_type == "non_eda" else "unknown_exam_type"
+    reason_text = (
+        "Relatorio fora de escopo EDA; revisao manual obrigatoria."
+        if exam_type == "non_eda"
+        else "Tipo de exame nao identificado; revisao manual obrigatoria."
+    )
+
+    return {
+        "schema_version": "1.1",
+        "language": "pt-BR",
+        "case_id": str(case_id),
+        "agency_record_number": agency_record_number,
+        "decision": "manual_review_required",
+        "suggestion": "manual_review_required",
+        "reason_code": reason_code,
+        "reason_text": reason_text,
+        "exam_type": exam_type,
+        "evidence_spans": _extract_preop_evidence_spans(
+            llm1_structured_data=llm1_structured_data
+        ),
+    }
 
 
 def build_llm_prompt_version_audit_payload(

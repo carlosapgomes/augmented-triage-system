@@ -362,11 +362,20 @@ async def test_non_eda_scope_requires_manual_review_without_accept_or_deny(tmp_p
             sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
             {"case_id": case.case_id.hex},
         ).mappings().one()
+        room2_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room2_widget'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
 
     suggested_action = _decode_json(row["suggested_action_json"])
 
     assert suggested_action.get("decision") == "manual_review_required"
     assert suggested_action.get("suggestion") not in {"accept", "deny"}
+    assert int(room2_jobs) == 0
+    assert len(llm2_client.calls) == 0
 
 
 @pytest.mark.asyncio
@@ -418,11 +427,20 @@ async def test_unknown_scope_requires_manual_review_without_accept_or_deny(tmp_p
             sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
             {"case_id": case.case_id.hex},
         ).mappings().one()
+        room2_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room2_widget'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
 
     suggested_action = _decode_json(row["suggested_action_json"])
 
     assert suggested_action.get("decision") == "manual_review_required"
     assert suggested_action.get("suggestion") not in {"accept", "deny"}
+    assert int(room2_jobs) == 0
+    assert len(llm2_client.calls) == 0
 
 
 @pytest.mark.asyncio

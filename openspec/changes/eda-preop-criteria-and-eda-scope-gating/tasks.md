@@ -9,7 +9,7 @@
 ## 2. Gate de escopo EDA e roteamento para revisão manual
 
 - [x] 2.1 Adicionar testes (red) garantindo que `non_eda` e `unknown` resultem em `manual_review_required` sem recomendação automática `accept|deny`.
-- [ ] 2.2 Implementar gate determinístico de escopo antes da recomendação clínica e impedir enfileiramento do fluxo automático de recomendação EDA quando escopo não for EDA.
+- [x] 2.2 Implementar gate determinístico de escopo antes da recomendação clínica e impedir enfileiramento do fluxo automático de recomendação EDA quando escopo não for EDA.
 - [ ] 2.3 Implementar mensagem de encerramento no Room-1 para casos fora de escopo/indefinidos com texto de revisão manual obrigatória.
 - [ ] 2.4 Implementar auditoria determinística para esses casos com `reason_code`, `reason_text` e `evidence_spans`.
 
@@ -66,3 +66,8 @@
   - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "scope_requires_manual_review" -q` -> 2 falhas esperadas (ainda sem gate determinístico para `non_eda|unknown`).
   - `uv run ruff check tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `uv run mypy tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+- Slice 2.2 (green) executado com:
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "scope_requires_manual_review" -q` -> 2 passed.
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py tests/integration/test_worker_runtime_service_wiring.py tests/integration/test_process_pdf_case_llm1.py tests/unit/test_llm1_validation.py tests/unit/test_llm2_validation.py -q` -> 23 passed.
+  - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+  - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
