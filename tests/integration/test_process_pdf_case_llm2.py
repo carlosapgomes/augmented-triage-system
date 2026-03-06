@@ -369,12 +369,21 @@ async def test_non_eda_scope_requires_manual_review_without_accept_or_deny(tmp_p
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        room1_manual_review_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id "
+                "AND job_type = 'post_room1_final_scope_manual_review'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
 
     suggested_action = _decode_json(row["suggested_action_json"])
 
     assert suggested_action.get("decision") == "manual_review_required"
     assert suggested_action.get("suggestion") not in {"accept", "deny"}
     assert int(room2_jobs) == 0
+    assert int(room1_manual_review_jobs) == 1
     assert len(llm2_client.calls) == 0
 
 
@@ -434,12 +443,21 @@ async def test_unknown_scope_requires_manual_review_without_accept_or_deny(tmp_p
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        room1_manual_review_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id "
+                "AND job_type = 'post_room1_final_scope_manual_review'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
 
     suggested_action = _decode_json(row["suggested_action_json"])
 
     assert suggested_action.get("decision") == "manual_review_required"
     assert suggested_action.get("suggestion") not in {"accept", "deny"}
     assert int(room2_jobs) == 0
+    assert int(room1_manual_review_jobs) == 1
     assert len(llm2_client.calls) == 0
 
 

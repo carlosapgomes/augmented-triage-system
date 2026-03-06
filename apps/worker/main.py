@@ -161,6 +161,7 @@ def build_worker_handlers(
         "post_room1_final_appt": post_room1_final_handler,
         "post_room1_final_appt_denied": post_room1_final_handler,
         "post_room1_final_failure": post_room1_final_handler,
+        "post_room1_final_scope_manual_review": post_room1_final_handler,
         "execute_cleanup": execute_cleanup_handler,
     }
 

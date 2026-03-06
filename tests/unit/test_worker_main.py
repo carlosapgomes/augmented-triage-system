@@ -185,6 +185,7 @@ def test_build_worker_handlers_contains_required_runtime_job_types() -> None:
         "post_room1_final_appt",
         "post_room1_final_appt_denied",
         "post_room1_final_failure",
+        "post_room1_final_scope_manual_review",
         "execute_cleanup",
     }
 

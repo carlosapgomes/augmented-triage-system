@@ -127,6 +127,11 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         status=CaseStatus.FAILED,
         event_id="$origin-final-failed",
     )
+    manual_review_scope_id = await _create_case(
+        case_repo,
+        status=CaseStatus.LLM_SUGGEST,
+        event_id="$origin-final-manual-review-scope",
+    )
     await _store_case_context(
         case_repo,
         case_id=denied_triage_id,
@@ -158,6 +163,14 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         patient_name="PACIENTE FALHA",
         patient_age=73,
         requested_exam="EDA",
+    )
+    await _store_case_context(
+        case_repo,
+        case_id=manual_review_scope_id,
+        record_number="777005",
+        patient_name="PACIENTE MANUAL",
+        patient_age=36,
+        requested_exam="Colonoscopia",
     )
 
     engine = sa.create_engine(sync_url)
@@ -197,8 +210,16 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         job_type="post_room1_final_failure",
         payload={"cause": "llm", "details": "schema mismatch"},
     )
+    await service.post(
+        case_id=manual_review_scope_id,
+        job_type="post_room1_final_scope_manual_review",
+        payload={
+            "reason_code": "non_eda_request",
+            "reason_text": "Relatório fora de escopo EDA; revisão manual obrigatória.",
+        },
+    )
 
-    assert len(matrix_poster.calls) == 4
+    assert len(matrix_poster.calls) == 5
 
     assert matrix_poster.calls[0] == (
         "!room1:example.org",
@@ -255,6 +276,20 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
+    assert matrix_poster.calls[4] == (
+        "!room1:example.org",
+        "$origin-final-manual-review-scope",
+        (
+            "⚠️ revisão manual obrigatória (escopo EDA)\n"
+            "no. ocorrência: 777005\n"
+            "paciente: PACIENTE MANUAL\n"
+            "idade: 36\n"
+            "exame solicitado: Colonoscopia\n"
+            "motivo: esse relatório não é de solicitação de endoscopia digestiva alta, "
+            "ou não detectamos qual exame é; precisa de revisão manual.\n\n"
+            "Reaja com +1 para confirmar ciência do encerramento."
+        ),
+    )
 
     with engine.begin() as connection:
         rows = connection.execute(
@@ -279,9 +314,9 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             )
         ).scalar_one()
 
-    assert len(rows) == 4
+    assert len(rows) == 5
     assert all(row["status"] == "WAIT_R1_CLEANUP_THUMBS" for row in rows)
     assert all(row["room1_final_reply_event_id"] is not None for row in rows)
-    assert int(room1_final_message_count) == 4
-    assert int(room1_final_transcript_count) == 4
-    assert int(room1_reaction_checkpoint_count) == 4
+    assert int(room1_final_message_count) == 5
+    assert int(room1_final_transcript_count) == 5
+    assert int(room1_reaction_checkpoint_count) == 5

@@ -34,6 +34,7 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_denied_appointment_message,
     build_room1_final_denied_triage_message,
     build_room1_final_failure_message,
+    build_room1_final_scope_manual_review_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -259,6 +260,21 @@ def _render_final_message(
             requested_exam=requested_exam,
             cause=cause,
             details=details,
+        )
+
+    if job_type == "post_room1_final_scope_manual_review":
+        _require_status(case=case, expected=CaseStatus.LLM_SUGGEST, job_type=job_type)
+        reason_text = (
+            "esse relatório não é de solicitação de endoscopia digestiva alta, "
+            "ou não detectamos qual exame é; precisa de revisão manual."
+        )
+        return build_room1_final_scope_manual_review_message(
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
+            requested_exam=requested_exam,
+            reason_text=reason_text,
         )
 
     raise PostRoom1FinalRetriableError(

@@ -37,6 +37,7 @@ INFORMATIONAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
     "build_room1_final_denied_triage_message",
     "build_room1_final_denied_appointment_message",
     "build_room1_final_failure_message",
+    "build_room1_final_scope_manual_review_message",
 )
 
 _ROOM2_SUMMARY_BRT_ZONE = ZoneInfo("America/Bahia")
@@ -1558,6 +1559,32 @@ def build_room1_final_failure_message(
         f"{context_block}\n"
         f"causa: {cause}\n"
         f"detalhes: {details}\n\n"
+        "Reaja com +1 para confirmar ciência do encerramento."
+    )
+
+
+def build_room1_final_scope_manual_review_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+    requested_exam: str | None,
+    reason_text: str,
+) -> str:
+    """Build Room-1 final reply for scope-gated manual-review-required cases."""
+
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+        requested_exam=requested_exam,
+    )
+    return (
+        "⚠️ revisão manual obrigatória (escopo EDA)\n"
+        f"{context_block}\n"
+        f"motivo: {reason_text}\n\n"
         "Reaja com +1 para confirmar ciência do encerramento."
     )
 

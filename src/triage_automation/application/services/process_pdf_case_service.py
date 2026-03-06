@@ -202,6 +202,26 @@ class ProcessPdfCaseService:
                         case_id,
                         scope_gate_payload.get("exam_type"),
                     )
+
+                    assert self._job_queue is not None  # ensured by __init__
+                    await self._job_queue.enqueue(
+                        JobEnqueueInput(
+                            job_type="post_room1_final_scope_manual_review",
+                            case_id=case_id,
+                            payload={
+                                "reason_code": scope_gate_payload.get("reason_code"),
+                                "reason_text": scope_gate_payload.get("reason_text"),
+                                "exam_type": scope_gate_payload.get("exam_type"),
+                            },
+                        )
+                    )
+                    logger.info(
+                        (
+                            "process_pdf_case_enqueued_next_job case_id=%s "
+                            "job_type=post_room1_final_scope_manual_review"
+                        ),
+                        case_id,
+                    )
                 else:
                     logger.info("process_pdf_case_llm2_started case_id=%s", case_id)
                     try:
