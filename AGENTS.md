@@ -6,6 +6,16 @@ Repository-level execution guide for Codex sessions.
 
 Implement OpenSpec changes safely, one task at a time, with deterministic progress and clean handoffs when context resets.
 
+## BEFORE YOU START (READ BEFORE CODING)
+
+Before writing ANY code, confirm ALL of the following:
+
+- [ ] I am using the `openspec-apply-change` skill
+- [ ] I have identified exactly ONE task slice to implement
+- [ ] I understand I must STOP after this slice and wait for approval
+
+**If you skip this checklist, you are violating the workflow.**
+
 ## Mandatory Workflow (Per Session)
 
 1. Read this file first.
@@ -14,6 +24,33 @@ Implement OpenSpec changes safely, one task at a time, with deterministic progre
 4. Execute exactly one task slice at a time.
 5. Respect task scope boundaries and STOP RULE.
 6. Stop after finishing the slice and wait for user approval to continue.
+
+### STOP RULE - MANDATORY OUTPUT FORMAT
+
+After completing ONE task slice, you MUST output EXACTLY this format:
+
+```
+---
+## SLICE COMPLETE
+
+**Task:** X.Y - <task description>
+**Status:** ✓ Implemented
+
+**Changes:**
+- <file1.py> (added/modified)
+- <file2.py> (added/modified)
+
+**Tests:** <passed/failed/not run>
+
+**Next:** Task X.Z - <description>
+
+Awaiting your approval to continue.
+---
+```
+
+**DO NOT proceed to the next task without user approval.**
+
+If the user does not explicitly approve (e.g., "continue", "ok", "proceed"), STOP and wait.
 
 ## Architecture and Behavior Constraints
 
