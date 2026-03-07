@@ -39,30 +39,30 @@
 
 ## 8. Service Layer - PostRoom3RequestService
 
-- [ ] 8.1 Update `post_request()` in `PostRoom3RequestService` to pass `snapshot.doctor_display_name` to `build_room3_request_message()`
+- [x] 8.1 Update `post_request()` in `PostRoom3RequestService` to pass `snapshot.doctor_display_name` to `build_room3_request_message()`
 
 ## 9. Unit Tests
 
-- [ ] 9.1 Add/update tests for `CaseDoctorDecisionSnapshot` with `doctor_display_name` field
-- [ ] 9.2 Add/update tests for `build_room3_request_message()` with doctor name and fallback
-- [ ] 9.3 Update tests for `build_room3_reply_template_message()` with new date format and corrected spelling
-- [ ] 9.4 Update tests for `build_room3_ack_message()` with new confirmation text
-- [ ] 9.5 Update tests for `build_room3_invalid_format_reprompt()` with new date format and corrected spelling
-- [ ] 9.6 Add tests for timezone validation in settings
-- [ ] 9.7 Update scheduler parser tests to verify both date formats still work with configurable timezone
+- [x] 9.1 Add/update tests for `CaseDoctorDecisionSnapshot` with `doctor_display_name` field
+- [x] 9.2 Add/update tests for `build_room3_request_message()` with doctor name and fallback
+- [x] 9.3 Update tests for `build_room3_reply_template_message()` with new date format and corrected spelling
+- [x] 9.4 Update tests for `build_room3_ack_message()` with new confirmation text
+- [x] 9.5 Update tests for `build_room3_invalid_format_reprompt()` with new date format and corrected spelling
+- [x] 9.6 Add tests for timezone validation in settings
+- [x] 9.7 Update scheduler parser tests to verify both date formats still work with configurable timezone
 
 ## 10. Integration Tests
 
-- [ ] 10.1 Update `test_room3_scheduler_reply_flow.py` to verify doctor name appears in request message
-- [ ] 10.2 Add integration test for configurable timezone parsing
+- [x] 10.1 Update `test_room3_scheduler_reply_flow.py` to verify doctor name appears in request message
+- [x] 10.2 Add integration test for configurable timezone parsing
 
 ## 11. Documentation
 
-- [ ] 11.1 Update `README.md` and `README.en.md` with `TRIAGE_DEFAULT_TIMEZONE` environment variable documentation
+- [x] 11.1 Update `README.md` and `README.en.md` with `TRIAGE_DEFAULT_TIMEZONE` environment variable documentation
 
 ## 12. Verification
 
-- [ ] 12.1 Run `uv run pytest tests/unit/test_room1_room3_message_templates.py tests/unit/test_scheduler_parser.py -v`
-- [ ] 12.2 Run `uv run pytest tests/integration/test_room3_scheduler_reply_flow.py -v`
-- [ ] 12.3 Run `uv run ruff check src/triage_automation/`
-- [ ] 12.4 Run `uv run mypy src/triage_automation/`
+- [x] 12.1 Run `uv run pytest tests/unit/test_room1_room3_message_templates.py tests/unit/test_scheduler_parser.py -v`
+- [x] 12.2 Run `uv run pytest tests/integration/test_room3_scheduler_reply_flow.py -v`
+- [x] 12.3 Run `uv run ruff check src/triage_automation/`
+- [x] 12.4 Run `uv run mypy src/triage_automation/`
