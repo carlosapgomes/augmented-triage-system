@@ -5,6 +5,7 @@ from uuid import UUID
 
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_accepted_message,
+    build_room1_final_denied_triage_message,
     build_room1_final_failure_message,
     build_room3_ack_message,
     build_room3_invalid_format_reprompt,
@@ -28,6 +29,7 @@ def test_build_room3_request_message_prioritizes_human_identification_without_uu
     assert "## paciente: MARIA" in body
     assert "idade: 42" in body
     assert "exame solicitado: EDA" in body
+    assert "aceito por: não informado" in body
     assert f"caso: {case_id}" not in body
 
 
@@ -94,6 +96,23 @@ def test_build_room1_final_accepted_message_prioritizes_human_identification_wit
     assert "no. ocorrência: 777002" in body
     assert "paciente: PACIENTE APTO" in body
     assert f"caso: {case_id}" not in body
+
+
+def test_build_room1_final_denied_triage_message_does_not_include_doctor_line() -> None:
+    case_id = UUID("66666666-6666-6666-6666-666666666666")
+
+    body = build_room1_final_denied_triage_message(
+        case_id=case_id,
+        agency_record_number="777001",
+        patient_name="PACIENTE TRIAGEM",
+        patient_age="51",
+        requested_exam="EDA",
+        reason="critério clínico",
+    )
+
+    assert "no. ocorrência: 777001" in body
+    assert "paciente: PACIENTE TRIAGEM" in body
+    assert "aceito por:" not in body
 
 
 def test_build_room1_final_failure_message_uses_human_identification_fallback() -> None:
