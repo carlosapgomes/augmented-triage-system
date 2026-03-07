@@ -105,6 +105,7 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     assert "## paciente: EVALDO CARDOSO DOS SANTOS" in request_body
     assert "idade: 42" in request_body
     assert "exame solicitado: EDA" in request_body
+    assert "aceito por: não informado" in request_body
     assert str(case.case_id) not in request_body
     assert "caso esperado" not in request_body.lower()
     assert "copie a proxima mensagem" in request_body.lower()
