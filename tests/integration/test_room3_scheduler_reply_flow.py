@@ -309,7 +309,7 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-4"
     ack_body = matrix_poster.reply_calls[0][2]
-    assert "Reaja com +1 para confirmar." in ack_body
+    assert "Reaja com +1 para confirmar ciência do encerramento." in ack_body
     assert "no. ocorrência: não detectado" in ack_body
     assert "paciente: não detectado" in ack_body
 
@@ -423,7 +423,7 @@ async def test_status_template_reply_to_room3_template_message_is_accepted(tmp_p
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-status-template-1"
     ack_body = matrix_poster.reply_calls[0][2]
-    assert "Reaja com +1 para confirmar." in ack_body
+    assert "Reaja com +1 para confirmar ciência do encerramento." in ack_body
     assert "no. ocorrência: não detectado" in ack_body
     assert "paciente: não detectado" in ack_body
 
@@ -499,7 +499,7 @@ async def test_runtime_listener_routes_valid_room3_reply_to_service(tmp_path: Pa
     assert len(matrix_poster.reply_calls) == 1
     assert matrix_poster.reply_calls[0][1] == "$scheduler-listener-valid"
     ack_body = matrix_poster.reply_calls[0][2]
-    assert "Reaja com +1 para confirmar." in ack_body
+    assert "Reaja com +1 para confirmar ciência do encerramento." in ack_body
     assert "no. ocorrência: não detectado" in ack_body
     assert "paciente: não detectado" in ack_body
 

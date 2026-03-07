@@ -271,13 +271,34 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
     ) -> CaseDoctorDecisionSnapshot | None:
         """Return status and decision context used by doctor/scheduler flows."""
 
-        statement = sa.select(
-            cases.c.case_id,
-            cases.c.status,
-            cases.c.doctor_decided_at,
-            cases.c.agency_record_number,
-            cases.c.structured_data_json,
-        ).where(cases.c.case_id == case_id)
+        doctor_reply_subquery = (
+            sa.select(
+                case_matrix_message_transcripts.c.case_id,
+                case_matrix_message_transcripts.c.sender_display_name,
+            )
+            .where(
+                case_matrix_message_transcripts.c.case_id == case_id,
+                case_matrix_message_transcripts.c.message_type == "room2_doctor_reply",
+            )
+            .order_by(case_matrix_message_transcripts.c.captured_at.desc())
+            .limit(1)
+        ).subquery()
+
+        statement = (
+            sa.select(
+                cases.c.case_id,
+                cases.c.status,
+                cases.c.doctor_decided_at,
+                cases.c.agency_record_number,
+                cases.c.structured_data_json,
+                doctor_reply_subquery.c.sender_display_name,
+            )
+            .outerjoin(
+                doctor_reply_subquery,
+                cases.c.case_id == doctor_reply_subquery.c.case_id,
+            )
+            .where(cases.c.case_id == case_id)
+        )
 
         async with self._session_factory() as session:
             result = await session.execute(statement)
@@ -292,6 +313,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             doctor_decided_at=cast(datetime | None, row["doctor_decided_at"]),
             agency_record_number=cast(str | None, row["agency_record_number"]),
             structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
+            doctor_display_name=cast(str | None, row["sender_display_name"]),
         )
 
     async def apply_doctor_decision_if_waiting(

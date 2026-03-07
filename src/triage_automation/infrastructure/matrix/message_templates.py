@@ -1385,6 +1385,7 @@ def build_room3_request_message(
     patient_name: str | None,
     patient_age: str | None,
     requested_exam: str | None,
+    doctor_display_name: str | None = None,
 ) -> str:
     """Build Room-3 guidance message that points scheduler to copy template."""
 
@@ -1396,6 +1397,7 @@ def build_room3_request_message(
     details_block = _build_room3_details_block(
         patient_age=patient_age,
         requested_exam=requested_exam,
+        doctor_display_name=doctor_display_name,
     )
     return (
         "Solicitacao de agendamento\n\n"
@@ -1405,7 +1407,7 @@ def build_room3_request_message(
         "2. Responda como resposta a ela, preenchendo os campos.\n"
         "3. Mantenha exatamente uma linha por campo.\n\n"
         "Regras:\n"
-        "- status=confirmado exige data_hora, local e instrucoes preenchidos\n"
+        "- status=confirmado exige data_hora, local e instruções preenchidos\n"
         "- status=negado usa motivo opcional"
     )
 
@@ -1432,9 +1434,9 @@ def build_room3_reply_template_message(
     return (
         f"{identification_block}\n"
         "status: confirmado\n"
-        "data_hora: DD-MM-YYYY HH:MM BRT\n"
+        "data_hora: DD/MM/YYYY HH:MM\n"
         "local:\n"
-        "instrucoes:\n"
+        "instruções:\n"
         "motivo: (opcional; usado quando status=negado)\n"
         f"caso: {case_id}"
     )
@@ -1463,7 +1465,7 @@ def build_room3_ack_message(
         "Solicitacao de agendamento registrada\n"
         f"{identification_block}\n"
         f"{details_block}\n"
-        "Reaja com +1 para confirmar."
+        "Reaja com +1 para confirmar ciência do encerramento."
     )
 
 
@@ -1484,9 +1486,9 @@ def build_room3_invalid_format_reprompt(
         f"{identification_block}\n\n"
         "Copie o modelo abaixo, preencha os campos e responda nesta mensagem.\n\n"
         "status: confirmado|negado\n"
-        "data_hora: DD-MM-YYYY HH:MM BRT\n"
+        "data_hora: DD/MM/YYYY HH:MM\n"
         "local:\n"
-        "instrucoes:\n"
+        "instruções:\n"
         "motivo: (opcional; usado quando status=negado)\n"
         f"caso: {case_id}"
     )
@@ -1655,10 +1657,17 @@ def _build_room3_details_block(
     *,
     patient_age: str | None,
     requested_exam: str | None,
+    doctor_display_name: str | None = None,
 ) -> str:
+    doctor_line = (
+        f"aceito por: {_format_room3_context_value(doctor_display_name)}"
+        if doctor_display_name is not None
+        else "aceito por: não informado"
+    )
     return (
         f"idade: {_format_room3_context_value(patient_age)}\n"
-        f"exame solicitado: {_format_room3_context_value(requested_exam)}"
+        f"exame solicitado: {_format_room3_context_value(requested_exam)}\n"
+        f"{doctor_line}"
     )
 
 

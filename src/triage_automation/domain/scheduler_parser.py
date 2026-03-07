@@ -62,15 +62,21 @@ class SchedulerParseError(ValueError):
         return self.reason
 
 
-def parse_scheduler_reply(*, body: str, expected_case_id: UUID) -> SchedulerReplyParsed:
+def parse_scheduler_reply(
+    *,
+    body: str,
+    expected_case_id: UUID,
+    timezone: ZoneInfo | None = None,
+) -> SchedulerReplyParsed:
     """Parse denied/confirmed scheduler reply template for a specific case id."""
 
+    tz = timezone or _BRT
     lines = _normalized_message_lines(body=body)
     if not lines:
         raise SchedulerParseError("empty_message")
 
     if _extract_value(lines=lines, key="status") is not None:
-        return _parse_status_template(lines=lines, expected_case_id=expected_case_id)
+        return _parse_status_template(lines=lines, expected_case_id=expected_case_id, timezone=tz)
 
     case_id = _extract_case_id(lines=lines)
     if case_id != expected_case_id:
@@ -92,7 +98,7 @@ def parse_scheduler_reply(*, body: str, expected_case_id: UUID) -> SchedulerRepl
             reason=reason,
         )
 
-    appointment_at = _parse_brt_datetime(parsed_lines[0])
+    appointment_at = _parse_datetime(parsed_lines[0], timezone=tz)
     location = _extract_required_value(lines=parsed_lines, key="location")
     instructions = _extract_required_value(lines=parsed_lines, key="instructions")
 
@@ -110,6 +116,7 @@ def _parse_status_template(
     *,
     lines: list[str],
     expected_case_id: UUID,
+    timezone: ZoneInfo,
 ) -> SchedulerReplyParsed:
     case_id = _extract_case_id(lines=lines)
     if case_id != expected_case_id:
@@ -118,7 +125,7 @@ def _parse_status_template(
     status_raw = _extract_required_value(lines=lines, key="status").strip().lower()
     if status_raw in {"confirmado", "confirmed"}:
         date_time_raw = _extract_required_value(lines=lines, key="date_time")
-        appointment_at = _parse_brt_datetime(date_time_raw)
+        appointment_at = _parse_datetime(date_time_raw, timezone=timezone)
         location = _extract_required_value(lines=lines, key="location")
         instructions = _extract_required_value(lines=lines, key="instructions")
         return SchedulerReplyParsed(
@@ -233,7 +240,7 @@ def _normalize_reason(reason: str | None) -> str | None:
     return normalized
 
 
-def _parse_brt_datetime(line: str) -> datetime:
+def _parse_datetime(line: str, *, timezone: ZoneInfo) -> datetime:
     value = line.strip().replace("：", ":")
     value = re.sub(r"\s+", " ", value).strip("`")
     value = re.sub(r"\s*brt\.?\s*$", "", value, flags=re.IGNORECASE)
@@ -242,7 +249,7 @@ def _parse_brt_datetime(line: str) -> datetime:
     for date_format in formats:
         try:
             naive = datetime.strptime(value, date_format)
-            return naive.replace(tzinfo=_BRT)
+            return naive.replace(tzinfo=timezone)
         except ValueError:
             continue
 

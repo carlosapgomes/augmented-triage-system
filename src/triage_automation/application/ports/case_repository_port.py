@@ -63,6 +63,7 @@ class CaseDoctorDecisionSnapshot:
     doctor_decided_at: datetime | None
     agency_record_number: str | None = None
     structured_data_json: dict[str, Any] | None = None
+    doctor_display_name: str | None = None
 
 
 @dataclass(frozen=True)

@@ -42,6 +42,10 @@ class Settings(BaseSettings):
         default="America/Bahia",
         validation_alias="SUPERVISOR_SUMMARY_TIMEZONE",
     )
+    triage_default_timezone: NonEmptyStr = Field(
+        default="America/Bahia",
+        validation_alias="TRIAGE_DEFAULT_TIMEZONE",
+    )
     supervisor_summary_morning_hour: HourOfDayInt = Field(
         default=7,
         validation_alias="SUPERVISOR_SUMMARY_MORNING_HOUR",
@@ -91,10 +95,10 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
-    @field_validator("supervisor_summary_timezone")
+    @field_validator("supervisor_summary_timezone", "triage_default_timezone")
     @classmethod
-    def validate_supervisor_summary_timezone(cls, value: str) -> str:
-        """Ensure summary timezone is a valid IANA timezone name."""
+    def validate_timezone(cls, value: str) -> str:
+        """Ensure timezone is a valid IANA timezone name."""
 
         try:
             ZoneInfo(value)
