@@ -115,7 +115,7 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     assert "no. ocorrência: 4777300" in template_body
     assert "paciente: EVALDO CARDOSO DOS SANTOS" in template_body
     assert "status: confirmado" in template_body
-    assert "data_hora: DD-MM-YYYY HH:MM BRT" in template_body
+    assert "data_hora: DD/MM/YYYY HH:MM" in template_body
     assert f"caso: {case.case_id}" in template_body
 
     engine = sa.create_engine(sync_url)

@@ -1398,6 +1398,7 @@ def build_room3_request_message(
         patient_age=patient_age,
         requested_exam=requested_exam,
         doctor_display_name=doctor_display_name,
+        include_doctor_line=True,
     )
     return (
         "Solicitacao de agendamento\n\n"
@@ -1658,17 +1659,21 @@ def _build_room3_details_block(
     patient_age: str | None,
     requested_exam: str | None,
     doctor_display_name: str | None = None,
+    include_doctor_line: bool = False,
 ) -> str:
+    details = (
+        f"idade: {_format_room3_context_value(patient_age)}\n"
+        f"exame solicitado: {_format_room3_context_value(requested_exam)}"
+    )
+    if not include_doctor_line:
+        return details
+
     doctor_line = (
         f"aceito por: {_format_room3_context_value(doctor_display_name)}"
         if doctor_display_name is not None
         else "aceito por: não informado"
     )
-    return (
-        f"idade: {_format_room3_context_value(patient_age)}\n"
-        f"exame solicitado: {_format_room3_context_value(requested_exam)}\n"
-        f"{doctor_line}"
-    )
+    return f"{details}\n{doctor_line}"
 
 
 def _normalize_record_number_for_filename(value: str | None) -> str:
