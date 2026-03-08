@@ -72,6 +72,54 @@ As regras EDA estão separadas em dois blocos:
 - **Regras pré-procedimento explicáveis:** `eda_preop_policy.py` (`preop_gate`).
 - **Regras de reconciliação da sugestão LLM2:** `eda_policy.py`.
 
+## Rulebook EDA (precedência determinística)
+
+A ordem abaixo é a referência para interpretação do comportamento atual.
+
+| Prioridade | Condição | Saída | `reason_code` principal |
+| --- | --- | --- | --- |
+| 0 | `exam_type` = `non_eda` | `manual_review_required` | `non_eda_request` |
+| 0 | `exam_type` = `unknown` | `manual_review_required` | `unknown_exam_type` |
+| 1 | `eda.exclusion_type = gastrostomy` | `excluded` | `excluded_gastrostomy` |
+| 1 | `eda.exclusion_type = esophageal_dilation` | `excluded` | `excluded_esophageal_dilation` |
+| 2 | Risco cardiovascular relatado + sem ECG | `deny` | `missing_ecg_with_cardiovascular_disease` |
+| 2 | Risco respiratório relatado + sem RX tórax | `deny` | `missing_chest_xray_with_respiratory_risk` |
+| 3 | EDA operacional (`bleeding`, `abdominal_pain`, `dyspepsia`) + `hb <= 7` | `deny` | `hb_below_threshold` |
+| 3 | EDA operacional + `platelets <= 100000` | `deny` | `platelets_below_threshold` |
+| 3 | EDA operacional + `inr >= 1.5` | `deny` | `inr_above_threshold` |
+| 3 | EDA operacional + ECG ausente | `deny` | `missing_ecg_with_cardiovascular_disease` |
+| 4 | EDA não operacional + `hb < 7` | `deny` | `hb_below_threshold` |
+| 4 | EDA não operacional + `platelets < 50000` | `deny` | `platelets_below_threshold` |
+| 4 | EDA não operacional + `inr > 2` | `deny` | `inr_above_threshold` |
+| 5 | `eda.indication_category = foreign_body` | `accept` | `foreign_body_exception` |
+| 6 | Sem gatilhos de negação/exclusão | `accept` | `criteria_met` |
+
+## Catálogo prático de `reason_code`
+
+| `reason_code` | Significado operacional | Consumidor principal |
+| --- | --- | --- |
+| `non_eda_request` | Escopo não EDA: revisão manual obrigatória | runtime + Room-1 final |
+| `unknown_exam_type` | Tipo de exame indefinido: revisão manual obrigatória | runtime + Room-1 final |
+| `excluded_gastrostomy` | Solicitação excluída do fluxo automático EDA | `preop_gate` |
+| `excluded_esophageal_dilation` | Solicitação excluída do fluxo automático EDA | `preop_gate` |
+| `missing_ecg_with_cardiovascular_disease` | Risco cardiovascular sem ECG | `preop_gate` + resumo Room-2 |
+| `missing_chest_xray_with_respiratory_risk` | Risco respiratório sem RX tórax | `preop_gate` + resumo Room-2 |
+| `hb_below_threshold` | Hb abaixo do limiar do cenário | `preop_gate` |
+| `platelets_below_threshold` | Plaquetas abaixo do limiar do cenário | `preop_gate` |
+| `inr_above_threshold` | INR acima do limiar do cenário | `preop_gate` |
+| `manual_review_required_insufficient_data` | Fallback defensivo para payload incompleto | serialização `preop_gate` |
+| `foreign_body_exception` | Exceção de corpo estranho (aceite sem gate lab de rotina) | `preop_gate` |
+| `criteria_met` | Critérios determinísticos atendidos | `preop_gate` |
+
+## Mapa de extensão de regras (onde mexer)
+
+| Mudança desejada | Arquivo principal | Testes mínimos esperados |
+| --- | --- | --- |
+| Novo gate ou limiar determinístico EDA | `src/triage_automation/domain/policy/eda_preop_policy.py` | `tests/unit/test_eda_preop_policy.py` |
+| Alterar roteamento de escopo (`non_eda\|unknown`) | `src/triage_automation/application/services/process_pdf_case_service.py` | `tests/integration/test_process_pdf_case_llm2.py` |
+| Alterar texto objetivo da negativa no Room-2 | `src/triage_automation/infrastructure/matrix/message_templates.py` | `tests/unit/test_room2_message_templates.py` + `tests/integration/test_post_room2_widget.py` |
+| Alterar parser/contrato de decisão médica Room-2 | `src/triage_automation/domain/doctor_decision_parser.py` | testes unitários do parser + integração de reply |
+
 ## Onde as regras vivem no código
 
 - Orquestração do pipeline: `src/triage_automation/application/services/process_pdf_case_service.py`

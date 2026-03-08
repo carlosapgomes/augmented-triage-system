@@ -179,3 +179,9 @@
   - `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` -> 5 passed.
   - `markdownlint-cli2 "README.md" "README.en.md" "docs/decision-engine-and-rulebook.md" "docs/en/decision-engine-and-rulebook.md" "openspec/changes/eda-preop-criteria-and-eda-scope-gating/tasks.md"` -> sem erros.
   - Observação: `PROJECT_CONTEXT.md` permanece com dívida histórica de markdownlint (MD022/MD032) anterior a este slice; alteração aplicada apenas para corrigir conflito de conteúdo.
+- Pós-conclusão (slice rulebook tabular detalhado) executado com:
+  - Ampliação do documento canônico PT-BR com:
+    - tabela de precedência determinística EDA;
+    - catálogo prático de `reason_code`;
+    - mapa de extensão de regras (arquivo alvo + testes mínimos).
+  - Sincronização obrigatória no espelho inglês (`docs/en/decision-engine-and-rulebook.md`) com a mesma estrutura.
