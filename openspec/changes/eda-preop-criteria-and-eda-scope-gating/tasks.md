@@ -199,3 +199,6 @@
 - Pós-conclusão (slice monitoramento do commit `fb39194`) executado com:
   - Run `quality-gates` `22827988750` confirmado em `completed/success`.
   - Verificação via `gh run watch 22827988750 --exit-status`.
+- Pós-conclusão (slice monitoramento do commit `2d09ae1`) executado com:
+  - Run `quality-gates` `22828036390` confirmado em `completed/success`.
+  - Verificação via `gh run watch 22828036390 --exit-status`.
