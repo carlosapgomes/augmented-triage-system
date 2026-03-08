@@ -210,3 +210,6 @@
   - Delta specs sincronizadas para `openspec/specs/` com totais: `+14, ~0, -0, →0`.
   - Change movido para `openspec/changes/archive/2026-03-08-eda-preop-criteria-and-eda-scope-gating/`.
   - `markdownlint-cli2 --fix` aplicado nos specs sincronizados e artefatos arquivados para conformidade de estilo.
+- Pós-conclusão (slice monitoramento do commit `9a5acd0`) executado com:
+  - Run `quality-gates` `22828155912` confirmado em `completed/success`.
+  - Verificação via `gh run watch 22828155912 --exit-status`.
