@@ -190,3 +190,9 @@
   - Inclusão de checklist anti-regressão obrigatório para mudanças de regras.
   - Inclusão de comandos mínimos de validação (pytest/ruff/mypy/markdownlint) no próprio rulebook.
   - Sincronização obrigatória do conteúdo no espelho inglês.
+- Pós-conclusão (slice monitoramento de CI remoto) executado com:
+  - Verificação do `quality-gates` remoto para os commits de documentação:
+    - `d233307` -> run `22827841285` -> `completed/success`.
+    - `e914152` -> run `22827910448` -> `completed/success`.
+    - `b03712c` -> run `22827951684` -> `completed/success`.
+  - Acompanhamento em tempo real via `gh run watch 22827951684 --exit-status` até conclusão verde.
