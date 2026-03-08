@@ -13,7 +13,7 @@ If this file conflicts with the handoff spec, follow the handoff spec.
 Implement an event-driven triage automation across 3 unencrypted Matrix rooms with full auditability and cleanup-by-reaction semantics:
 - Room-1 intake of human PDF messages.
 - PDF extraction, watermark record-number handling, LLM structured outputs and suggestion.
-- Room-2 doctor decision via webhook callback.
+- Room-2 doctor decision via Matrix structured reply (caminho padrão).
 - Room-3 scheduling request/reply parsing with strict template handling.
 - Room-1 final reply always as reply-to original intake.
 - Cleanup triggered exactly once by first 👍 on Room-1 final reply.
@@ -26,7 +26,7 @@ Add foundational backend infrastructure for a future admin interface without cha
 - Minimal backend login capability only (no UI).
 
 ## Architecture and Service Boundaries
-- `bot-api` (FastAPI): webhook callback ingress + auth + persistence/enqueue.
+- `bot-api` (FastAPI): auth + rotas de suporte de runtime + persistence/enqueue.
 - `bot-matrix` (matrix-nio): Matrix event ingestion and reaction routing.
 - `worker`: async job execution for extraction/LLM/posting/cleanup.
 - `postgres`: source of truth (cases, audit, message map, queue).
@@ -38,7 +38,7 @@ Dependency direction:
 - Python 3.12
 - SQLAlchemy 2.x async + `asyncpg`
 - Alembic migrations
-- Pydantic for settings/contracts (webhook + LLM schemas)
+- Pydantic for settings/contracts (LLM + Matrix structured-reply schemas)
 - `uv` for dependency lock/install
 - TDD strictly with pytest
 - Deterministic behavior; no hidden side effects
@@ -48,7 +48,7 @@ Dependency direction:
 - Do not change cleanup semantics: first Room-1 👍 on final reply wins.
 - Do not change idempotency contract: unique Room-1 origin event id prevents duplicate case creation.
 - Do not change strict Room-3 reply templates.
-- Do not change webhook payload contract except confirmed clarifications below.
+- Do not change strict Room-2 structured reply contract and parser semantics sem especificação explícita.
 - Do not change LLM schema intent and validation strictness.
 - Room-2 and Room-3 👍 on ack messages are audit-only and never trigger cleanup.
 - Do not implement admin UI in this phase.
@@ -58,7 +58,7 @@ Dependency direction:
 - `support_flag` enum: `none | anesthesist | anesthesist_icu`
 - Final reply jobs transition directly to `WAIT_R1_CLEANUP_THUMBS` after posting.
 - Invalid Room-3 scheduler reply always gets strict re-prompt and remains in `WAIT_APPT`.
-- Webhook auth mode for now: HMAC only.
+- Caminho padrão de decisão médica na Room-2: Matrix structured reply (sem dependência de callback HTTP para operação normal).
 - On startup reconciliation, stale `jobs.status='running'` must be reset to `queued` with unchanged `attempts`.
 - Auth foundation token strategy: opaque tokens (not JWT).
 - Prompt bootstrap strategy: seed default active prompt templates in migration.

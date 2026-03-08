@@ -99,6 +99,7 @@ Matriz de papéis:
 - Runbook operacional Ansible (instalação inicial): `docs/ansible_ops_runbook.md`
 - Runbook de smoke de runtime: `docs/runtime-smoke.md`
 - Arquitetura: `docs/architecture.md`
+- Motor de decisão e rulebook: `docs/decision-engine-and-rulebook.md`
 - Seguranca: `docs/security.md`
 - Contexto interno de implementação: `PROJECT_CONTEXT.md`
 

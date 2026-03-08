@@ -171,3 +171,11 @@
   - `uv run ruff check tests/integration/test_migration_prompt_templates.py tests/integration/test_prompt_template_repository.py` -> sem erros.
   - `uv run mypy tests/integration/test_migration_prompt_templates.py tests/integration/test_prompt_template_repository.py` -> sem erros.
   - `uv run pytest -q` -> 535 passed.
+- Pós-conclusão (slice docs canônico do motor decisório) executado com:
+  - Novo documento canônico PT-BR: `docs/decision-engine-and-rulebook.md` (visão geral do motor de decisão + EDA como primeiro domínio).
+  - Espelho obrigatório em inglês: `docs/en/decision-engine-and-rulebook.md`.
+  - Correção de conflito de contexto em `PROJECT_CONTEXT.md` (decisão padrão Room-2 via Matrix structured reply).
+  - Atualização de descoberta da doc em `README.md` e `README.en.md`.
+  - `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` -> 5 passed.
+  - `markdownlint-cli2 "README.md" "README.en.md" "docs/decision-engine-and-rulebook.md" "docs/en/decision-engine-and-rulebook.md" "openspec/changes/eda-preop-criteria-and-eda-scope-gating/tasks.md"` -> sem erros.
+  - Observação: `PROJECT_CONTEXT.md` permanece com dívida histórica de markdownlint (MD022/MD032) anterior a este slice; alteração aplicada apenas para corrigir conflito de conteúdo.

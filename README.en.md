@@ -99,6 +99,7 @@ Role matrix:
 - Ansible operations runbook (initial installation): `docs/en/ansible_ops_runbook.md`
 - Runtime smoke runbook: `docs/en/runtime-smoke.md`
 - Architecture: `docs/en/architecture.md`
+- Decision engine and rulebook: `docs/en/decision-engine-and-rulebook.md`
 - Security: `docs/en/security.md`
 - Internal implementation context: `PROJECT_CONTEXT.md`
 
