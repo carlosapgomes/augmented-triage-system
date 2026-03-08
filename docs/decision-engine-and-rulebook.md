@@ -129,17 +129,55 @@ A ordem abaixo é a referência para interpretação do comportamento atual.
   - `src/triage_automation/application/services/room2_reply_service.py`
   - `src/triage_automation/application/services/handle_doctor_decision_service.py`
 
-## Evolução de regras (guia curto)
+## Playbook de evolução de regras (add/remove/change)
 
-Para adicionar/remover/modificar regras com segurança:
+### Fluxo recomendado por mudança
 
-1. Atualize OpenSpec (design/spec/tasks) antes de codificar mudança relevante.
-2. Escreva testes RED no nível certo (unit policy + integration runtime/message).
-3. Implemente regra determinística no módulo de política apropriado.
-4. Garanta saída explicável com `reason_code`/`reason_text` e, quando aplicável,
-   `evidence_spans`.
-5. Atualize documentação operacional (runbook) e espelho em inglês.
-6. Rode quality gates completos (`pytest`, `ruff`, `mypy`, `markdownlint`).
+1. **Defina o impacto funcional antes de codificar**
+   - Atualize OpenSpec (design/spec/tasks) quando houver mudança de contrato,
+     precedência ou novo `reason_code`.
+   - Declare explicitamente se a mudança afeta apenas EDA ou o motor geral.
+
+2. **Escreva testes RED primeiro (contrato + comportamento)**
+   - Política determinística: teste unitário no módulo de policy.
+   - Orquestração/runtime: teste de integração para estado, jobs e auditoria.
+   - Mensagens/UX: teste unitário de template + integração do post na Room-2.
+
+3. **Implemente no módulo certo (sem espalhar regra)**
+   - Regra clínica determinística: `eda_preop_policy.py`.
+   - Gate de escopo/roteamento de fluxo: `process_pdf_case_service.py`.
+   - Texto objetivo para médico: `message_templates.py`.
+
+4. **Garanta explicabilidade e compatibilidade**
+   - Toda saída relevante deve carregar `reason_code`, `reason_text` e, quando
+     aplicável, `evidence_spans`.
+   - Preserve `suggestion` legada e mantenha `preop_gate` como bloco explicável.
+
+5. **Atualize documentação no mesmo slice**
+   - Atualize este rulebook (PT-BR) e espelho `docs/en/...`.
+   - Atualize runbook operacional quando o comportamento observado mudar.
+
+6. **Rode validações e registre evidência**
+   - Execute testes/lint/types e registre comandos/resultados em `tasks.md` do
+     change correspondente.
+
+### Checklist anti-regressão (obrigatório)
+
+- [ ] A regra continua determinística no código (não movida para prompt).
+- [ ] `reason_code` novo/alterado está mapeado nos consumidores relevantes.
+- [ ] `preop_gate` permanece serializado sem quebrar consumidores de `suggestion`.
+- [ ] Casos `non_eda|unknown` continuam sem `accept|deny` automático.
+- [ ] Room-2 não publica resumo para `manual_review_required` por escopo.
+- [ ] Parser de decisão médica da Room-2 mantém contrato estrito.
+
+### Comandos mínimos de validação
+
+```bash
+uv run pytest tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py -q
+uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/infrastructure/matrix/message_templates.py
+uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/infrastructure/matrix/message_templates.py
+markdownlint-cli2 "docs/decision-engine-and-rulebook.md" "docs/en/decision-engine-and-rulebook.md"
+```
 
 ## Referências
 

@@ -130,17 +130,54 @@ The ordering below is the reference for current behavior.
   - `src/triage_automation/application/services/room2_reply_service.py`
   - `src/triage_automation/application/services/handle_doctor_decision_service.py`
 
-## Rule evolution (short guide)
+## Rule-evolution playbook (add/remove/change)
 
-To add/remove/modify rules safely:
+### Recommended flow per change
 
-1. Update OpenSpec (design/spec/tasks) before implementing meaningful rule change.
-2. Write RED tests at the right level (policy unit + runtime/message integration).
-3. Implement deterministic rule in the appropriate policy module.
-4. Ensure explainable output with `reason_code`/`reason_text` and, when
-   applicable, `evidence_spans`.
-5. Update operational runbook docs and English mirror.
-6. Run full quality gates (`pytest`, `ruff`, `mypy`, `markdownlint`).
+1. **Define functional impact before coding**
+   - Update OpenSpec (design/spec/tasks) whenever contract, precedence, or new
+     `reason_code` semantics change.
+   - State clearly whether scope is EDA-only or decision-engine-wide.
+
+2. **Write RED tests first (contract + behavior)**
+   - Deterministic policy: unit tests in the policy module.
+   - Runtime/orchestration: integration tests for state, jobs, and audit.
+   - Messages/UX: template unit tests plus Room-2 posting integration tests.
+
+3. **Implement in the correct module (avoid rule scattering)**
+   - Deterministic clinical rule: `eda_preop_policy.py`.
+   - Scope gate/flow routing: `process_pdf_case_service.py`.
+   - Physician-facing concise deny text: `message_templates.py`.
+
+4. **Guarantee explainability and compatibility**
+   - Relevant outputs must keep `reason_code`, `reason_text`, and when
+     applicable, `evidence_spans`.
+   - Preserve legacy `suggestion` while keeping `preop_gate` as explainable block.
+
+5. **Update docs in the same slice**
+   - Update this rulebook and the PT-BR mirror.
+   - Update operational runbook if observed behavior changes.
+
+6. **Run validations and record evidence**
+   - Run tests/lint/types and record command evidence in the change `tasks.md`.
+
+### Mandatory anti-regression checklist
+
+- [ ] Rule remains deterministic in code (not shifted to prompt authority).
+- [ ] New/changed `reason_code` is mapped in relevant downstream consumers.
+- [ ] `preop_gate` remains serialized without breaking `suggestion` consumers.
+- [ ] `non_eda|unknown` cases still avoid automatic `accept|deny`.
+- [ ] Room-2 still skips recommendation summary for scope-gated manual review.
+- [ ] Room-2 physician decision parser keeps strict contract behavior.
+
+### Minimum validation commands
+
+```bash
+uv run pytest tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py -q
+uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/infrastructure/matrix/message_templates.py
+uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/infrastructure/matrix/message_templates.py
+markdownlint-cli2 "docs/decision-engine-and-rulebook.md" "docs/en/decision-engine-and-rulebook.md"
+```
 
 ## References
 

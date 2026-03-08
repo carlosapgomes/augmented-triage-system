@@ -185,3 +185,8 @@
     - catálogo prático de `reason_code`;
     - mapa de extensão de regras (arquivo alvo + testes mínimos).
   - Sincronização obrigatória no espelho inglês (`docs/en/decision-engine-and-rulebook.md`) com a mesma estrutura.
+- Pós-conclusão (slice playbook de manutenção de regras) executado com:
+  - Expansão da seção de evolução de regras no documento canônico PT-BR para playbook passo-a-passo (impacto -> RED -> implementação -> compatibilidade -> documentação -> validação).
+  - Inclusão de checklist anti-regressão obrigatório para mudanças de regras.
+  - Inclusão de comandos mínimos de validação (pytest/ruff/mypy/markdownlint) no próprio rulebook.
+  - Sincronização obrigatória do conteúdo no espelho inglês.
