@@ -196,3 +196,6 @@
     - `e914152` -> run `22827910448` -> `completed/success`.
     - `b03712c` -> run `22827951684` -> `completed/success`.
   - Acompanhamento em tempo real via `gh run watch 22827951684 --exit-status` até conclusão verde.
+- Pós-conclusão (slice monitoramento do commit `fb39194`) executado com:
+  - Run `quality-gates` `22827988750` confirmado em `completed/success`.
+  - Verificação via `gh run watch 22827988750 --exit-status`.
