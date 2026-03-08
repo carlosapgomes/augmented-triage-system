@@ -73,6 +73,19 @@ EDA rules are split into two blocks:
 - **Explainable pre-procedure rules:** `eda_preop_policy.py` (`preop_gate`).
 - **LLM2 suggestion hard-rule reconciliation:** `eda_policy.py`.
 
+### Term definitions (operational EDA vs non-operational EDA)
+
+In this rulebook, **operational EDA** and **non-operational EDA** are
+labels for deterministic rule-priority groups (not a care-site label).
+
+- **Operational EDA**: EDA with `indication_category` in `bleeding`,
+  `abdominal_pain`, or `dyspepsia`.
+- **Non-operational EDA**: any confirmed EDA outside those three scenarios.
+
+These definitions consolidate the alignment between local CHD criteria
+(including operational clinical messaging) and the criteria spreadsheet
+reviewed during this change modeling.
+
 ## EDA rulebook (deterministic precedence)
 
 The ordering below is the reference for current behavior.
