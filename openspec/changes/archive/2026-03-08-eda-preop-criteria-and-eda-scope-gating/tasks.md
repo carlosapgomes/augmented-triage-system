@@ -202,3 +202,11 @@
 - Pós-conclusão (slice monitoramento do commit `2d09ae1`) executado com:
   - Run `quality-gates` `22828036390` confirmado em `completed/success`.
   - Verificação via `gh run watch 22828036390 --exit-status`.
+- Pós-conclusão (slice monitoramento do commit `b78e6d4`) executado com:
+  - Run `quality-gates` `22828082955` confirmado em `completed/success`.
+  - Verificação via `gh run list` (head SHA `b78e6d4`).
+- Pós-conclusão (arquivamento formal do change) executado com:
+  - `openspec archive "eda-preop-criteria-and-eda-scope-gating" -y`.
+  - Delta specs sincronizadas para `openspec/specs/` com totais: `+14, ~0, -0, →0`.
+  - Change movido para `openspec/changes/archive/2026-03-08-eda-preop-criteria-and-eda-scope-gating/`.
+  - `markdownlint-cli2 --fix` aplicado nos specs sincronizados e artefatos arquivados para conformidade de estilo.
