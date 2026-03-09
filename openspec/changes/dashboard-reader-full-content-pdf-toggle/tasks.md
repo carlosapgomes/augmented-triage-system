@@ -17,7 +17,7 @@
 
 ## 4. Verificação de qualidade do slice
 
-- [ ] 4.1 Executar testes alvo: `uv run pytest tests/integration/test_dashboard_pages.py -k "detail and (reader or thread)" -q` (ou seleção equivalente cobrindo os cenários novos).
+- [x] 4.1 Executar testes alvo: `uv run pytest tests/integration/test_dashboard_pages.py -k "detail and (reader or thread)" -q` (ou seleção equivalente cobrindo os cenários novos).
 - [ ] 4.2 Executar lint/type-check dos paths alterados: `uv run ruff check src/triage_automation/infrastructure/http/dashboard_router.py src/triage_automation/infrastructure/http/templates/dashboard/case_detail.html tests/integration/test_dashboard_pages.py` e `uv run mypy src/triage_automation/infrastructure/http/dashboard_router.py tests/integration/test_dashboard_pages.py`.
 - [ ] 4.3 Executar `markdownlint-cli2 "openspec/changes/dashboard-reader-full-content-pdf-toggle/*.md" "openspec/changes/dashboard-reader-full-content-pdf-toggle/specs/**/*.md"`.
 
@@ -59,3 +59,6 @@
   - `uv run ruff check tests/integration/test_dashboard_pages.py`
   - `uv run mypy tests/integration/test_dashboard_pages.py`
   - Ambos passaram sem issues.
+- Evidência para 4.1 (testes alvo do change):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "detail and (reader or thread)" -q`
+  - Resultado: `4 passed, 22 deselected`.
