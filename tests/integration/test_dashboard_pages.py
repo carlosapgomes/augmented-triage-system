@@ -1482,6 +1482,57 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_detail_thread_shows_pdf_report_toggle_in_header_card(
+    tmp_path: Path,
+) -> None:
+    """Valida toggle de relatório PDF no card superior do fluxo por etapas."""
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_thread_pdf_toggle.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-thread-pdf-toggle"
+    case_id = uuid4()
+    base = datetime(2026, 2, 24, 9, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=base + timedelta(minutes=5),
+            agency_record_number="REC-2026-777",
+            structured_data_json={"patient": {"name": "Paciente Thread"}},
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="Linha 1 do relatório\nLinha 2 do relatório",
+            captured_at=base,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}?view=thread",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert 'id="case-thread-view"' in response.text
+    assert "Exibir relatório PDF extraído" in response.text
+    assert 'data-toggle-full="case-header-pdf-report"' in response.text
+    assert 'id="case-header-pdf-report"' in response.text
+    assert "Ocultar relatório PDF extraído" not in response.text
+    assert "case-header-pdf-report" in response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_detail_thread_uses_canonical_parser_for_quoted_mobile_reply(
     tmp_path: Path,
 ) -> None:

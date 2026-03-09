@@ -3,7 +3,7 @@
 ## 1. Cobertura de teste (TDD) para autorização e visualização completa no detalhe
 
 - [x] 1.1 Ajustar teste de integração em `tests/integration/test_dashboard_pages.py` para refletir que `reader` também pode expandir conteúdo completo no modo `Histórico Completo`.
-- [ ] 1.2 Adicionar teste de integração para o modo `Fluxo por Etapas` validando presença do botão de exibir/ocultar relatório PDF no card superior e bloco inicial colapsado.
+- [x] 1.2 Adicionar teste de integração para o modo `Fluxo por Etapas` validando presença do botão de exibir/ocultar relatório PDF no card superior e bloco inicial colapsado.
 
 ## 2. Backend do detalhe de caso para full content e relatório PDF no card superior
 
@@ -26,3 +26,6 @@
 - Evidência de TDD (red) para 1.1:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "full_content_toggle_for_reader" -q`
   - Falha esperada confirmada: `reader` ainda não recebe conteúdo completo/toggle na visualização `view=pure` até implementação das tarefas de backend/template.
+- Evidência de TDD (red) para 1.2:
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "thread_shows_pdf_report_toggle_in_header_card" -q`
+  - Falha esperada confirmada: o card superior de `Fluxo por Etapas` ainda não exibe botão de exibir/ocultar relatório PDF.
