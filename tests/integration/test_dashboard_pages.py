@@ -1527,9 +1527,12 @@ async def test_dashboard_case_detail_thread_shows_pdf_report_toggle_in_header_ca
     assert 'id="case-thread-view"' in response.text
     assert "Exibir relatório PDF extraído" in response.text
     assert 'data-toggle-full="case-header-pdf-report"' in response.text
+    assert 'data-label-show="Exibir relatório PDF extraído"' in response.text
+    assert 'data-label-hide="Ocultar relatório PDF extraído"' in response.text
     assert 'id="case-header-pdf-report"' in response.text
-    assert "Ocultar relatório PDF extraído" not in response.text
-    assert "case-header-pdf-report" in response.text
+    assert 'aria-expanded="false"' in response.text
+    assert "Ocultar relatório PDF extraído" in response.text
+    assert "document.addEventListener(\"click\"" in response.text
 
 
 @pytest.mark.asyncio

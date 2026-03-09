@@ -35,6 +35,8 @@
             type="button"
             class="btn btn-outline-secondary btn-sm"
             data-toggle-full="case-header-pdf-report"
+            data-label-show="Exibir relatório PDF extraído"
+            data-label-hide="Ocultar relatório PDF extraído"
             aria-expanded="false"
           >
             Exibir relatório PDF extraído
@@ -101,6 +103,8 @@
                     type="button"
                     class="btn btn-outline-secondary btn-sm"
                     data-toggle-full="timeline-full-{{ loop.index }}"
+                    data-label-show="Exibir conteudo completo"
+                    data-label-hide="Ocultar conteudo completo"
                     aria-expanded="false"
                   >
                     Exibir conteudo completo
@@ -122,31 +126,33 @@
         {% endif %}
       </div>
     </section>
-    <script>
-      document.addEventListener("click", function (event) {
-        const button = event.target.closest("[data-toggle-full]");
-        if (!button) {
-          return;
-        }
-        const targetId = button.getAttribute("data-toggle-full");
-        if (!targetId) {
-          return;
-        }
-        const target = document.getElementById(targetId);
-        if (!target) {
-          return;
-        }
-        const isExpanded = button.getAttribute("aria-expanded") === "true";
-        if (isExpanded) {
-          target.classList.add("d-none");
-          button.setAttribute("aria-expanded", "false");
-          button.textContent = "Exibir conteudo completo";
-        } else {
-          target.classList.remove("d-none");
-          button.setAttribute("aria-expanded", "true");
-          button.textContent = "Ocultar conteudo completo";
-        }
-      });
-    </script>
   {% endif %}
+  <script>
+    document.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-toggle-full]");
+      if (!button) {
+        return;
+      }
+      const targetId = button.getAttribute("data-toggle-full");
+      if (!targetId) {
+        return;
+      }
+      const target = document.getElementById(targetId);
+      if (!target) {
+        return;
+      }
+      const labelShow = button.getAttribute("data-label-show") || "Exibir conteudo completo";
+      const labelHide = button.getAttribute("data-label-hide") || "Ocultar conteudo completo";
+      const isExpanded = button.getAttribute("aria-expanded") === "true";
+      if (isExpanded) {
+        target.classList.add("d-none");
+        button.setAttribute("aria-expanded", "false");
+        button.textContent = labelShow;
+      } else {
+        target.classList.remove("d-none");
+        button.setAttribute("aria-expanded", "true");
+        button.textContent = labelHide;
+      }
+    });
+  </script>
 {% endblock %}

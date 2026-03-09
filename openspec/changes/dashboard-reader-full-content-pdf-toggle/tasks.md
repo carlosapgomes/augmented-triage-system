@@ -13,7 +13,7 @@
 ## 3. Template do detalhe para toggle no fluxo por etapas
 
 - [x] 3.1 Atualizar `src/triage_automation/infrastructure/http/templates/dashboard/case_detail.html` para renderizar, no card "Detalhe do Caso", botão de toggle "Exibir/Ocultar relatório PDF extraído" quando houver texto disponível.
-- [ ] 3.2 Garantir que o conteúdo do relatório permaneça oculto por padrão e que o mesmo clique expanda/recolha o bloco no card superior, mantendo consistência com o comportamento atual de toggles.
+- [x] 3.2 Garantir que o conteúdo do relatório permaneça oculto por padrão e que o mesmo clique expanda/recolha o bloco no card superior, mantendo consistência com o comportamento atual de toggles.
 
 ## 4. Verificação de qualidade do slice
 
@@ -49,3 +49,13 @@
 - Evidência (green) para 3.1:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "thread_shows_pdf_report_toggle_in_header_card" -q`
   - Passou após renderizar no card superior do modo `thread` o botão `Exibir relatório PDF extraído` e bloco colapsado `case-header-pdf-report`.
+- Evidência de TDD (red) para 3.2:
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "thread_shows_pdf_report_toggle_in_header_card" -q`
+  - Falha esperada confirmada: faltavam `data-label-show`/`data-label-hide` no botão do card superior e o script de toggle não era renderizado em `view=thread`.
+- Evidência (green) para 3.2:
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "thread_shows_pdf_report_toggle_in_header_card or full_content_toggle_for_reader" -q`
+  - `2 passed` após tornar o script de toggle comum aos dois modos e parametrizar rótulos com `data-label-show`/`data-label-hide`.
+- Qualidade local do slice 3.2:
+  - `uv run ruff check tests/integration/test_dashboard_pages.py`
+  - `uv run mypy tests/integration/test_dashboard_pages.py`
+  - Ambos passaram sem issues.
