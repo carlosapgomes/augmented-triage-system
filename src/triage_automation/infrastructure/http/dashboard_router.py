@@ -200,6 +200,7 @@ def build_dashboard_router(
             )
 
         thread_sections = _build_thread_sections(detail.timeline)
+        thread_pdf_report_text = _extract_pdf_report_text_from_timeline(detail.timeline)
 
         return templates.TemplateResponse(
             request=request,
@@ -215,6 +216,7 @@ def build_dashboard_router(
                 "view_mode": view_mode,
                 "timeline_rows": timeline_rows,
                 "thread_sections": thread_sections,
+                "thread_pdf_report_text": thread_pdf_report_text,
                 "patient_name": detail.patient_name,
                 "agency_record_number": detail.agency_record_number,
             },
@@ -612,6 +614,20 @@ def _build_excerpt(full_text: str) -> str:
     if len(normalized) <= limit:
         return normalized
     return f"{normalized[:limit].rstrip()}..."
+
+
+def _extract_pdf_report_text_from_timeline(
+    timeline_items: list[CaseMonitoringTimelineItem],
+) -> str | None:
+    """Return latest non-empty persisted PDF extracted text from timeline."""
+
+    for item in reversed(timeline_items):
+        if item.event_type != "pdf_report_extracted":
+            continue
+        full_text = _extract_full_text(content_text=item.content_text, payload=item.payload).strip()
+        if full_text:
+            return full_text
+    return None
 
 
 async def _require_audit_user(

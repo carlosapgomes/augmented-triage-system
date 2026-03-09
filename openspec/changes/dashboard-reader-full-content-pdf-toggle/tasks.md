@@ -8,7 +8,7 @@
 ## 2. Backend do detalhe de caso para full content e relatório PDF no card superior
 
 - [x] 2.1 Atualizar `src/triage_automation/infrastructure/http/dashboard_router.py` para permitir `can_view_full_content` a usuários com papel `admin` e `reader`.
-- [ ] 2.2 Derivar no `dashboard_router` o texto persistido do evento `pdf_report_extracted` a partir de `detail.timeline` e incluir no contexto do template do detalhe.
+- [x] 2.2 Derivar no `dashboard_router` o texto persistido do evento `pdf_report_extracted` a partir de `detail.timeline` e incluir no contexto do template do detalhe.
 
 ## 3. Template do detalhe para toggle no fluxo por etapas
 
@@ -35,4 +35,14 @@
 - Qualidade local do slice 2.1:
   - `uv run ruff check src/triage_automation/infrastructure/http/dashboard_router.py`
   - `uv run mypy src/triage_automation/infrastructure/http/dashboard_router.py`
+  - Ambos passaram sem issues.
+- Evidência de TDD (red) para 2.2:
+  - `uv run pytest tests/unit/test_dashboard_router.py -q`
+  - Falha esperada confirmada na coleta: função `_extract_pdf_report_text_from_timeline` inexistente no `dashboard_router`.
+- Evidência (green) para 2.2:
+  - `uv run pytest tests/unit/test_dashboard_router.py -q`
+  - `2 passed` após adicionar `_extract_pdf_report_text_from_timeline` e incluir `thread_pdf_report_text` no contexto da página de detalhe.
+- Qualidade local do slice 2.2:
+  - `uv run ruff check src/triage_automation/infrastructure/http/dashboard_router.py tests/unit/test_dashboard_router.py`
+  - `uv run mypy src/triage_automation/infrastructure/http/dashboard_router.py tests/unit/test_dashboard_router.py`
   - Ambos passaram sem issues.
