@@ -19,7 +19,7 @@
 
 - [x] 4.1 Executar testes alvo: `uv run pytest tests/integration/test_dashboard_pages.py -k "detail and (reader or thread)" -q` (ou seleção equivalente cobrindo os cenários novos).
 - [x] 4.2 Executar lint/type-check dos paths alterados: `uv run ruff check src/triage_automation/infrastructure/http/dashboard_router.py src/triage_automation/infrastructure/http/templates/dashboard/case_detail.html tests/integration/test_dashboard_pages.py` e `uv run mypy src/triage_automation/infrastructure/http/dashboard_router.py tests/integration/test_dashboard_pages.py`.
-- [ ] 4.3 Executar `markdownlint-cli2 "openspec/changes/dashboard-reader-full-content-pdf-toggle/*.md" "openspec/changes/dashboard-reader-full-content-pdf-toggle/specs/**/*.md"`.
+- [x] 4.3 Executar `markdownlint-cli2 "openspec/changes/dashboard-reader-full-content-pdf-toggle/*.md" "openspec/changes/dashboard-reader-full-content-pdf-toggle/specs/**/*.md"`.
 
 ## Notes
 
@@ -71,3 +71,6 @@
   - Type-check solicitado executado com sucesso:
     - `uv run mypy src/triage_automation/infrastructure/http/dashboard_router.py tests/integration/test_dashboard_pages.py`
     - Resultado: `Success: no issues found in 2 source files`.
+- Evidência para 4.3 (markdownlint dos artefatos OpenSpec):
+  - `markdownlint-cli2 "openspec/changes/dashboard-reader-full-content-pdf-toggle/*.md" "openspec/changes/dashboard-reader-full-content-pdf-toggle/specs/**/*.md"`
+  - Resultado: `0 error(s)` em 4 arquivos.
