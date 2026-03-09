@@ -29,6 +29,19 @@
           <span class="badge text-bg-dark">{{ status }}</span>
         </div>
       </div>
+      {% if view_mode == "thread" and thread_pdf_report_text %}
+        <div class="mt-3">
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            data-toggle-full="case-header-pdf-report"
+            aria-expanded="false"
+          >
+            Exibir relatório PDF extraído
+          </button>
+          <pre id="case-header-pdf-report" class="mt-2 p-2 bg-light border rounded small d-none">{{ thread_pdf_report_text }}</pre>
+        </div>
+      {% endif %}
     </div>
   </section>
 
