@@ -1205,8 +1205,10 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
 
 
 @pytest.mark.asyncio
-async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path: Path) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_reader_excerpt.db")
+async def test_dashboard_case_detail_page_shows_full_content_toggle_for_reader(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_reader_full_content.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
     reader_token = "reader-dashboard-detail-token"
@@ -1243,8 +1245,9 @@ async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path
         )
 
     assert response.status_code == 200
-    assert "SEGREDO_FULL_ADMIN_ONLY_123" not in response.text
-    assert "data-toggle-full=" not in response.text
+    assert "SEGREDO_FULL_ADMIN_ONLY_123" in response.text
+    assert "data-toggle-full=" in response.text
+    assert "Exibir conteudo completo" in response.text
     assert "trecho" in response.text
 
 
