@@ -7,7 +7,7 @@
 
 ## 2. Backend do detalhe de caso para full content e relatório PDF no card superior
 
-- [ ] 2.1 Atualizar `src/triage_automation/infrastructure/http/dashboard_router.py` para permitir `can_view_full_content` a usuários com papel `admin` e `reader`.
+- [x] 2.1 Atualizar `src/triage_automation/infrastructure/http/dashboard_router.py` para permitir `can_view_full_content` a usuários com papel `admin` e `reader`.
 - [ ] 2.2 Derivar no `dashboard_router` o texto persistido do evento `pdf_report_extracted` a partir de `detail.timeline` e incluir no contexto do template do detalhe.
 
 ## 3. Template do detalhe para toggle no fluxo por etapas
@@ -29,3 +29,10 @@
 - Evidência de TDD (red) para 1.2:
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "thread_shows_pdf_report_toggle_in_header_card" -q`
   - Falha esperada confirmada: o card superior de `Fluxo por Etapas` ainda não exibe botão de exibir/ocultar relatório PDF.
+- Evidência (green) para 2.1:
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "full_content_toggle_for_reader" -q`
+  - Passou após liberar `can_view_full_content` para `reader` no `dashboard_router`.
+- Qualidade local do slice 2.1:
+  - `uv run ruff check src/triage_automation/infrastructure/http/dashboard_router.py`
+  - `uv run mypy src/triage_automation/infrastructure/http/dashboard_router.py`
+  - Ambos passaram sem issues.

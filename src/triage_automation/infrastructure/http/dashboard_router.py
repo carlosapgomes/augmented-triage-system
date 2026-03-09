@@ -173,7 +173,7 @@ def build_dashboard_router(
             return authenticated_user
 
         view_mode = _parse_case_detail_view_mode(view)
-        can_view_full_content = authenticated_user.role is Role.ADMIN
+        can_view_full_content = authenticated_user.role in (Role.ADMIN, Role.READER)
         detail = await monitoring_service.get_case_detail(case_id=case_id)
         if detail is None:
             raise HTTPException(status_code=404, detail="case not found")
