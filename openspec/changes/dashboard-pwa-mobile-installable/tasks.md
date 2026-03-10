@@ -219,3 +219,10 @@
     - Resultado: sem issues.
   - `markdownlint-cli2 "openspec/changes/dashboard-pwa-mobile-installable/*.md" "openspec/changes/dashboard-pwa-mobile-installable/specs/**/*.md" "docs/ansible_ops_runbook.md" "docs/en/ansible_ops_runbook.md"`
     - Resultado: `0 error(s)`.
+- Correção pós-quality-check CI (rota HTTP do runtime):
+  - Falha observada no GitHub Actions em `tests/integration/test_bot_api_runtime.py::test_build_runtime_app_exposes_existing_route_paths` e `tests/integration/test_login_endpoint.py::test_route_paths_include_login_and_monitoring_list`.
+  - Ajuste aplicado: atualização das expectativas dos testes para incluir rotas PWA adicionadas no runtime (`/manifest.webmanifest`, `/service-worker.js`, `/pwa/icons/{icon_name}`).
+  - Revalidação local completa:
+    - `uv run pytest -q` (`551 passed`)
+    - `uv run ruff check .` (passou)
+    - `uv run mypy src apps` (passou)
