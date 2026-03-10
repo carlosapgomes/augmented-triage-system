@@ -14,7 +14,7 @@
 - [x] 2.1 Criar arte base do icone com composicao quadrada (`CHD` em destaque e `dashboard` menor abaixo) seguindo estilo/paleta do header atual.
 - [x] 2.2 Gerar e versionar tamanhos de icone exigidos para instalacao e navegação web (`16`, `32`, `180`, `192`, `512`, incluindo variante maskable quando aplicavel).
 - [x] 2.3 Referenciar corretamente os icones no manifesto e metadados Apple touch icon.
-- [ ] 2.4 Adicionar validacoes de integracao para garantir que os assets de icone respondem com sucesso e sao referenciados no HTML/manifest.
+- [x] 2.4 Adicionar validacoes de integracao para garantir que os assets de icone respondem com sucesso e sao referenciados no HTML/manifest.
 
 ## 3. Slice vertical: Mobile UX da listagem de casos (fluxo reader)
 
@@ -115,5 +115,14 @@
   - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_manifest_mobile_metadata or manifest_declares_dashboard_installability_contract" -q`
   - Resultado: `2 passed, 8 deselected` após referenciar os ícones no manifesto e incluir `apple-touch-icon` no template base.
 - Verificação de qualidade dos arquivos alterados na task 2.3:
+  - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
+  - `uv run mypy tests/integration/test_web_session_routes.py` (passou)
+- Evidência da task 2.4 (TDD red):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "icon_assets_are_referenced_in_html_and_manifest" -q`
+  - Falha esperada confirmada: faltavam referências `rel="icon"` (`32x32` e `16x16`) no HTML base compartilhado.
+- Evidência da task 2.4 (green):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "icon_assets_are_referenced_in_html_and_manifest" -q`
+  - Resultado: `1 passed, 10 deselected` após adicionar validação de integração e referências HTML de ícone para navegação web.
+- Verificação de qualidade dos arquivos alterados na task 2.4:
   - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
   - `uv run mypy tests/integration/test_web_session_routes.py` (passou)

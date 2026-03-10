@@ -199,6 +199,39 @@ async def test_service_worker_uses_online_only_network_strategy(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
+async def test_icon_assets_are_referenced_in_html_and_manifest_and_respond_successfully(
+    tmp_path: Path,
+) -> None:
+    _, async_url = _upgrade_head(tmp_path, "web_session_icon_asset_references.db")
+
+    with _build_client(async_url, token_service=OpaqueTokenService()) as client:
+        login_response = client.get("/login")
+        manifest_response = client.get("/manifest.webmanifest")
+
+        assert login_response.status_code == 200
+        assert '<link rel="manifest" href="/manifest.webmanifest">' in login_response.text
+        assert (
+            '<link rel="apple-touch-icon" sizes="180x180" href="/pwa/icons/chd-180.png">'
+            in login_response.text
+        )
+        assert (
+            '<link rel="icon" type="image/png" sizes="32x32" href="/pwa/icons/chd-32.png">'
+            in login_response.text
+        )
+        assert (
+            '<link rel="icon" type="image/png" sizes="16x16" href="/pwa/icons/chd-16.png">'
+            in login_response.text
+        )
+
+        assert manifest_response.status_code == 200
+        icons = manifest_response.json()["icons"]
+        for icon in icons:
+            icon_response = client.get(icon["src"])
+            assert icon_response.status_code == 200
+            assert icon_response.headers["content-type"].startswith("image/png")
+
+
+@pytest.mark.asyncio
 async def test_login_rejects_invalid_credentials_without_session_cookie(tmp_path: Path) -> None:
     _, async_url = _upgrade_head(tmp_path, "web_session_invalid_credentials.db")
     token_service = OpaqueTokenService()
