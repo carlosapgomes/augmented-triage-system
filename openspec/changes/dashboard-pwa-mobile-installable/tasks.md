@@ -35,7 +35,7 @@
 - [ ] 5.1 Executar checklist manual de instalacao e abertura em Android/Chrome (home screen, icone, standalone, start em `/dashboard/cases`).
 - [ ] 5.2 Executar checklist manual de instalacao e abertura em iOS/Safari (Adicionar a Tela de Inicio, icone, standalone, start em `/dashboard/cases`).
 - [x] 5.3 Atualizar documentacao operacional em portugues com fluxo de instalacao mobile e limitacao explicita de ausencia de suporte offline.
-- [ ] 5.4 Atualizar espelho em ingles para toda documentacao alterada no slice.
+- [x] 5.4 Atualizar espelho em ingles para toda documentacao alterada no slice.
 - [ ] 5.5 Rodar validacoes finais (pytest alvo, ruff, mypy e markdownlint dos artefatos OpenSpec/docs alterados).
 
 ## Notes
@@ -207,5 +207,6 @@
 - Evidência da task 5.3 (documentação operacional pt-BR):
   - `docs/ansible_ops_runbook.md` atualizado com checklist de instalação mobile para Android/Chrome e iOS/Safari.
   - Limitação explícita registrada: ausência de suporte offline (sem fallback offline com conteúdo clínico cacheado).
-- Exceção de sincronização bilíngue registrada para este slice:
-  - O espelho EN (`docs/en/ansible_ops_runbook.md`) será atualizado no próximo slice (task 5.4), já previsto no plano deste change.
+- Evidência da task 5.4 (espelho EN da documentação):
+  - `docs/en/ansible_ops_runbook.md` atualizado com o mesmo fluxo de instalação mobile (Android/iOS) e limitação explícita de ausência de suporte offline.
+  - Sincronização bilíngue concluída no mesmo change (`docs/ansible_ops_runbook.md` <-> `docs/en/ansible_ops_runbook.md`).

@@ -34,6 +34,41 @@ Operational recommendation:
 - use HTTPS on the public domain.
 - do not expose the loopback port directly without a controlled publishing layer.
 
+## Mobile Dashboard Installation (PWA)
+
+Device installation prerequisites:
+
+- dashboard published on a valid HTTPS domain;
+- initial route reachable at `/dashboard/cases`;
+- active authenticated web session for direct dashboard opening.
+
+### Android (Chrome)
+
+1. Open `https://<domain>/dashboard/cases` and authenticate when needed.
+2. In Chrome, use the install prompt (when shown) or the `Install app` menu entry.
+3. Confirm app name and icon on Android home screen.
+4. Open the installed app and validate `standalone` mode (no browser URL bar).
+5. Confirm initial launch at `/dashboard/cases`.
+6. With missing/expired session, validate redirect to `/login`.
+
+### iOS (Safari)
+
+1. Open `https://<domain>/dashboard/cases` in Safari.
+2. Use `Share` -> `Add to Home Screen`.
+3. Confirm shortcut name and icon.
+4. Open from home screen and validate Safari standalone context.
+5. Confirm initial launch at `/dashboard/cases`.
+6. With missing/expired session, validate redirect to `/login`.
+
+### Explicit operational limitation
+
+The installed dashboard PWA **does not support offline mode**.
+
+When network is unavailable:
+
+- the app must not show offline fallback with cached clinical content;
+- load failures must follow normal browser network-error semantics.
+
 ## Minimum Inventory
 
 Create `ansible/inventory/hosts.yml`:
