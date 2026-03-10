@@ -33,6 +33,38 @@
         align-self: flex-start;
         font-size: 0.85rem;
       }
+
+      .case-detail-mobile-shell .case-thread-mobile-sections {
+        row-gap: 0.65rem;
+      }
+
+      .case-detail-mobile-shell .case-thread-stage-card {
+        padding: 0.85rem;
+        border-radius: 0.8rem;
+      }
+
+      .case-detail-mobile-shell .case-thread-stage-item {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+      }
+
+      .case-detail-mobile-shell .case-timeline-list {
+        padding-left: 1rem;
+      }
+
+      .case-detail-mobile-shell .case-timeline-item {
+        padding: 0.85rem 0.75rem;
+      }
+
+      .case-detail-mobile-shell .case-timeline-meta {
+        row-gap: 0.35rem;
+      }
+
+      .case-detail-mobile-shell .case-detail-timestamp {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 0.8rem;
+      }
     }
   </style>
 
@@ -90,15 +122,15 @@
     <section id="case-thread-view" class="card shadow-sm">
       <div class="card-body">
         <h3 class="h6 mb-3">Etapas</h3>
-        <div class="row g-3">
+        <div class="row g-3 case-thread-mobile-sections">
               {% for section in thread_sections %}
-                <div class="col-12 col-xl-4">
-                  <article class="border rounded-3 p-3 h-100 bg-light-subtle">
+                <div class="col-12 col-xl-4 case-thread-stage-column">
+                  <article class="border rounded-3 p-3 h-100 bg-light-subtle case-thread-stage-card">
                     <h4 class="h6 mb-3">{{ section["title"] }}</h4>
                     {% if section["items"] %}
                       <ul class="list-group list-group-flush">
                         {% for item in section["items"] %}
-                          <li class="list-group-item px-0 bg-transparent">
+                          <li class="list-group-item px-0 bg-transparent case-thread-stage-item">
                         <p class="mb-1 fw-semibold">{{ item.title }}</p>
                         {% if item.detail %}
                           <p class="mb-1 text-secondary small">{{ item.detail }}</p>
@@ -106,7 +138,7 @@
                         {% if item.actor %}
                           <p class="mb-1 small">Autor: {{ item.actor }}</p>
                         {% endif %}
-                        <small class="text-secondary" data-utc-timestamp="{{ item.timestamp }}">{{ item.timestamp }}</small>
+                        <small class="text-secondary case-detail-timestamp" data-utc-timestamp="{{ item.timestamp }}">{{ item.timestamp }}</small>
                       </li>
                     {% endfor %}
                   </ul>
@@ -124,14 +156,14 @@
       <div class="card-body">
         <h3 class="h6 mb-3">Histórico de Eventos</h3>
         {% if timeline_rows %}
-          <ol class="list-group list-group-numbered">
+          <ol class="list-group list-group-numbered case-timeline-list">
             {% for row in timeline_rows %}
-              <li class="list-group-item py-3">
-                <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+              <li class="list-group-item py-3 case-timeline-item">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-2 case-timeline-meta">
                   <span class="badge {{ row.source_badge_class }}">{{ row.source }}</span>
                   <span class="badge {{ row.channel_badge_class }}">{{ row.channel }}</span>
                   <span class="badge {{ row.event_badge_class }}">{{ row.event_type }}</span>
-                  <small class="text-secondary" data-utc-timestamp="{{ row.timestamp }}">{{ row.timestamp }}</small>
+                  <small class="text-secondary case-detail-timestamp" data-utc-timestamp="{{ row.timestamp }}">{{ row.timestamp }}</small>
                 </div>
                 <p class="mb-1"><strong>Ator:</strong> {{ row.actor }}</p>
                 {% if row.excerpt_text %}

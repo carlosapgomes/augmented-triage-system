@@ -27,7 +27,7 @@
 
 - [x] 4.1 Adicionar/ajustar testes de integracao para garantir operacao dos modos `thread` e `pure` em contexto mobile.
 - [x] 4.2 Implementar ajustes responsivos no cabecalho e controles do detalhe (`/dashboard/cases/{case_id}`) para navegacao touch.
-- [ ] 4.3 Melhorar legibilidade mobile da timeline/etapas, mantendo integridade cronologica e sem perda de conteudo.
+- [x] 4.3 Melhorar legibilidade mobile da timeline/etapas, mantendo integridade cronologica e sem perda de conteudo.
 - [ ] 4.4 Validar que toggles de conteudo e localizacao de timestamps permanecem funcionais apos as mudancas.
 
 ## 5. Validacao operacional e documentacao
@@ -169,5 +169,14 @@
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_context_supports_thread_and_pure_modes or dashboard_case_detail_defaults_to_thread_view_with_decision_and_reactions or dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin" -q`
   - Resultado: `3 passed, 26 deselected` após ajustes responsivos no cabeçalho/controles do detalhe com classes mobile e atributos de modo para navegação touch.
 - Verificação de qualidade dos arquivos alterados na task 4.2:
+  - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
+- Evidência da task 4.3 (TDD red):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_context_supports_thread_and_pure_modes" -q`
+  - Falha esperada confirmada: ausência de classes mobile para legibilidade de etapas/timeline (`case-thread-mobile-sections`, `case-timeline-list`, `case-timeline-item`) mantendo os mesmos eventos cronológicos.
+- Evidência da task 4.3 (green):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_context_supports_thread_and_pure_modes or dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin or dashboard_case_detail_defaults_to_thread_view_with_decision_and_reactions" -q`
+  - Resultado: `3 passed, 26 deselected` após melhorias de legibilidade mobile em timeline/etapas sem perda de conteúdo e com ordem cronológica preservada.
+- Verificação de qualidade dos arquivos alterados na task 4.3:
   - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)

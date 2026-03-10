@@ -1252,6 +1252,22 @@ async def test_dashboard_case_detail_mobile_context_supports_thread_and_pure_mod
             status="WAIT_DOCTOR",
             updated_at=base - timedelta(minutes=10),
         )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="relatorio mobile legivel",
+            captured_at=base,
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room1:example.org",
+            event_id="$evt-mobile-bot-processing",
+            sender="bot",
+            message_type="bot_processing",
+            message_text="processando...",
+            captured_at=base + timedelta(minutes=5),
+        )
 
     mobile_headers = {
         "Authorization": f"Bearer {reader_token}",
@@ -1285,6 +1301,13 @@ async def test_dashboard_case_detail_mobile_context_supports_thread_and_pure_mod
     assert 'class="case-detail-view-mode-switch"' in pure_response.text
     assert 'data-mobile-view-mode="thread"' in thread_response.text
     assert 'data-mobile-view-mode="pure"' in pure_response.text
+    assert 'class="row g-3 case-thread-mobile-sections"' in thread_response.text
+    assert 'class="list-group list-group-numbered case-timeline-list"' in pure_response.text
+    assert 'class="list-group-item py-3 case-timeline-item"' in pure_response.text
+    assert "relatório pdf extraído" in pure_response.text
+    assert "bot processando" in pure_response.text
+    html = pure_response.text
+    assert html.index("relatório pdf extraído") < html.index("bot processando")
 
 
 @pytest.mark.asyncio
