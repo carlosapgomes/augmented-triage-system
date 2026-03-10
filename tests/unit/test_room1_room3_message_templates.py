@@ -33,6 +33,21 @@ def test_build_room3_request_message_prioritizes_human_identification_without_uu
     assert f"caso: {case_id}" not in body
 
 
+def test_build_room3_request_message_includes_doctor_display_name_when_provided() -> None:
+    case_id = UUID("11111111-1111-1111-1111-111111111111")
+
+    body = build_room3_request_message(
+        case_id=case_id,
+        agency_record_number="4777300",
+        patient_name="MARIA",
+        patient_age="42",
+        requested_exam="EDA",
+        doctor_display_name="Dr. João Pereira",
+    )
+
+    assert "aceito por: Dr. João Pereira" in body
+
+
 def test_build_room3_ack_message_prioritizes_human_identification_without_uuid() -> None:
     case_id = UUID("11111111-1111-1111-1111-111111111111")
 

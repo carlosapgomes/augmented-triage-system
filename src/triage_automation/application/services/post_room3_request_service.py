@@ -141,6 +141,7 @@ class PostRoom3RequestService:
             patient_name=patient_name,
             patient_age=patient_age,
             requested_exam=requested_exam,
+            doctor_display_name=snapshot.doctor_display_name,
         )
         request_event_id = await self._matrix_poster.send_text(
             room_id=self._room3_id,

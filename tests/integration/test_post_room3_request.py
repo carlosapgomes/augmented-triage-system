@@ -9,6 +9,9 @@ from alembic.config import Config
 
 from alembic import command
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
+from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
+)
 from triage_automation.application.services.post_room3_request_service import (
     PostRoom3RequestService,
 )
@@ -84,6 +87,18 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
         },
         summary_text="Resumo",
     )
+    await message_repo.append_case_matrix_message_transcript(
+        CaseMatrixMessageTranscriptCreateInput(
+            case_id=case.case_id,
+            room_id="!room2:example.org",
+            event_id="$doctor-reply-1",
+            sender="@doctor:example.org",
+            sender_display_name="Dra. Beatriz Silva",
+            message_type="room2_doctor_reply",
+            message_text="status: aceitar",
+            reply_to_event_id="$room2-widget-1",
+        )
+    )
 
     service = PostRoom3RequestService(
         room3_id="!room3:example.org",
@@ -105,7 +120,7 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     assert "## paciente: EVALDO CARDOSO DOS SANTOS" in request_body
     assert "idade: 42" in request_body
     assert "exame solicitado: EDA" in request_body
-    assert "aceito por: não informado" in request_body
+    assert "aceito por: Dra. Beatriz Silva" in request_body
     assert str(case.case_id) not in request_body
     assert "caso esperado" not in request_body.lower()
     assert "copie a proxima mensagem" in request_body.lower()
@@ -144,15 +159,16 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
 
     assert status == "WAIT_APPT"
     assert list(kinds) == ["room3_request", "room3_template"]
-    assert len(transcript_rows) == 2
-    assert transcript_rows[0]["message_type"] == "room3_request"
-    assert transcript_rows[0]["sender"] == "bot"
-    assert transcript_rows[0]["message_text"] == request_body
-    assert transcript_rows[0]["reply_to_event_id"] is None
-    assert transcript_rows[1]["message_type"] == "room3_template"
+    assert len(transcript_rows) == 3
+    assert transcript_rows[0]["message_type"] == "room2_doctor_reply"
+    assert transcript_rows[1]["message_type"] == "room3_request"
     assert transcript_rows[1]["sender"] == "bot"
-    assert transcript_rows[1]["message_text"] == template_body
-    assert transcript_rows[1]["reply_to_event_id"] == "$room3-1"
+    assert transcript_rows[1]["message_text"] == request_body
+    assert transcript_rows[1]["reply_to_event_id"] is None
+    assert transcript_rows[2]["message_type"] == "room3_template"
+    assert transcript_rows[2]["sender"] == "bot"
+    assert transcript_rows[2]["message_text"] == template_body
+    assert transcript_rows[2]["reply_to_event_id"] == "$room3-1"
 
 
 @pytest.mark.asyncio
