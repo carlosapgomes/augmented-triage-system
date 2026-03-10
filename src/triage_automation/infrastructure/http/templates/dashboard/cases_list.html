@@ -50,9 +50,32 @@
         margin-bottom: 0.25rem;
       }
 
-      #cases-list-fragment .pagination {
+      #cases-filter-form .cases-touch-control {
+        min-height: 44px;
+        font-size: 1rem;
+      }
+
+      #cases-filter-form .cases-touch-button {
+        min-height: 44px;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      #cases-list-fragment .cases-search-totals-list .list-inline-item {
+        padding: 0.1rem 0;
+      }
+
+      #cases-list-fragment .cases-pagination {
         flex-wrap: wrap;
         row-gap: 0.4rem;
+      }
+
+      #cases-list-fragment .cases-touch-page-link {
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
     }
   </style>
@@ -62,7 +85,7 @@
       <h2 class="h5 mb-3">Casos</h2>
       <form
         id="cases-filter-form"
-        class="row g-2 align-items-end"
+        class="row g-2 g-md-3 align-items-end cases-filter-form"
         method="get"
         action="/dashboard/cases"
         up-target="#cases-list-fragment"
@@ -70,7 +93,7 @@
       >
         <div class="col-12 col-md-3">
           <label class="form-label" for="status">Status</label>
-          <select class="form-select form-select-sm" id="status" name="status">
+          <select class="form-select cases-touch-control" id="status" name="status">
             <option value="">Todos</option>
             {% for option in status_options %}
               <option value="{{ option }}" {% if filters.status == option %}selected{% endif %}>
@@ -82,7 +105,7 @@
         <div class="col-6 col-md-3">
           <label class="form-label" for="from_date">De</label>
           <input
-            class="form-control form-control-sm"
+            class="form-control cases-touch-control"
             id="from_date"
             name="from_date"
             type="date"
@@ -92,7 +115,7 @@
         <div class="col-6 col-md-3">
           <label class="form-label" for="to_date">Ate</label>
           <input
-            class="form-control form-control-sm"
+            class="form-control cases-touch-control"
             id="to_date"
             name="to_date"
             type="date"
@@ -103,7 +126,7 @@
         <input type="hidden" name="page_size" value="{{ filters.page_size }}">
         <input type="hidden" id="tz_offset" name="tz_offset" value="{{ filters.tz_offset | default('0') }}">
         <div class="col-12 col-md-3">
-          <button class="btn btn-primary btn-sm w-100" type="submit">Aplicar filtros</button>
+          <button class="btn btn-primary w-100 cases-touch-button" type="submit">Aplicar filtros</button>
         </div>
       </form>
     </div>
