@@ -1227,6 +1227,67 @@ async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Pat
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_detail_mobile_context_supports_thread_and_pure_modes(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_mobile_modes.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-detail-mobile-modes"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=base - timedelta(minutes=10),
+        )
+
+    mobile_headers = {
+        "Authorization": f"Bearer {reader_token}",
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1"
+        ),
+    }
+
+    with _build_client(async_url, token_service=token_service) as client:
+        thread_response = client.get(
+            f"/dashboard/cases/{case_id}?view=thread",
+            headers=mobile_headers,
+        )
+        pure_response = client.get(
+            f"/dashboard/cases/{case_id}?view=pure",
+            headers=mobile_headers,
+        )
+
+    assert thread_response.status_code == 200
+    assert pure_response.status_code == 200
+    assert 'id="case-thread-view"' in thread_response.text
+    assert 'id="case-timeline"' in pure_response.text
+    assert "Fluxo por Etapas" in thread_response.text
+    assert "Histórico Completo" in thread_response.text
+    assert "Fluxo por Etapas" in pure_response.text
+    assert "Histórico Completo" in pure_response.text
+    assert 'class="case-detail-mobile-shell"' in thread_response.text
+    assert 'class="case-detail-mobile-shell"' in pure_response.text
+    assert 'class="case-detail-view-mode-switch"' in thread_response.text
+    assert 'class="case-detail-view-mode-switch"' in pure_response.text
+    assert 'data-mobile-view-mode="thread"' in thread_response.text
+    assert 'data-mobile-view-mode="pure"' in pure_response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin(
     tmp_path: Path,
 ) -> None:

@@ -25,7 +25,7 @@
 
 ## 4. Slice vertical: Mobile UX do detalhe de caso (fluxo reader)
 
-- [ ] 4.1 Adicionar/ajustar testes de integracao para garantir operacao dos modos `thread` e `pure` em contexto mobile.
+- [x] 4.1 Adicionar/ajustar testes de integracao para garantir operacao dos modos `thread` e `pure` em contexto mobile.
 - [ ] 4.2 Implementar ajustes responsivos no cabecalho e controles do detalhe (`/dashboard/cases/{case_id}`) para navegacao touch.
 - [ ] 4.3 Melhorar legibilidade mobile da timeline/etapas, mantendo integridade cronologica e sem perda de conteudo.
 - [ ] 4.4 Validar que toggles de conteudo e localizacao de timestamps permanecem funcionais apos as mudancas.
@@ -157,5 +157,11 @@
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "case_list_fragment_update_respects_filters_and_pagination or mobile_touch_targets_cover_filters_totals_and_pagination" -q`
   - Resultado: `2 passed, 26 deselected` após adicionar `up-id="cases-list-fragment"` no fragmento parcial.
 - Verificação de qualidade dos arquivos alterados na task 3.4:
+  - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
+- Evidência da task 4.1 (TDD red):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_context_supports_thread_and_pure_modes" -q`
+  - Falha esperada confirmada: tela de detalhe ainda não expõe classes/atributos mobile dedicados para alternância `thread`/`pure` em contexto de viewport pequeno.
+- Verificação de qualidade dos arquivos alterados na task 4.1:
   - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
