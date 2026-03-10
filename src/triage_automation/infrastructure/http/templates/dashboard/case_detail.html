@@ -1,9 +1,45 @@
 {% extends "dashboard/base.html" %}
 
 {% block content %}
+  <style>
+    @media (max-width: 767.98px) {
+      .case-detail-mobile-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .case-detail-mobile-shell .case-detail-header-layout {
+        gap: 0.85rem;
+      }
+
+      .case-detail-mobile-shell .case-detail-control-stack {
+        width: 100%;
+        align-items: stretch;
+      }
+
+      .case-detail-mobile-shell .case-detail-view-mode-switch .btn-group {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+      }
+
+      .case-detail-mobile-shell .case-detail-view-mode-switch .btn {
+        min-height: 44px;
+        font-size: 0.96rem;
+      }
+
+      .case-detail-mobile-shell .case-detail-status-chip {
+        align-self: flex-start;
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+
   <section class="card shadow-sm mb-4">
     <div class="card-body">
-      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+      <div class="case-detail-mobile-shell" data-mobile-view-mode="{{ view_mode }}">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 case-detail-header-layout">
         <div class="flex-grow-1">
           <h2 class="h5 mb-2">Detalhe do Caso</h2>
           <span class="small text-secondary">
@@ -11,24 +47,26 @@
             {% if agency_record_number %} | Ocorrência: {{ agency_record_number }}{% endif %}
           </span>
         </div>
-        <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
-          <div class="btn-group btn-group-sm" role="group" aria-label="Modo de visualizacao">
-            <a
-              href="/dashboard/cases/{{ case_id }}?view=thread"
-              class="btn {% if view_mode == 'thread' %}btn-primary{% else %}btn-outline-primary{% endif %}"
-            >
-              Fluxo por Etapas
-            </a>
-            <a
-              href="/dashboard/cases/{{ case_id }}?view=pure"
-              class="btn {% if view_mode == 'pure' %}btn-primary{% else %}btn-outline-primary{% endif %}"
-            >
-              Histórico Completo
-            </a>
+          <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 case-detail-control-stack">
+            <div class="case-detail-view-mode-switch">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Modo de visualizacao">
+                <a
+                  href="/dashboard/cases/{{ case_id }}?view=thread"
+                  class="btn {% if view_mode == 'thread' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                >
+                  Fluxo por Etapas
+                </a>
+                <a
+                  href="/dashboard/cases/{{ case_id }}?view=pure"
+                  class="btn {% if view_mode == 'pure' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                >
+                  Histórico Completo
+                </a>
+              </div>
+            </div>
+            <span class="badge text-bg-dark case-detail-status-chip">{{ status }}</span>
           </div>
-          <span class="badge text-bg-dark">{{ status }}</span>
         </div>
-      </div>
       {% if view_mode == "thread" and thread_pdf_report_text %}
         <div class="mt-3">
           <button
@@ -44,6 +82,7 @@
           <pre id="case-header-pdf-report" class="mt-2 p-2 bg-light border rounded small d-none">{{ thread_pdf_report_text }}</pre>
         </div>
       {% endif %}
+      </div>
     </div>
   </section>
 
