@@ -103,7 +103,7 @@
         <div class="mt-3">
           <button
             type="button"
-            class="btn btn-outline-secondary btn-sm"
+            class="btn btn-outline-secondary btn-sm case-detail-toggle-button"
             data-toggle-full="case-header-pdf-report"
             data-label-show="Exibir relatório PDF extraído"
             data-label-hide="Ocultar relatório PDF extraído"
@@ -172,7 +172,7 @@
                 {% if row.can_show_full_content and row.full_text and row.is_truncated %}
                   <button
                     type="button"
-                    class="btn btn-outline-secondary btn-sm"
+                    class="btn btn-outline-secondary btn-sm case-detail-toggle-button"
                     data-toggle-full="timeline-full-{{ loop.index }}"
                     data-label-show="Exibir conteudo completo"
                     data-label-hide="Ocultar conteudo completo"

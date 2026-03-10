@@ -28,7 +28,7 @@
 - [x] 4.1 Adicionar/ajustar testes de integracao para garantir operacao dos modos `thread` e `pure` em contexto mobile.
 - [x] 4.2 Implementar ajustes responsivos no cabecalho e controles do detalhe (`/dashboard/cases/{case_id}`) para navegacao touch.
 - [x] 4.3 Melhorar legibilidade mobile da timeline/etapas, mantendo integridade cronologica e sem perda de conteudo.
-- [ ] 4.4 Validar que toggles de conteudo e localizacao de timestamps permanecem funcionais apos as mudancas.
+- [x] 4.4 Validar que toggles de conteudo e localizacao de timestamps permanecem funcionais apos as mudancas.
 
 ## 5. Validacao operacional e documentacao
 
@@ -178,5 +178,14 @@
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_context_supports_thread_and_pure_modes or dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin or dashboard_case_detail_defaults_to_thread_view_with_decision_and_reactions" -q`
   - Resultado: `3 passed, 26 deselected` após melhorias de legibilidade mobile em timeline/etapas sem perda de conteúdo e com ordem cronológica preservada.
 - Verificação de qualidade dos arquivos alterados na task 4.3:
+  - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
+- Evidência da task 4.4 (TDD red):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_toggles_and_timestamps_remain_functional" -q`
+  - Falha esperada confirmada: ausência de classe dedicada (`case-detail-toggle-button`) nos botões de toggle em contexto mobile após ajustes de layout.
+- Evidência da task 4.4 (green):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_toggles_and_timestamps_remain_functional or dashboard_case_detail_page_shows_full_content_toggle_for_reader or dashboard_case_detail_thread_shows_pdf_report_toggle_in_header_card" -q`
+  - Resultado: `3 passed, 27 deselected` validando toggles de conteúdo e localização de timestamps em `thread` e `pure` após as mudanças mobile.
+- Verificação de qualidade dos arquivos alterados na task 4.4:
   - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)

@@ -1311,6 +1311,94 @@ async def test_dashboard_case_detail_mobile_context_supports_thread_and_pure_mod
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_detail_mobile_toggles_and_timestamps_remain_functional(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "dashboard_page_detail_mobile_toggles_timestamps.db",
+    )
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-detail-mobile-toggles-timestamps"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 13, 0, 0, tzinfo=UTC)
+    long_pdf_text = ("trecho " * 40) + "SEGREDO_MOBILE_TOGGLE_456"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=base - timedelta(minutes=10),
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text=long_pdf_text,
+            captured_at=base,
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room1:example.org",
+            event_id="$evt-mobile-timestamp",
+            sender="bot",
+            message_type="bot_processing",
+            message_text="processando...",
+            captured_at=base + timedelta(minutes=3),
+        )
+
+    mobile_headers = {
+        "Authorization": f"Bearer {reader_token}",
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1"
+        ),
+    }
+
+    with _build_client(async_url, token_service=token_service) as client:
+        thread_response = client.get(
+            f"/dashboard/cases/{case_id}?view=thread",
+            headers=mobile_headers,
+        )
+        pure_response = client.get(
+            f"/dashboard/cases/{case_id}?view=pure",
+            headers=mobile_headers,
+        )
+
+    assert thread_response.status_code == 200
+    assert pure_response.status_code == 200
+    assert 'data-toggle-full="case-header-pdf-report"' in thread_response.text
+    assert (
+        'class="btn btn-outline-secondary btn-sm case-detail-toggle-button"'
+        in thread_response.text
+    )
+    assert "document.addEventListener(\"click\"" in thread_response.text
+    assert "class=\"text-secondary case-detail-timestamp\"" in thread_response.text
+
+    assert "data-toggle-full=\"timeline-full-" in pure_response.text
+    assert (
+        'class="btn btn-outline-secondary btn-sm case-detail-toggle-button"'
+        in pure_response.text
+    )
+    assert "document.addEventListener(\"click\"" in pure_response.text
+    assert (
+        "class=\"d-flex flex-wrap gap-2 align-items-center mb-2 case-timeline-meta\""
+        in pure_response.text
+    )
+    assert "class=\"text-secondary case-detail-timestamp\"" in pure_response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin(
     tmp_path: Path,
 ) -> None:
