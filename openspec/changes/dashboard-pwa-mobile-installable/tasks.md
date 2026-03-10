@@ -189,3 +189,15 @@
 - Verificação de qualidade dos arquivos alterados na task 4.4:
   - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
+- Correção pós-validação visual (task 2.2 - iconografia PNG):
+  - Evidência TDD red:
+    - `uv run pytest tests/unit/test_pwa_icon_assets.py -q`
+    - Falha esperada confirmada: assets PNG não continham metadata `Software=www.inkscape.org`, indicando que não estavam exportados da arte SVG base validada.
+  - Implementação:
+    - Regeneração local dos PNGs (`16`, `32`, `180`, `192`, `512`, `maskable-512`) com Inkscape CLI a partir de `chd-base.svg`.
+  - Evidência green:
+    - `uv run pytest tests/unit/test_pwa_icon_assets.py -q` (`3 passed`)
+    - `uv run pytest tests/integration/test_web_session_routes.py -k "icon_assets_are_referenced_in_html_and_manifest" -q` (`1 passed`)
+  - Qualidade:
+    - `uv run ruff check tests/unit/test_pwa_icon_assets.py` (passou)
+    - `uv run mypy tests/unit/test_pwa_icon_assets.py` (passou)
