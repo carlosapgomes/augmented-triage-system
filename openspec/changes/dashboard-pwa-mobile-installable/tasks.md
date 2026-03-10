@@ -3,7 +3,7 @@
 ## 1. Slice vertical: Base PWA instalavel (manifesto, service worker e shell)
 
 - [x] 1.1 Adicionar/ajustar testes de integracao para falhar inicialmente quando `dashboard/base.html` nao expuser link de manifesto, metadados mobile/PWA e registro de service worker.
-- [ ] 1.2 Publicar assets estaticos PWA no `bot-api` (manifest, service worker e icones) com rotas/paths estaveis para consumo do browser.
+- [x] 1.2 Publicar assets estaticos PWA no `bot-api` (manifest, service worker e icones) com rotas/paths estaveis para consumo do browser.
 - [ ] 1.3 Implementar `manifest.webmanifest` com `short_name=CHD`, `start_url=/dashboard/cases`, `display=standalone`, `scope=/` e cores alinhadas ao tema do dashboard.
 - [ ] 1.4 Implementar service worker online-only (sem fallback offline e sem cache de HTML como fonte autoritativa).
 - [ ] 1.5 Integrar no template base compartilhado os metadados/links/scripts PWA para cobrir login, dashboard e navegacao autenticada.
@@ -46,3 +46,12 @@
 - Verificação de qualidade dos arquivos alterados nesta slice:
   - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
   - `uv run mypy tests/integration/test_web_session_routes.py` (passou)
+- Evidência da task 1.2 (TDD red):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_assets_are_published" -q`
+  - Falha esperada confirmada: `/manifest.webmanifest`, `/service-worker.js` e `/pwa/icons/chd-192.png` retornavam `404`.
+- Evidência da task 1.2 (green):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_assets_are_published" -q`
+  - Resultado: `1 passed, 7 deselected` após publicação dos assets e rotas estáveis.
+- Verificação de qualidade dos arquivos alterados na task 1.2:
+  - `uv run ruff check apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py` (passou)
+  - `uv run mypy --explicit-package-bases apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py` (passou)

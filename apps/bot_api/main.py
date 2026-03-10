@@ -41,6 +41,7 @@ from triage_automation.infrastructure.http.monitoring_router import build_monito
 from triage_automation.infrastructure.http.prompt_management_router import (
     build_prompt_management_router,
 )
+from triage_automation.infrastructure.http.pwa_assets_router import build_pwa_assets_router
 from triage_automation.infrastructure.http.user_management_router import (
     build_user_management_router,
 )
@@ -203,6 +204,7 @@ def create_app(
 
         app = FastAPI(lifespan=_lifespan)
 
+    app.include_router(build_pwa_assets_router())
     app.include_router(
         build_web_session_router(
             auth_service=auth_service,

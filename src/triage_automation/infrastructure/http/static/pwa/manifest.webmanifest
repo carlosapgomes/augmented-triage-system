@@ -1,0 +1,11 @@
+{
+  "name": "CHD Dashboard",
+  "short_name": "CHD",
+  "icons": [
+    {
+      "src": "/pwa/icons/chd-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

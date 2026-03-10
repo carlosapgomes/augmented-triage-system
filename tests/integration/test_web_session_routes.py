@@ -133,6 +133,23 @@ async def test_login_page_exposes_pwa_manifest_mobile_metadata_and_service_worke
 
 
 @pytest.mark.asyncio
+async def test_pwa_assets_are_published_with_stable_browser_paths(tmp_path: Path) -> None:
+    _, async_url = _upgrade_head(tmp_path, "web_session_pwa_assets.db")
+
+    with _build_client(async_url, token_service=OpaqueTokenService()) as client:
+        manifest_response = client.get("/manifest.webmanifest")
+        service_worker_response = client.get("/service-worker.js")
+        icon_response = client.get("/pwa/icons/chd-192.png")
+
+    assert manifest_response.status_code == 200
+    assert manifest_response.headers["content-type"].startswith("application/manifest+json")
+    assert service_worker_response.status_code == 200
+    assert service_worker_response.headers["content-type"].startswith("text/javascript")
+    assert icon_response.status_code == 200
+    assert icon_response.headers["content-type"].startswith("image/png")
+
+
+@pytest.mark.asyncio
 async def test_login_rejects_invalid_credentials_without_session_cookie(tmp_path: Path) -> None:
     _, async_url = _upgrade_head(tmp_path, "web_session_invalid_credentials.db")
     token_service = OpaqueTokenService()
