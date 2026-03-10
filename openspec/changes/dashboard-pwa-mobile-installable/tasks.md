@@ -36,7 +36,7 @@
 - [ ] 5.2 Executar checklist manual de instalacao e abertura em iOS/Safari (Adicionar a Tela de Inicio, icone, standalone, start em `/dashboard/cases`).
 - [x] 5.3 Atualizar documentacao operacional em portugues com fluxo de instalacao mobile e limitacao explicita de ausencia de suporte offline.
 - [x] 5.4 Atualizar espelho em ingles para toda documentacao alterada no slice.
-- [ ] 5.5 Rodar validacoes finais (pytest alvo, ruff, mypy e markdownlint dos artefatos OpenSpec/docs alterados).
+- [x] 5.5 Rodar validacoes finais (pytest alvo, ruff, mypy e markdownlint dos artefatos OpenSpec/docs alterados).
 
 ## Notes
 
@@ -210,3 +210,12 @@
 - Evidência da task 5.4 (espelho EN da documentação):
   - `docs/en/ansible_ops_runbook.md` atualizado com o mesmo fluxo de instalação mobile (Android/iOS) e limitação explícita de ausência de suporte offline.
   - Sincronização bilíngue concluída no mesmo change (`docs/ansible_ops_runbook.md` <-> `docs/en/ansible_ops_runbook.md`).
+- Evidência da task 5.5 (validações finais):
+  - `uv run pytest tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py tests/unit/test_pwa_icon_assets.py tests/unit/test_ansible_ops_runbook_docs.py tests/unit/test_docs_bilingual_mirror.py tests/unit/test_readme_bilingual_baseline.py -q`
+    - Resultado: `57 passed`.
+  - `uv run ruff check apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py tests/unit/test_pwa_icon_assets.py tests/unit/test_ansible_ops_runbook_docs.py tests/unit/test_docs_bilingual_mirror.py tests/unit/test_readme_bilingual_baseline.py`
+    - Resultado: sem issues.
+  - `uv run mypy --explicit-package-bases apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py tests/unit/test_pwa_icon_assets.py tests/unit/test_ansible_ops_runbook_docs.py tests/unit/test_docs_bilingual_mirror.py tests/unit/test_readme_bilingual_baseline.py`
+    - Resultado: sem issues.
+  - `markdownlint-cli2 "openspec/changes/dashboard-pwa-mobile-installable/*.md" "openspec/changes/dashboard-pwa-mobile-installable/specs/**/*.md" "docs/ansible_ops_runbook.md" "docs/en/ansible_ops_runbook.md"`
+    - Resultado: `0 error(s)`.
