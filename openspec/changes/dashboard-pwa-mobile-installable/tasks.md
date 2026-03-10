@@ -13,7 +13,7 @@
 
 - [x] 2.1 Criar arte base do icone com composicao quadrada (`CHD` em destaque e `dashboard` menor abaixo) seguindo estilo/paleta do header atual.
 - [x] 2.2 Gerar e versionar tamanhos de icone exigidos para instalacao e navegação web (`16`, `32`, `180`, `192`, `512`, incluindo variante maskable quando aplicavel).
-- [ ] 2.3 Referenciar corretamente os icones no manifesto e metadados Apple touch icon.
+- [x] 2.3 Referenciar corretamente os icones no manifesto e metadados Apple touch icon.
 - [ ] 2.4 Adicionar validacoes de integracao para garantir que os assets de icone respondem com sucesso e sao referenciados no HTML/manifest.
 
 ## 3. Slice vertical: Mobile UX da listagem de casos (fluxo reader)
@@ -108,3 +108,12 @@
 - Verificação de qualidade dos arquivos alterados na task 2.2:
   - `uv run ruff check tests/unit/test_pwa_icon_assets.py` (passou)
   - `uv run mypy tests/unit/test_pwa_icon_assets.py` (passou)
+- Evidência da task 2.3 (TDD red):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_manifest_mobile_metadata or manifest_declares_dashboard_installability_contract" -q`
+  - Falhas esperadas confirmadas: faltava referência `apple-touch-icon` no HTML base e o manifesto ainda não referenciava todo o conjunto de ícones (`16`, `32`, `180`, `192`, `512`, `maskable`).
+- Evidência da task 2.3 (green):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_manifest_mobile_metadata or manifest_declares_dashboard_installability_contract" -q`
+  - Resultado: `2 passed, 8 deselected` após referenciar os ícones no manifesto e incluir `apple-touch-icon` no template base.
+- Verificação de qualidade dos arquivos alterados na task 2.3:
+  - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
+  - `uv run mypy tests/integration/test_web_session_routes.py` (passou)

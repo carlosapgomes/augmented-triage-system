@@ -128,6 +128,10 @@ async def test_login_page_exposes_pwa_manifest_mobile_metadata_and_service_worke
     assert '<meta name="apple-mobile-web-app-capable" content="yes">' in response.text
     assert '<meta name="apple-mobile-web-app-title" content="CHD Dashboard">' in response.text
     assert '<meta name="apple-mobile-web-app-status-bar-style" content="default">' in response.text
+    assert (
+        '<link rel="apple-touch-icon" sizes="180x180" href="/pwa/icons/chd-180.png">'
+        in response.text
+    )
     assert "if ('serviceWorker' in navigator)" in response.text
     assert "navigator.serviceWorker.register('/service-worker.js')" in response.text
 
@@ -165,6 +169,17 @@ async def test_manifest_declares_dashboard_installability_contract(tmp_path: Pat
     assert payload["scope"] == "/"
     assert payload["theme_color"] == "#0b4263"
     assert payload["background_color"] == "#f3f8fb"
+
+    icons = payload["icons"]
+    assert isinstance(icons, list)
+    icon_by_src = {icon["src"]: icon for icon in icons}
+    assert icon_by_src["/pwa/icons/chd-16.png"]["sizes"] == "16x16"
+    assert icon_by_src["/pwa/icons/chd-32.png"]["sizes"] == "32x32"
+    assert icon_by_src["/pwa/icons/chd-180.png"]["sizes"] == "180x180"
+    assert icon_by_src["/pwa/icons/chd-192.png"]["sizes"] == "192x192"
+    assert icon_by_src["/pwa/icons/chd-512.png"]["sizes"] == "512x512"
+    assert icon_by_src["/pwa/icons/chd-maskable-512.png"]["sizes"] == "512x512"
+    assert icon_by_src["/pwa/icons/chd-maskable-512.png"]["purpose"] == "any maskable"
 
 
 @pytest.mark.asyncio
