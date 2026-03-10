@@ -6,7 +6,7 @@
 - [x] 1.2 Publicar assets estaticos PWA no `bot-api` (manifest, service worker e icones) com rotas/paths estaveis para consumo do browser.
 - [x] 1.3 Implementar `manifest.webmanifest` com `short_name=CHD`, `start_url=/dashboard/cases`, `display=standalone`, `scope=/` e cores alinhadas ao tema do dashboard.
 - [x] 1.4 Implementar service worker online-only (sem fallback offline e sem cache de HTML como fonte autoritativa).
-- [ ] 1.5 Integrar no template base compartilhado os metadados/links/scripts PWA para cobrir login, dashboard e navegacao autenticada.
+- [x] 1.5 Integrar no template base compartilhado os metadados/links/scripts PWA para cobrir login, dashboard e navegacao autenticada.
 - [ ] 1.6 Executar testes alvo do dashboard/web session e confirmar green para o slice.
 
 ## 2. Slice vertical: Iconografia CHD para instalacao Android/iOS
@@ -73,3 +73,14 @@
 - Verificação de qualidade dos arquivos alterados na task 1.4:
   - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
   - `uv run mypy tests/integration/test_web_session_routes.py` (passou)
+- Evidência da task 1.5 (TDD red):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_manifest_mobile_metadata" -q`
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "reuse_shared_shell_layout" -q`
+  - Falhas esperadas confirmadas: login e páginas autenticadas do dashboard não expunham metadados/link de manifesto nem registro de service worker no template base compartilhado.
+- Evidência da task 1.5 (green):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_manifest_mobile_metadata" -q`
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "reuse_shared_shell_layout" -q`
+  - Resultado: ambos passaram após integração de metadados/manifest/service worker em `dashboard/base.html`.
+- Verificação de qualidade dos arquivos alterados na task 1.5:
+  - `uv run ruff check tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)

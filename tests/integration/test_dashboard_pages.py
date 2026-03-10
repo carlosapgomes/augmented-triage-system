@@ -1099,6 +1099,14 @@ async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Pat
 
     assert list_response.status_code == 200
     assert detail_response.status_code == 200
+    assert '<link rel="manifest" href="/manifest.webmanifest">' in list_response.text
+    assert '<link rel="manifest" href="/manifest.webmanifest">' in detail_response.text
+    assert '<meta name="theme-color" content="#0b4263">' in list_response.text
+    assert '<meta name="theme-color" content="#0b4263">' in detail_response.text
+    assert "if ('serviceWorker' in navigator)" in list_response.text
+    assert "if ('serviceWorker' in navigator)" in detail_response.text
+    assert "navigator.serviceWorker.register('/service-worker.js')" in list_response.text
+    assert "navigator.serviceWorker.register('/service-worker.js')" in detail_response.text
     assert '<header class="app-header' in list_response.text
     assert '<header class="app-header' in detail_response.text
     assert '<form method="post" action="/logout"' in list_response.text
