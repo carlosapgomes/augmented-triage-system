@@ -12,7 +12,7 @@
 ## 2. Slice vertical: Iconografia CHD para instalacao Android/iOS
 
 - [x] 2.1 Criar arte base do icone com composicao quadrada (`CHD` em destaque e `dashboard` menor abaixo) seguindo estilo/paleta do header atual.
-- [ ] 2.2 Gerar e versionar tamanhos de icone exigidos para instalacao e navegação web (`16`, `32`, `180`, `192`, `512`, incluindo variante maskable quando aplicavel).
+- [x] 2.2 Gerar e versionar tamanhos de icone exigidos para instalacao e navegação web (`16`, `32`, `180`, `192`, `512`, incluindo variante maskable quando aplicavel).
 - [ ] 2.3 Referenciar corretamente os icones no manifesto e metadados Apple touch icon.
 - [ ] 2.4 Adicionar validacoes de integracao para garantir que os assets de icone respondem com sucesso e sao referenciados no HTML/manifest.
 
@@ -97,5 +97,14 @@
   - `uv run pytest tests/unit/test_pwa_icon_assets.py -q`
   - Resultado: `1 passed` após criação da arte base quadrada com `CHD` destacado e `dashboard` abaixo, usando a paleta do header.
 - Verificação de qualidade dos arquivos alterados na task 2.1:
+  - `uv run ruff check tests/unit/test_pwa_icon_assets.py` (passou)
+  - `uv run mypy tests/unit/test_pwa_icon_assets.py` (passou)
+- Evidência da task 2.2 (TDD red):
+  - `uv run pytest tests/unit/test_pwa_icon_assets.py -q`
+  - Falha esperada confirmada: faltavam ícones versionados obrigatórios (`16`, `32`, `180`, `512` e variante `maskable`), e o `chd-192.png` existente não tinha dimensão correta.
+- Evidência da task 2.2 (green):
+  - `uv run pytest tests/unit/test_pwa_icon_assets.py -q`
+  - Resultado: `2 passed` após geração/versionamento dos ícones `chd-16.png`, `chd-32.png`, `chd-180.png`, `chd-192.png`, `chd-512.png` e `chd-maskable-512.png`.
+- Verificação de qualidade dos arquivos alterados na task 2.2:
   - `uv run ruff check tests/unit/test_pwa_icon_assets.py` (passou)
   - `uv run mypy tests/unit/test_pwa_icon_assets.py` (passou)
