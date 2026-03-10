@@ -7,7 +7,7 @@
 - [x] 1.3 Implementar `manifest.webmanifest` com `short_name=CHD`, `start_url=/dashboard/cases`, `display=standalone`, `scope=/` e cores alinhadas ao tema do dashboard.
 - [x] 1.4 Implementar service worker online-only (sem fallback offline e sem cache de HTML como fonte autoritativa).
 - [x] 1.5 Integrar no template base compartilhado os metadados/links/scripts PWA para cobrir login, dashboard e navegacao autenticada.
-- [ ] 1.6 Executar testes alvo do dashboard/web session e confirmar green para o slice.
+- [x] 1.6 Executar testes alvo do dashboard/web session e confirmar green para o slice.
 
 ## 2. Slice vertical: Iconografia CHD para instalacao Android/iOS
 
@@ -84,3 +84,9 @@
 - Verificação de qualidade dos arquivos alterados na task 1.5:
   - `uv run ruff check tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)
+- Evidência da task 1.6 (green - suíte alvo dashboard/web session):
+  - `uv run pytest tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py -q`
+  - Resultado: `36 passed`.
+- Verificação de qualidade da task 1.6:
+  - `uv run ruff check apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy --explicit-package-bases apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)
