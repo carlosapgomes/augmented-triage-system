@@ -150,6 +150,24 @@ async def test_pwa_assets_are_published_with_stable_browser_paths(tmp_path: Path
 
 
 @pytest.mark.asyncio
+async def test_manifest_declares_dashboard_installability_contract(tmp_path: Path) -> None:
+    _, async_url = _upgrade_head(tmp_path, "web_session_pwa_manifest_contract.db")
+
+    with _build_client(async_url, token_service=OpaqueTokenService()) as client:
+        response = client.get("/manifest.webmanifest")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["name"] == "CHD Dashboard"
+    assert payload["short_name"] == "CHD"
+    assert payload["start_url"] == "/dashboard/cases"
+    assert payload["display"] == "standalone"
+    assert payload["scope"] == "/"
+    assert payload["theme_color"] == "#0b4263"
+    assert payload["background_color"] == "#f3f8fb"
+
+
+@pytest.mark.asyncio
 async def test_login_rejects_invalid_credentials_without_session_cookie(tmp_path: Path) -> None:
     _, async_url = _upgrade_head(tmp_path, "web_session_invalid_credentials.db")
     token_service = OpaqueTokenService()
