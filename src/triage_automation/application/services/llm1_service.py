@@ -258,7 +258,13 @@ def _render_user_prompt(
         "Nao inferir, classificar ou estimar ASA, Mallampati ou risco OSA.\n"
         "Cada campo objetivo deve ter evidencia textual; se nao houver, usar unknown.\n"
         "Para hb_g_dl, platelets_per_mm3 e inr sem evidencia numerica, usar null.\n"
-        "Incluir preop_screening.evidence_spans com itens {field_path, excerpt}.\n\n"
+        "Incluir preop_screening.evidence_spans com itens {field_path, excerpt}.\n"
+        "Para escopo do exame: se houver termos de gastrostomia/GTT/PEG ou "
+        "dilatacao esofagica no texto, classificar preop_screening.exam_type como "
+        "non_eda e nao como eda.\n"
+        "Para exclusao de escopo EDA: usar eda.exclusion_type=gastrostomy quando "
+        "houver gastrostomia/GTT/PEG, e eda.exclusion_type=esophageal_dilation "
+        "quando houver dilatacao esofagica.\n\n"
         f"Texto clinico do relatorio:\n{clean_text}"
     )
 

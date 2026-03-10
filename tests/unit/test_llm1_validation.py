@@ -343,6 +343,10 @@ async def test_llm1_prompt_requires_textual_evidence_and_forbids_asa_mallampati_
     assert "evidencia textual" in lowered_user
     assert "unknown" in lowered_user
     assert "evidence_spans" in lowered_user
+    assert "gtt" in lowered_user
+    assert "dilatacao esofagica" in lowered_user
+    assert "exclusion_type=gastrostomy" in lowered_user
+    assert "exclusion_type=esophageal_dilation" in lowered_user
 
 
 @pytest.mark.asyncio
