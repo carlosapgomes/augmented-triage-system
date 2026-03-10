@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
 
-from apps.worker.main import build_runtime_llm_clients, build_worker_handlers
+from apps.worker.main import build_runtime_llm_clients, build_worker_handlers, build_worker_runtime
 from triage_automation.application.ports.job_queue_port import JobRecord
 from triage_automation.application.services.worker_runtime import WorkerRuntime
 from triage_automation.config.settings import Settings
+from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.llm.deterministic_client import (
     DeterministicLlmClient,
 )
@@ -166,6 +168,53 @@ async def _failing_handler(_: JobRecord) -> None:
     raise RuntimeError("summary send failed")
 
 
+class _MatrixRuntimeClientStub:
+    async def send_text(self, *, room_id: str, body: str, formatted_body: str | None = None) -> str:
+        _ = room_id, body, formatted_body
+        return "$event"
+
+    async def send_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        _ = room_id, filename, mxc_url, mimetype
+        return "$event"
+
+    async def reply_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
+        _ = room_id, event_id, body, formatted_body
+        return "$event"
+
+    async def reply_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        _ = room_id, event_id, filename, mxc_url, mimetype
+        return "$event"
+
+    async def redact_event(self, *, room_id: str, event_id: str) -> None:
+        _ = room_id, event_id
+
+    async def download_mxc(self, mxc_url: str) -> bytes:
+        _ = mxc_url
+        return b"%PDF"
+
+
 def test_build_worker_handlers_contains_required_runtime_job_types() -> None:
     handlers = build_worker_handlers(
         process_pdf_case_handler=_noop_handler,
@@ -265,6 +314,7 @@ def _runtime_settings(*, mode: str, openai_key: str | None) -> Settings:
         matrix_sync_timeout_ms=30_000,
         matrix_poll_interval_seconds=0.0,
         worker_poll_interval_seconds=0.0,
+        worker_claim_limit=10,
         supervisor_summary_timezone="America/Bahia",
         supervisor_summary_morning_hour=7,
         supervisor_summary_evening_hour=19,
@@ -278,6 +328,22 @@ def _runtime_settings(*, mode: str, openai_key: str | None) -> Settings:
         openai_model_llm2="gpt-4o-mini",
         log_level="INFO",
     )
+
+
+def test_build_worker_runtime_uses_settings_claim_limit(tmp_path: Path) -> None:
+    settings = _runtime_settings(mode="deterministic", openai_key=None).model_copy(
+        update={"worker_claim_limit": 1}
+    )
+    database_path = tmp_path / "worker_main_claim_limit.db"
+    session_factory = create_session_factory(f"sqlite+aiosqlite:///{database_path}")
+
+    runtime = build_worker_runtime(
+        settings=settings,
+        session_factory=session_factory,
+        matrix_client=_MatrixRuntimeClientStub(),
+    )
+
+    assert runtime._claim_limit == 1
 
 
 def test_provider_mode_selects_openai_runtime_clients() -> None:

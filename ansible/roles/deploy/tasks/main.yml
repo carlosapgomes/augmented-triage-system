@@ -85,7 +85,7 @@
     docker compose
     --project-name {{ ats_runtime_compose_project_name }}
     --file {{ ats_runtime_compose_file }}
-    up {{ ats_runtime_up_flags }} {{ ats_runtime_deploy_services | join(' ') }}
+    up {{ ats_runtime_up_flags }} --scale worker={{ ats_runtime_worker_replicas }} {{ ats_runtime_deploy_services | join(' ') }}
   register: ats_deploy_up_result
   args:
     chdir: "{{ ats_runtime_root }}"

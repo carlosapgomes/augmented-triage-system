@@ -52,6 +52,7 @@ def test_defaults_are_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.matrix_sync_timeout_ms == 30_000
     assert settings.matrix_poll_interval_seconds == 1.0
     assert settings.worker_poll_interval_seconds == 1.0
+    assert settings.worker_claim_limit == 10
     assert settings.llm_runtime_mode == "deterministic"
     assert settings.openai_api_key is None
     assert settings.openai_model_llm1 == "gpt-4o-mini"
@@ -123,6 +124,15 @@ def test_widget_public_url_accepts_explicit_alias(monkeypatch: pytest.MonkeyPatc
     settings = Settings(_env_file=None)
 
     assert str(settings.widget_public_url) == "https://widget.example.org/"
+
+
+def test_worker_claim_limit_accepts_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("WORKER_CLAIM_LIMIT", "1")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.worker_claim_limit == 1
 
 
 def test_widget_public_url_invalid_value_raises_validation_error(

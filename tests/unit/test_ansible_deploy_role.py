@@ -34,6 +34,7 @@ def test_deploy_role_declares_rootless_service_startup_tasks() -> None:
     assert "ats_runtime_deploy_services:" in defaults
     assert "ats_runtime_pull_policy:" in defaults
     assert "ats_runtime_up_flags:" in defaults
+    assert "ats_runtime_worker_replicas:" in defaults
     assert "ats_runtime_supported_service_commands:" in defaults
     assert "bot-api" in defaults
     assert "bot-matrix" in defaults
@@ -48,7 +49,10 @@ def test_deploy_role_declares_rootless_service_startup_tasks() -> None:
     assert "docker compose" in tasks
     assert pull_token in tasks
     assert "when: ats_runtime_pull_policy | lower == 'missing'" in tasks
-    assert "up {{ ats_runtime_up_flags }} {{ ats_runtime_deploy_services | join(' ') }}" in tasks
+    assert (
+        "up {{ ats_runtime_up_flags }} --scale worker={{ ats_runtime_worker_replicas }} "
+        "{{ ats_runtime_deploy_services | join(' ') }}"
+    ) in tasks
     assert "register: ats_deploy_up_result" in tasks
     assert "changed_when:" in tasks
     assert "'Created' in ats_deploy_up_result.stdout" in tasks

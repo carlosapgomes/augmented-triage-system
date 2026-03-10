@@ -38,6 +38,10 @@ class Settings(BaseSettings):
         default=1.0,
         validation_alias="WORKER_POLL_INTERVAL_SECONDS",
     )
+    worker_claim_limit: PositiveInt = Field(
+        default=10,
+        validation_alias="WORKER_CLAIM_LIMIT",
+    )
     supervisor_summary_timezone: NonEmptyStr = Field(
         default="America/Bahia",
         validation_alias="SUPERVISOR_SUMMARY_TIMEZONE",

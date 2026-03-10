@@ -24,6 +24,7 @@ def test_ansible_group_vars_defines_runtime_deploy_defaults() -> None:
         "bot_api:",
         "bot_matrix:",
         "worker:",
+        "ats_runtime_worker_replicas:",
         "ats_runtime_env_required:",
         "ats_runtime_env_defaults:",
     )
@@ -60,6 +61,8 @@ def test_ansible_group_vars_declares_public_ghcr_baseline_and_required_env() -> 
     )
     for key in required_env_keys:
         assert f"  {key}:" in variables, f"Missing mandatory env key declaration: {key}"
+
+    assert '  WORKER_CLAIM_LIMIT: "1"' in variables
 
 
 def test_ansible_group_vars_declares_room4_scheduler_cron_defaults() -> None:

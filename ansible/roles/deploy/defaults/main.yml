@@ -5,6 +5,7 @@ ats_runtime_deploy_services:
   - worker
 ats_runtime_pull_policy: "always"
 ats_runtime_up_flags: "--detach --force-recreate --no-build"
+ats_runtime_worker_replicas: 1
 ats_runtime_allow_latest_tag: false
 ats_runtime_supported_service_commands:
   bot_api:

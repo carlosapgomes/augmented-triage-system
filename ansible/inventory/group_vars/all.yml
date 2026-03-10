@@ -78,6 +78,7 @@ ats_runtime_env_defaults:
   MATRIX_SYNC_TIMEOUT_MS: "30000"
   MATRIX_POLL_INTERVAL_SECONDS: "1.0"
   WORKER_POLL_INTERVAL_SECONDS: "1.0"
+  WORKER_CLAIM_LIMIT: "1"
   OPENAI_MODEL_LLM1: "gpt-4o-mini"
   OPENAI_MODEL_LLM2: "gpt-4o-mini"
 
@@ -114,6 +115,7 @@ ats_post_deploy_expected_services:
   - worker
 ats_runtime_pull_policy: "always"
 ats_runtime_up_flags: "--detach --no-recreate --no-build"
+ats_runtime_worker_replicas: 3
 ats_runtime_supported_service_commands:
   bot_api:
     - "uv"

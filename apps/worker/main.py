@@ -340,6 +340,7 @@ def build_worker_runtime(
         handlers=handlers,
         audit_repository=services.audit_repository,
         job_failure_service=failure_service,
+        claim_limit=settings.worker_claim_limit,
         poll_interval_seconds=settings.worker_poll_interval_seconds,
     )
 
