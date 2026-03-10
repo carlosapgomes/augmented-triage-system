@@ -1,6 +1,62 @@
 {% extends "dashboard/base.html" %}
 
 {% block content %}
+  <style>
+    @media (max-width: 767.98px) {
+      #cases-list-fragment .cases-list-table thead {
+        display: none;
+      }
+
+      #cases-list-fragment .cases-list-table,
+      #cases-list-fragment .cases-list-table tbody,
+      #cases-list-fragment .cases-list-table tr,
+      #cases-list-fragment .cases-list-table td {
+        display: block;
+        width: 100%;
+      }
+
+      #cases-list-fragment .cases-list-table tr {
+        margin-bottom: 0.75rem;
+        border: 1px solid var(--hospital-border);
+        border-radius: 0.75rem;
+        background: var(--hospital-surface);
+      }
+
+      #cases-list-fragment .cases-list-table td {
+        border: 0;
+        padding: 0.45rem 0.75rem;
+        font-size: 0.95rem;
+      }
+
+      #cases-list-fragment .cases-list-table td::before {
+        content: attr(data-mobile-label);
+        display: block;
+        margin-bottom: 0.2rem;
+        color: var(--hospital-muted);
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      #cases-list-fragment .cases-list-table td[data-mobile-label="Caso"] a {
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      #cases-list-fragment #cases-search-totals .list-inline-item {
+        display: block;
+        margin-right: 0 !important;
+        margin-bottom: 0.25rem;
+      }
+
+      #cases-list-fragment .pagination {
+        flex-wrap: wrap;
+        row-gap: 0.4rem;
+      }
+    }
+  </style>
+
   <section class="card shadow-sm mb-4">
     <div class="card-body">
       <h2 class="h5 mb-3">Casos</h2>

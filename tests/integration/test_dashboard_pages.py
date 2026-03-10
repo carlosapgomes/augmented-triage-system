@@ -435,6 +435,8 @@ async def test_dashboard_case_list_mobile_markup_preserves_required_fields(
     assert '<code>WAIT_DOCTOR</code>' in response.text
     assert '<code>EM_ANDAMENTO</code>' in response.text
     assert 'data-utc-timestamp="' in response.text
+    assert 'class="table-responsive cases-list-table-responsive"' in response.text
+    assert 'class="table table-sm align-middle cases-list-table"' in response.text
     assert 'data-mobile-label="Caso"' in response.text
     assert 'data-mobile-label="Status"' in response.text
     assert 'data-mobile-label="Desfecho"' in response.text

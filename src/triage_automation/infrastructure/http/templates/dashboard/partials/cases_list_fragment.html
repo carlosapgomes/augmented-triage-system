@@ -8,8 +8,8 @@
     </div>
 
     {% if cases %}
-      <div class="table-responsive">
-        <table class="table table-sm align-middle">
+      <div class="table-responsive cases-list-table-responsive">
+        <table class="table table-sm align-middle cases-list-table">
           <thead>
             <tr>
               <th scope="col">Caso</th>
@@ -21,7 +21,7 @@
           <tbody>
             {% for item in cases %}
               <tr>
-                <td>
+                <td data-mobile-label="Caso">
                   <a href="/dashboard/cases/{{ item.case_id }}">
                     {% if item.patient_name and item.agency_record_number %}
                       {{ item.patient_name }} · {{ item.agency_record_number }}
@@ -35,9 +35,14 @@
                   </a>
                   <div class="small text-secondary">{{ item.case_id }}</div>
                 </td>
-                <td><code>{{ item.status.value }}</code></td>
-                <td><code>{{ item.case_outcome }}</code></td>
-                <td data-utc-timestamp="{{ item.latest_activity_at.isoformat() }}">{{ item.latest_activity_at.isoformat() }}</td>
+                <td data-mobile-label="Status"><code>{{ item.status.value }}</code></td>
+                <td data-mobile-label="Desfecho"><code>{{ item.case_outcome }}</code></td>
+                <td
+                  data-mobile-label="Atividade"
+                  data-utc-timestamp="{{ item.latest_activity_at.isoformat() }}"
+                >
+                  {{ item.latest_activity_at.isoformat() }}
+                </td>
               </tr>
             {% endfor %}
           </tbody>

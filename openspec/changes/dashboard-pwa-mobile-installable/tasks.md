@@ -19,7 +19,7 @@
 ## 3. Slice vertical: Mobile UX da listagem de casos (fluxo reader)
 
 - [x] 3.1 Adicionar/ajustar testes de integracao para preservar informacao obrigatoria (`caso`, `status`, `desfecho`, `atividade`) em markup mobile-friendly.
-- [ ] 3.2 Implementar ajustes responsivos em `/dashboard/cases` para leitura em viewport pequeno (layout, espacamento e tipografia).
+- [x] 3.2 Implementar ajustes responsivos em `/dashboard/cases` para leitura em viewport pequeno (layout, espacamento e tipografia).
 - [ ] 3.3 Tornar filtros, totalizacao e paginacao ergonomicos para toque (tap targets e fluxo de uso em celular).
 - [ ] 3.4 Garantir compatibilidade com atualizacoes Unpoly apos os ajustes de layout.
 
@@ -130,5 +130,14 @@
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_markup_preserves_required_fields" -q`
   - Falha esperada confirmada: ausência de marcação mobile-friendly (`data-mobile-label`) para preservar explicitamente `caso`, `status`, `desfecho` e `atividade` na listagem.
 - Verificação de qualidade dos arquivos alterados na task 3.1:
+  - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
+- Evidência da task 3.2 (TDD red):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_markup_preserves_required_fields" -q`
+  - Falha esperada confirmada: ausência das classes responsivas da tabela e dos atributos mobile no markup da listagem de casos.
+- Evidência da task 3.2 (green):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_markup_preserves_required_fields or case_list_page_renders_filters_and_paginated_rows_with_unpoly" -q`
+  - Resultado: `2 passed, 25 deselected` após ajustes responsivos de layout/espacamento/tipografia para viewport pequeno em `/dashboard/cases`.
+- Verificação de qualidade dos arquivos alterados na task 3.2:
   - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
