@@ -11,7 +11,7 @@
 
 ## 2. Slice vertical: Iconografia CHD para instalacao Android/iOS
 
-- [ ] 2.1 Criar arte base do icone com composicao quadrada (`CHD` em destaque e `dashboard` menor abaixo) seguindo estilo/paleta do header atual.
+- [x] 2.1 Criar arte base do icone com composicao quadrada (`CHD` em destaque e `dashboard` menor abaixo) seguindo estilo/paleta do header atual.
 - [ ] 2.2 Gerar e versionar tamanhos de icone exigidos para instalacao e navegação web (`16`, `32`, `180`, `192`, `512`, incluindo variante maskable quando aplicavel).
 - [ ] 2.3 Referenciar corretamente os icones no manifesto e metadados Apple touch icon.
 - [ ] 2.4 Adicionar validacoes de integracao para garantir que os assets de icone respondem com sucesso e sao referenciados no HTML/manifest.
@@ -90,3 +90,12 @@
 - Verificação de qualidade da task 1.6:
   - `uv run ruff check apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy --explicit-package-bases apps/bot_api/main.py src/triage_automation/infrastructure/http/pwa_assets_router.py tests/integration/test_web_session_routes.py tests/integration/test_dashboard_pages.py` (passou)
+- Evidência da task 2.1 (TDD red):
+  - `uv run pytest tests/unit/test_pwa_icon_assets.py -q`
+  - Falha esperada confirmada: ausência do arquivo-base `src/triage_automation/infrastructure/http/static/pwa/icons/chd-base.svg`.
+- Evidência da task 2.1 (green):
+  - `uv run pytest tests/unit/test_pwa_icon_assets.py -q`
+  - Resultado: `1 passed` após criação da arte base quadrada com `CHD` destacado e `dashboard` abaixo, usando a paleta do header.
+- Verificação de qualidade dos arquivos alterados na task 2.1:
+  - `uv run ruff check tests/unit/test_pwa_icon_assets.py` (passou)
+  - `uv run mypy tests/unit/test_pwa_icon_assets.py` (passou)
