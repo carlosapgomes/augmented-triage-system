@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -179,6 +181,7 @@ class ProcessPdfCaseService:
                     case_id=case_id,
                     agency_record_number=record_result.agency_record_number,
                     llm1_structured_data=llm1_result.structured_data_json,
+                    cleaned_text=record_result.cleaned_text,
                 )
                 await self._case_repository.update_status(
                     case_id=case_id,
@@ -431,24 +434,159 @@ def _with_preop_gate_block(
     return payload
 
 
+_SCOPE_GASTROSTOMY_TERMS = (
+    "gtt",
+    "gastrostomia",
+    "gastrostomy",
+    "confeccao de gtt",
+    "programar gtt",
+)
+
+_SCOPE_ESOPHAGEAL_DILATION_TERMS = (
+    "dilatacao esofagica",
+    "dilatacao de esofago",
+    "dilatacao do esofago",
+)
+
+
+def _normalize_scope_keyword_text(*, value: str) -> str:
+    normalized = unicodedata.normalize("NFD", value)
+    without_diacritics = "".join(
+        char for char in normalized if unicodedata.category(char) != "Mn"
+    )
+    collapsed_whitespace = " ".join(without_diacritics.lower().split())
+    return collapsed_whitespace
+
+
+def _contains_scope_term(*, normalized_text: str, term: str) -> bool:
+    if " " in term:
+        return term in normalized_text
+    return re.search(rf"\b{re.escape(term)}\b", normalized_text) is not None
+
+
+def _extract_scope_keyword_candidate_texts(
+    *,
+    llm1_structured_data: dict[str, object],
+    cleaned_text: str,
+) -> list[str]:
+    candidate_texts: list[str] = [cleaned_text]
+
+    eda_payload = llm1_structured_data.get("eda")
+    if isinstance(eda_payload, dict):
+        requested_procedure = eda_payload.get("requested_procedure")
+        if isinstance(requested_procedure, dict):
+            requested_name = requested_procedure.get("name")
+            if isinstance(requested_name, str) and requested_name.strip():
+                candidate_texts.append(requested_name)
+
+    summary_payload = llm1_structured_data.get("summary")
+    if isinstance(summary_payload, dict):
+        one_liner = summary_payload.get("one_liner")
+        if isinstance(one_liner, str) and one_liner.strip():
+            candidate_texts.append(one_liner)
+        bullet_points = summary_payload.get("bullet_points")
+        if isinstance(bullet_points, list):
+            candidate_texts.extend(
+                point
+                for point in bullet_points
+                if isinstance(point, str) and point.strip()
+            )
+
+    for span in _extract_preop_evidence_spans(llm1_structured_data=llm1_structured_data):
+        excerpt = span.get("excerpt")
+        if isinstance(excerpt, str) and excerpt.strip():
+            candidate_texts.append(excerpt)
+
+    return candidate_texts
+
+
+def _detect_non_eda_scope_keyword(
+    *,
+    llm1_structured_data: dict[str, object],
+    cleaned_text: str,
+) -> tuple[str | None, str | None]:
+    candidate_texts = _extract_scope_keyword_candidate_texts(
+        llm1_structured_data=llm1_structured_data,
+        cleaned_text=cleaned_text,
+    )
+
+    for candidate in candidate_texts:
+        normalized_candidate = _normalize_scope_keyword_text(value=candidate)
+        for term in _SCOPE_GASTROSTOMY_TERMS:
+            if _contains_scope_term(normalized_text=normalized_candidate, term=term):
+                return "gastrostomy", term
+        for term in _SCOPE_ESOPHAGEAL_DILATION_TERMS:
+            if _contains_scope_term(normalized_text=normalized_candidate, term=term):
+                return "esophageal_dilation", term
+
+    return None, None
+
+
+def _append_scope_keyword_evidence_span(
+    *,
+    evidence_spans: list[dict[str, str]],
+    scope_keyword_type: str,
+    matched_term: str,
+) -> list[dict[str, str]]:
+    scope_label = (
+        "gastrostomia/GTT" if scope_keyword_type == "gastrostomy" else "dilatacao esofagica"
+    )
+    keyword_span = {
+        "field_path": "scope_detection.keyword",
+        "excerpt": (
+            f"Termo de escopo detectado no relatorio: {matched_term} ({scope_label})."
+        ),
+    }
+    if keyword_span in evidence_spans:
+        return evidence_spans
+    return [*evidence_spans, keyword_span]
+
+
 def build_scope_gated_manual_review_payload(
     *,
     case_id: UUID,
     agency_record_number: str,
     llm1_structured_data: dict[str, object],
+    cleaned_text: str,
 ) -> dict[str, object] | None:
     """Build deterministic manual-review payload for non-EDA or unknown exam scope."""
 
     exam_type = _extract_preop_exam_type(llm1_structured_data=llm1_structured_data)
+    scope_keyword_type, matched_term = _detect_non_eda_scope_keyword(
+        llm1_structured_data=llm1_structured_data,
+        cleaned_text=cleaned_text,
+    )
+    if exam_type not in {"non_eda", "unknown"} and scope_keyword_type is not None:
+        exam_type = "non_eda"
+
     if exam_type not in {"non_eda", "unknown"}:
         return None
 
     reason_code = "non_eda_request" if exam_type == "non_eda" else "unknown_exam_type"
-    reason_text = (
-        "Relatorio fora de escopo EDA; revisao manual obrigatoria."
-        if exam_type == "non_eda"
-        else "Tipo de exame nao identificado; revisao manual obrigatoria."
+    if exam_type == "unknown":
+        reason_text = "Tipo de exame nao identificado; revisao manual obrigatoria."
+    elif scope_keyword_type == "gastrostomy":
+        reason_text = (
+            "Relatorio fora de escopo EDA; solicitacao de gastrostomia/GTT detectada "
+            "e revisao manual obrigatoria."
+        )
+    elif scope_keyword_type == "esophageal_dilation":
+        reason_text = (
+            "Relatorio fora de escopo EDA; solicitacao de dilatacao esofagica detectada "
+            "e revisao manual obrigatoria."
+        )
+    else:
+        reason_text = "Relatorio fora de escopo EDA; revisao manual obrigatoria."
+
+    evidence_spans = _extract_preop_evidence_spans(
+        llm1_structured_data=llm1_structured_data
     )
+    if scope_keyword_type is not None and matched_term is not None:
+        evidence_spans = _append_scope_keyword_evidence_span(
+            evidence_spans=evidence_spans,
+            scope_keyword_type=scope_keyword_type,
+            matched_term=matched_term,
+        )
 
     return {
         "schema_version": "1.1",
@@ -460,9 +598,7 @@ def build_scope_gated_manual_review_payload(
         "reason_code": reason_code,
         "reason_text": reason_text,
         "exam_type": exam_type,
-        "evidence_spans": _extract_preop_evidence_spans(
-            llm1_structured_data=llm1_structured_data
-        ),
+        "evidence_spans": evidence_spans,
     }
 
 

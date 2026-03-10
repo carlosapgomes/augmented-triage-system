@@ -533,6 +533,168 @@ async def test_unknown_scope_requires_manual_review_without_accept_or_deny(tmp_p
 
 
 @pytest.mark.asyncio
+async def test_scope_gate_detects_gtt_keyword_even_when_llm1_marks_exam_as_eda(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_scope_gate_gtt_keyword.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-scope-gtt-keyword",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_payload = _valid_llm1_payload("12345")
+    llm2_client = FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 "
+                    "SOLICITO CONFECCAO DE GTT VIA ENDOSCOPICA"
+                )
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=Llm1Service(llm_client=FakeLlmClient(json.dumps(llm1_payload))),
+        llm2_service=Llm2Service(llm_client=llm2_client),
+        audit_repository=audit_repo,
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+        room2_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room2_widget'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room1_manual_review_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id "
+                "AND job_type = 'post_room1_final_scope_manual_review'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+    assert suggested_action.get("decision") == "manual_review_required"
+    assert suggested_action.get("reason_code") == "non_eda_request"
+    assert "gastrostomia" in str(suggested_action.get("reason_text", "")).lower()
+    evidence_spans = suggested_action.get("evidence_spans")
+    assert isinstance(evidence_spans, list)
+    assert any(
+        isinstance(item, dict)
+        and item.get("field_path") == "scope_detection.keyword"
+        for item in evidence_spans
+    )
+    assert int(room2_jobs) == 0
+    assert int(room1_manual_review_jobs) == 1
+    assert len(llm2_client.calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_scope_gate_detects_esophageal_dilation_keyword_even_when_llm1_marks_exam_as_eda(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_scope_gate_dilation_keyword.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-scope-dilation-keyword",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_payload = _valid_llm1_payload("12345")
+    llm2_client = FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 "
+                    "PACIENTE COM INDICACAO DE DILATACAO ESOFAGICA"
+                )
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=Llm1Service(llm_client=FakeLlmClient(json.dumps(llm1_payload))),
+        llm2_service=Llm2Service(llm_client=llm2_client),
+        audit_repository=audit_repo,
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+        room2_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room2_widget'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room1_manual_review_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id "
+                "AND job_type = 'post_room1_final_scope_manual_review'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+    assert suggested_action.get("decision") == "manual_review_required"
+    assert suggested_action.get("reason_code") == "non_eda_request"
+    assert "dilata" in str(suggested_action.get("reason_text", "")).lower()
+    evidence_spans = suggested_action.get("evidence_spans")
+    assert isinstance(evidence_spans, list)
+    assert any(
+        isinstance(item, dict)
+        and item.get("field_path") == "scope_detection.keyword"
+        for item in evidence_spans
+    )
+    assert int(room2_jobs) == 0
+    assert int(room1_manual_review_jobs) == 1
+    assert len(llm2_client.calls) == 0
+
+
+@pytest.mark.asyncio
 async def test_llm2_contradiction_emits_audit_event_and_forces_deny(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "llm2_contradiction.db")
     session_factory = create_session_factory(async_url)
