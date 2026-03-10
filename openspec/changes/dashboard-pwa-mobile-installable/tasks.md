@@ -5,7 +5,7 @@
 - [x] 1.1 Adicionar/ajustar testes de integracao para falhar inicialmente quando `dashboard/base.html` nao expuser link de manifesto, metadados mobile/PWA e registro de service worker.
 - [x] 1.2 Publicar assets estaticos PWA no `bot-api` (manifest, service worker e icones) com rotas/paths estaveis para consumo do browser.
 - [x] 1.3 Implementar `manifest.webmanifest` com `short_name=CHD`, `start_url=/dashboard/cases`, `display=standalone`, `scope=/` e cores alinhadas ao tema do dashboard.
-- [ ] 1.4 Implementar service worker online-only (sem fallback offline e sem cache de HTML como fonte autoritativa).
+- [x] 1.4 Implementar service worker online-only (sem fallback offline e sem cache de HTML como fonte autoritativa).
 - [ ] 1.5 Integrar no template base compartilhado os metadados/links/scripts PWA para cobrir login, dashboard e navegacao autenticada.
 - [ ] 1.6 Executar testes alvo do dashboard/web session e confirmar green para o slice.
 
@@ -62,5 +62,14 @@
   - `uv run pytest tests/integration/test_web_session_routes.py -k "manifest_declares_dashboard_installability_contract or pwa_assets_are_published" -q`
   - Resultado: `2 passed, 7 deselected` após atualização do manifesto.
 - Verificação de qualidade dos arquivos alterados na task 1.3:
+  - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
+  - `uv run mypy tests/integration/test_web_session_routes.py` (passou)
+- Evidência da task 1.4 (TDD red):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "service_worker_uses_online_only_network_strategy" -q`
+  - Falha esperada confirmada: `service-worker.js` não possuía handler de `fetch` com estratégia network-only explícita.
+- Evidência da task 1.4 (green):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "service_worker_uses_online_only_network_strategy or pwa_assets_are_published" -q`
+  - Resultado: `2 passed, 8 deselected` após implementação do `fetch` online-only sem uso de cache.
+- Verificação de qualidade dos arquivos alterados na task 1.4:
   - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
   - `uv run mypy tests/integration/test_web_session_routes.py` (passou)

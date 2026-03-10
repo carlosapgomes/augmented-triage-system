@@ -168,6 +168,22 @@ async def test_manifest_declares_dashboard_installability_contract(tmp_path: Pat
 
 
 @pytest.mark.asyncio
+async def test_service_worker_uses_online_only_network_strategy(tmp_path: Path) -> None:
+    _, async_url = _upgrade_head(tmp_path, "web_session_pwa_service_worker_online_only.db")
+
+    with _build_client(async_url, token_service=OpaqueTokenService()) as client:
+        response = client.get("/service-worker.js")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/javascript")
+    assert "self.addEventListener('fetch'" in response.text
+    assert "event.respondWith(fetch(event.request))" in response.text
+    assert "caches.open" not in response.text
+    assert "cache.put" not in response.text
+    assert "addAll(" not in response.text
+
+
+@pytest.mark.asyncio
 async def test_login_rejects_invalid_credentials_without_session_cookie(tmp_path: Path) -> None:
     _, async_url = _upgrade_head(tmp_path, "web_session_invalid_credentials.db")
     token_service = OpaqueTokenService()
