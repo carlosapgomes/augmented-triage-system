@@ -985,6 +985,7 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
     assert page_1_response.headers["content-type"].startswith("text/html")
     assert "<!doctype html>" not in page_1_response.text.lower()
     assert 'id="cases-list-fragment"' in page_1_response.text
+    assert 'up-id="cases-list-fragment"' in page_1_response.text
     assert str(wait_case_newer) in page_1_response.text
     assert str(wait_case_older) not in page_1_response.text
     assert str(failed_case) not in page_1_response.text
@@ -995,6 +996,7 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
     assert page_2_response.headers["content-type"].startswith("text/html")
     assert "<!doctype html>" not in page_2_response.text.lower()
     assert 'id="cases-list-fragment"' in page_2_response.text
+    assert 'up-id="cases-list-fragment"' in page_2_response.text
     assert str(wait_case_newer) not in page_2_response.text
     assert str(wait_case_older) in page_2_response.text
     assert str(failed_case) not in page_2_response.text

@@ -21,7 +21,7 @@
 - [x] 3.1 Adicionar/ajustar testes de integracao para preservar informacao obrigatoria (`caso`, `status`, `desfecho`, `atividade`) em markup mobile-friendly.
 - [x] 3.2 Implementar ajustes responsivos em `/dashboard/cases` para leitura em viewport pequeno (layout, espacamento e tipografia).
 - [x] 3.3 Tornar filtros, totalizacao e paginacao ergonomicos para toque (tap targets e fluxo de uso em celular).
-- [ ] 3.4 Garantir compatibilidade com atualizacoes Unpoly apos os ajustes de layout.
+- [x] 3.4 Garantir compatibilidade com atualizacoes Unpoly apos os ajustes de layout.
 
 ## 4. Slice vertical: Mobile UX do detalhe de caso (fluxo reader)
 
@@ -148,5 +148,14 @@
   - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_markup_preserves_required_fields or mobile_touch_targets_cover_filters_totals_and_pagination or case_list_fragment_update_respects_filters_and_pagination" -q`
   - Resultado: `3 passed, 25 deselected` após ajustes de tap targets e fluxo mobile no formulário de filtros, bloco de totalização e paginação.
 - Verificação de qualidade dos arquivos alterados na task 3.3:
+  - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
+- Evidência da task 3.4 (TDD red):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "case_list_fragment_update_respects_filters_and_pagination" -q`
+  - Falha esperada confirmada: fragmento atualizado por Unpoly não incluía `up-id` estável para o alvo `#cases-list-fragment`.
+- Evidência da task 3.4 (green):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "case_list_fragment_update_respects_filters_and_pagination or mobile_touch_targets_cover_filters_totals_and_pagination" -q`
+  - Resultado: `2 passed, 26 deselected` após adicionar `up-id="cases-list-fragment"` no fragmento parcial.
+- Verificação de qualidade dos arquivos alterados na task 3.4:
   - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
   - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
