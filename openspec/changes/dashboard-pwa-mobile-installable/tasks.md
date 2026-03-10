@@ -2,7 +2,7 @@
 
 ## 1. Slice vertical: Base PWA instalavel (manifesto, service worker e shell)
 
-- [ ] 1.1 Adicionar/ajustar testes de integracao para falhar inicialmente quando `dashboard/base.html` nao expuser link de manifesto, metadados mobile/PWA e registro de service worker.
+- [x] 1.1 Adicionar/ajustar testes de integracao para falhar inicialmente quando `dashboard/base.html` nao expuser link de manifesto, metadados mobile/PWA e registro de service worker.
 - [ ] 1.2 Publicar assets estaticos PWA no `bot-api` (manifest, service worker e icones) com rotas/paths estaveis para consumo do browser.
 - [ ] 1.3 Implementar `manifest.webmanifest` com `short_name=CHD`, `start_url=/dashboard/cases`, `display=standalone`, `scope=/` e cores alinhadas ao tema do dashboard.
 - [ ] 1.4 Implementar service worker online-only (sem fallback offline e sem cache de HTML como fonte autoritativa).
@@ -37,3 +37,12 @@
 - [ ] 5.3 Atualizar documentacao operacional em portugues com fluxo de instalacao mobile e limitacao explicita de ausencia de suporte offline.
 - [ ] 5.4 Atualizar espelho em ingles para toda documentacao alterada no slice.
 - [ ] 5.5 Rodar validacoes finais (pytest alvo, ruff, mypy e markdownlint dos artefatos OpenSpec/docs alterados).
+
+## Notes
+
+- Evidência da task 1.1 (TDD red):
+  - `uv run pytest tests/integration/test_web_session_routes.py -k "pwa_manifest_mobile_metadata" -q`
+  - Falha esperada confirmada: ausência de link de manifesto, metadados PWA/mobile e registro de service worker no `dashboard/base.html`.
+- Verificação de qualidade dos arquivos alterados nesta slice:
+  - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
+  - `uv run mypy tests/integration/test_web_session_routes.py` (passou)

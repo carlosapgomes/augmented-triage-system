@@ -112,6 +112,27 @@ async def test_root_redirects_to_login_for_anonymous_and_to_dashboard_when_sessi
 
 
 @pytest.mark.asyncio
+async def test_login_page_exposes_pwa_manifest_mobile_metadata_and_service_worker_registration(
+    tmp_path: Path,
+) -> None:
+    _, async_url = _upgrade_head(tmp_path, "web_session_login_pwa_shell.db")
+
+    with _build_client(async_url, token_service=OpaqueTokenService()) as client:
+        response = client.get("/login")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert '<link rel="manifest" href="/manifest.webmanifest">' in response.text
+    assert '<meta name="theme-color" content="#0b4263">' in response.text
+    assert '<meta name="mobile-web-app-capable" content="yes">' in response.text
+    assert '<meta name="apple-mobile-web-app-capable" content="yes">' in response.text
+    assert '<meta name="apple-mobile-web-app-title" content="CHD Dashboard">' in response.text
+    assert '<meta name="apple-mobile-web-app-status-bar-style" content="default">' in response.text
+    assert "if ('serviceWorker' in navigator)" in response.text
+    assert "navigator.serviceWorker.register('/service-worker.js')" in response.text
+
+
+@pytest.mark.asyncio
 async def test_login_rejects_invalid_credentials_without_session_cookie(tmp_path: Path) -> None:
     _, async_url = _upgrade_head(tmp_path, "web_session_invalid_credentials.db")
     token_service = OpaqueTokenService()
