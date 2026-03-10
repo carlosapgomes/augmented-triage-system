@@ -390,6 +390,58 @@ async def test_dashboard_case_list_renders_case_outcome_column_header(
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_list_mobile_markup_preserves_required_fields(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_mobile_markup_required_fields.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-mobile-markup-required-fields"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+    case_id = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(minutes=20),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id="$evt-mobile-markup-fields",
+            captured_at=now - timedelta(minutes=5),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert str(case_id) in response.text
+    assert '<code>WAIT_DOCTOR</code>' in response.text
+    assert '<code>EM_ANDAMENTO</code>' in response.text
+    assert 'data-utc-timestamp="' in response.text
+    assert 'data-mobile-label="Caso"' in response.text
+    assert 'data-mobile-label="Status"' in response.text
+    assert 'data-mobile-label="Desfecho"' in response.text
+    assert 'data-mobile-label="Atividade"' in response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_list_renders_operational_outcome_labels_from_decision_fields(
     tmp_path: Path,
 ) -> None:

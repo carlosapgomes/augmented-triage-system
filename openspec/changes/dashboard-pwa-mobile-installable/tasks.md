@@ -18,7 +18,7 @@
 
 ## 3. Slice vertical: Mobile UX da listagem de casos (fluxo reader)
 
-- [ ] 3.1 Adicionar/ajustar testes de integracao para preservar informacao obrigatoria (`caso`, `status`, `desfecho`, `atividade`) em markup mobile-friendly.
+- [x] 3.1 Adicionar/ajustar testes de integracao para preservar informacao obrigatoria (`caso`, `status`, `desfecho`, `atividade`) em markup mobile-friendly.
 - [ ] 3.2 Implementar ajustes responsivos em `/dashboard/cases` para leitura em viewport pequeno (layout, espacamento e tipografia).
 - [ ] 3.3 Tornar filtros, totalizacao e paginacao ergonomicos para toque (tap targets e fluxo de uso em celular).
 - [ ] 3.4 Garantir compatibilidade com atualizacoes Unpoly apos os ajustes de layout.
@@ -126,3 +126,9 @@
 - Verificação de qualidade dos arquivos alterados na task 2.4:
   - `uv run ruff check tests/integration/test_web_session_routes.py` (passou)
   - `uv run mypy tests/integration/test_web_session_routes.py` (passou)
+- Evidência da task 3.1 (TDD red):
+  - `uv run pytest tests/integration/test_dashboard_pages.py -k "mobile_markup_preserves_required_fields" -q`
+  - Falha esperada confirmada: ausência de marcação mobile-friendly (`data-mobile-label`) para preservar explicitamente `caso`, `status`, `desfecho` e `atividade` na listagem.
+- Verificação de qualidade dos arquivos alterados na task 3.1:
+  - `uv run ruff check tests/integration/test_dashboard_pages.py` (passou)
+  - `uv run mypy tests/integration/test_dashboard_pages.py` (passou)
