@@ -34,6 +34,41 @@ Recomendação operacional:
 - usar HTTPS no domínio público.
 - não expor diretamente porta de loopback sem camada de publicação controlada.
 
+## Instalação mobile do dashboard (PWA)
+
+Pré-requisitos para instalação em dispositivo:
+
+- dashboard publicado em domínio HTTPS válido;
+- rota inicial funcional em `/dashboard/cases`;
+- autenticação web por sessão ativa para abertura direta no dashboard.
+
+### Android (Chrome)
+
+1. Abrir `https://<dominio>/dashboard/cases` e autenticar quando necessário.
+2. No Chrome, usar o prompt de instalação (quando exibido) ou menu `Instalar app`.
+3. Confirmar nome e ícone do app na tela inicial do Android.
+4. Abrir o app instalado e validar execução em modo `standalone` (sem barra de URL).
+5. Confirmar abertura inicial em `/dashboard/cases`.
+6. Com sessão expirada/ausente, validar redirecionamento para `/login`.
+
+### iOS (Safari)
+
+1. Abrir `https://<dominio>/dashboard/cases` no Safari.
+2. Usar `Compartilhar` -> `Adicionar à Tela de Início`.
+3. Confirmar nome e ícone do atalho criado.
+4. Abrir pela tela inicial e validar contexto standalone do Safari.
+5. Confirmar abertura inicial em `/dashboard/cases`.
+6. Com sessão expirada/ausente, validar redirecionamento para `/login`.
+
+### Limitação operacional explícita
+
+O dashboard instalado como PWA **não oferece suporte offline**.
+
+Com a rede indisponível:
+
+- o app não deve exibir fallback offline com conteúdo clínico cacheado;
+- falhas de carregamento devem seguir semântica normal de erro de rede do browser.
+
 ## Inventário mínimo
 
 Crie `ansible/inventory/hosts.yml`:
