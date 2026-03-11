@@ -7,7 +7,7 @@
 
 ## 2. Validação e registro
 
-- [ ] 2.1 Executar validações obrigatórias (`pytest` alvo, `ruff`, `mypy`, `markdownlint`) para os caminhos alterados.
+- [x] 2.1 Executar validações obrigatórias (`pytest` alvo, `ruff`, `mypy`, `markdownlint`) para os caminhos alterados.
 - [ ] 2.2 Registrar evidências de execução e observações neste `tasks.md`.
 
 ## Notes
@@ -25,3 +25,8 @@
   - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -q` -> 10 passed.
   - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+- Slice 2.1 (validação obrigatória) executado com:
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -q` -> 10 passed.
+  - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+  - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+  - `markdownlint-cli2 "openspec/changes/eda-scope-gate-explicit-eda-fallback/**/*.md"` -> sem erros.
