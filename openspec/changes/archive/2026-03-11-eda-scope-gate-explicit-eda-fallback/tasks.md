@@ -32,3 +32,10 @@
   - `markdownlint-cli2 "openspec/changes/eda-scope-gate-explicit-eda-fallback/**/*.md"` -> sem erros.
 - Slice 2.2 (registro de evidências) concluído com observação operacional:
   - simulação offline com o PDF de exemplo (`/Users/carlosgomes/Downloads/MARIGLORIA MORAIS DOS SANTOS -EDA.pdf`) confirma que, para `exam_type=unknown`, o gate não retorna mais `manual_review_required` quando há evidência textual explícita de solicitação EDA e ausência de termos de exclusão non-EDA.
+- Pós-conclusão (monitoramento de CI remoto) executado com:
+  - `quality-gates` para os commits do change confirmados em `completed/success`:
+    - `6ae1471` -> run `22930153046`
+    - `59e1ad3` -> run `22930263683`
+    - `d1a96aa` -> run `22930451472`
+    - `7ed43ad` -> run `22930573947`
+    - `f51c5a1` -> run `22930636423`
