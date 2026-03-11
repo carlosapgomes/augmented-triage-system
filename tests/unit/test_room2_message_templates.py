@@ -632,6 +632,57 @@ def test_room2_summary_critical_sections_use_nao_informado_fallback() -> None:
     ]
 
 
+def test_room2_summary_pending_precheck_unknown_uses_clear_text() -> None:
+    case_id = UUID("cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "labs_pass": "unknown",
+                "ecg_present": "unknown",
+                "labs_failed_items": [],
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    pending_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Pendências críticas:\n\n",
+        next_section="\n\n## Decisão sugerida:",
+    )
+
+    assert pending_lines == [
+        "- Pré-check laboratório: indeterminado (sem evidência no laudo)",
+        "- Pré-check ECG: indeterminado (sem evidência no laudo)",
+        "- Pendências de laboratório: não informado",
+    ]
+
+
+def test_room2_summary_pending_precheck_unknown_uses_clear_text_in_html() -> None:
+    case_id = UUID("dededede-dede-dede-dede-dededededede")
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "labs_pass": "unknown",
+                "ecg_present": "unknown",
+                "labs_failed_items": [],
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "<li>Pré-check laboratório: indeterminado (sem evidência no laudo)</li>" in body
+    assert "<li>Pré-check ECG: indeterminado (sem evidência no laudo)</li>" in body
+
+
 def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_instability() -> None:
     case_id = UUID("56565656-5656-5656-5656-565656565656")
     body = build_room2_case_summary_message(

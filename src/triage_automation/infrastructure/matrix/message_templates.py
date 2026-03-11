@@ -563,8 +563,8 @@ def _build_room2_critical_pending_lines(structured_data: dict[str, object]) -> l
             failed_items_text = ", ".join(normalized_items)
 
     return [
-        f"- Pré-check laboratório: {_format_room2_value_or_fallback(precheck_labs_pass)}",
-        f"- Pré-check ECG: {_format_room2_value_or_fallback(precheck_ecg_present)}",
+        f"- Pré-check laboratório: {_format_room2_precheck_value(precheck_labs_pass)}",
+        f"- Pré-check ECG: {_format_room2_precheck_value(precheck_ecg_present)}",
         f"- Pendências de laboratório: {failed_items_text}",
     ]
 
@@ -972,6 +972,15 @@ def _format_room2_value_or_fallback(value: object | None) -> str:
     if isinstance(value, (int, float)):
         return str(value)
     return str(value)
+
+
+def _format_room2_precheck_value(value: object | None) -> str:
+    """Return precheck status text with clearer wording for unknown evidence."""
+
+    formatted = _format_room2_value_or_fallback(value)
+    if formatted == "desconhecido":
+        return "indeterminado (sem evidência no laudo)"
+    return formatted
 
 
 def _translate_keys_to_portuguese(*, value: object) -> object:
