@@ -448,6 +448,12 @@ _SCOPE_ESOPHAGEAL_DILATION_TERMS = (
     "dilatacao do esofago",
 )
 
+_SCOPE_EXPLICIT_EDA_TERMS = (
+    "endoscopia digestiva alta",
+    "solicitacao de endoscopia digestiva alta",
+    "endoscopia digestiva alta - eda",
+)
+
 
 def _normalize_scope_keyword_text(*, value: str) -> str:
     normalized = unicodedata.normalize("NFD", value)
@@ -522,6 +528,37 @@ def _detect_non_eda_scope_keyword(
     return None, None
 
 
+def _detect_explicit_eda_scope_keyword(
+    *,
+    llm1_structured_data: dict[str, object],
+    cleaned_text: str,
+) -> tuple[bool, str | None]:
+    candidate_texts = _extract_scope_keyword_candidate_texts(
+        llm1_structured_data=llm1_structured_data,
+        cleaned_text=cleaned_text,
+    )
+
+    for candidate in candidate_texts:
+        normalized_candidate = _normalize_scope_keyword_text(value=candidate)
+
+        for term in _SCOPE_EXPLICIT_EDA_TERMS:
+            if _contains_scope_term(normalized_text=normalized_candidate, term=term):
+                return True, term
+
+        has_eda_acronym = re.search(r"\beda\b", normalized_candidate) is not None
+        has_request_context = (
+            re.search(
+                r"\b(motivo|solicit|exame|encaminhamento|procedimento)\b",
+                normalized_candidate,
+            )
+            is not None
+        )
+        if has_eda_acronym and has_request_context:
+            return True, "eda"
+
+    return False, None
+
+
 def _append_scope_keyword_evidence_span(
     *,
     evidence_spans: list[dict[str, str]],
@@ -558,6 +595,14 @@ def build_scope_gated_manual_review_payload(
     )
     if exam_type not in {"non_eda", "unknown"} and scope_keyword_type is not None:
         exam_type = "non_eda"
+
+    if exam_type == "unknown" and scope_keyword_type is None:
+        explicit_eda_detected, _ = _detect_explicit_eda_scope_keyword(
+            llm1_structured_data=llm1_structured_data,
+            cleaned_text=cleaned_text,
+        )
+        if explicit_eda_detected:
+            exam_type = "eda"
 
     if exam_type not in {"non_eda", "unknown"}:
         return None
