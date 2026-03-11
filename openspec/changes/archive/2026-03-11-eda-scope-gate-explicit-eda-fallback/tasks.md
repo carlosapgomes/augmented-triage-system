@@ -39,3 +39,5 @@
     - `d1a96aa` -> run `22930451472`
     - `7ed43ad` -> run `22930573947`
     - `f51c5a1` -> run `22930636423`
+- Pós-conclusão (monitoramento do commit de registro final) executado com:
+  - `83e358c` -> run `22930716629` em `completed/success`.
