@@ -8,7 +8,7 @@
 ## 2. Validação e registro
 
 - [x] 2.1 Executar validações obrigatórias (`pytest` alvo, `ruff`, `mypy`, `markdownlint`) para os caminhos alterados.
-- [ ] 2.2 Registrar evidências de execução e observações neste `tasks.md`.
+- [x] 2.2 Registrar evidências de execução e observações neste `tasks.md`.
 
 ## Notes
 
@@ -30,3 +30,5 @@
   - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `markdownlint-cli2 "openspec/changes/eda-scope-gate-explicit-eda-fallback/**/*.md"` -> sem erros.
+- Slice 2.2 (registro de evidências) concluído com observação operacional:
+  - simulação offline com o PDF de exemplo (`/Users/carlosgomes/Downloads/MARIGLORIA MORAIS DOS SANTOS -EDA.pdf`) confirma que, para `exam_type=unknown`, o gate não retorna mais `manual_review_required` quando há evidência textual explícita de solicitação EDA e ausência de termos de exclusão non-EDA.
