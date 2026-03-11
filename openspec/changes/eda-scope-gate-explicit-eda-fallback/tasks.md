@@ -3,7 +3,7 @@
 ## 1. Fallback determinístico para EDA explícita quando LLM1 retorna unknown
 
 - [x] 1.1 Adicionar teste de regressão (red) e implementar fallback determinístico `unknown -> eda` para evidência textual explícita de solicitação EDA, com precedência das exclusões non-EDA.
-- [ ] 1.2 Ampliar cobertura de variações textuais de EDA (sinônimos/abreviações) mantendo explicabilidade de evidência.
+- [x] 1.2 Ampliar cobertura de variações textuais de EDA (sinônimos/abreviações) mantendo explicabilidade de evidência.
 
 ## 2. Validação e registro
 
@@ -19,3 +19,9 @@
   - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
   - `markdownlint-cli2 "openspec/changes/eda-scope-gate-explicit-eda-fallback/**/*.md"` -> sem erros.
+- Slice 1.2 (red -> green) executado com:
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "dotted_eda_abbreviation or videoendoscopia_evidence_span" -q` -> 1 falha esperada antes da implementação (abreviação pontuada `E.D.A` ainda não reconhecida).
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -k "dotted_eda_abbreviation or videoendoscopia_evidence_span" -q` -> 2 passed após ampliar detecção de abreviação e sinônimos de EDA.
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -q` -> 10 passed.
+  - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.
+  - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py` -> sem erros.

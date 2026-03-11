@@ -452,6 +452,8 @@ _SCOPE_EXPLICIT_EDA_TERMS = (
     "endoscopia digestiva alta",
     "solicitacao de endoscopia digestiva alta",
     "endoscopia digestiva alta - eda",
+    "videoendoscopia digestiva alta",
+    "endoscopia digestiva superior",
 )
 
 
@@ -545,7 +547,11 @@ def _detect_explicit_eda_scope_keyword(
             if _contains_scope_term(normalized_text=normalized_candidate, term=term):
                 return True, term
 
-        has_eda_acronym = re.search(r"\beda\b", normalized_candidate) is not None
+        has_eda_acronym = (
+            re.search(r"\beda\b", normalized_candidate) is not None
+            or re.search(r"\be\s*[.\-]?\s*d\s*[.\-]?\s*a\b", normalized_candidate)
+            is not None
+        )
         has_request_context = (
             re.search(
                 r"\b(motivo|solicit|exame|encaminhamento|procedimento)\b",

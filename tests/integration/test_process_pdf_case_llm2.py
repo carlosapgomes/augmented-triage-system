@@ -194,6 +194,7 @@ def _llm1_payload_with_exam_type(
     agency_record_number: str,
     *,
     exam_type: str,
+    evidence_excerpt: str | None = None,
 ) -> dict[str, object]:
     payload = _valid_llm1_payload(agency_record_number)
     preop_screening = payload["preop_screening"]
@@ -202,7 +203,11 @@ def _llm1_payload_with_exam_type(
     preop_screening["evidence_spans"] = [
         {
             "field_path": "preop_screening.exam_type",
-            "excerpt": f"solicitacao classificada como {exam_type}",
+            "excerpt": (
+                evidence_excerpt
+                if evidence_excerpt is not None
+                else f"solicitacao classificada como {exam_type}"
+            ),
         }
     ]
     return payload
@@ -575,6 +580,162 @@ async def test_unknown_scope_with_explicit_eda_request_continues_to_llm2(
         llm1_service=llm1_service,
         llm2_service=llm2_service,
         audit_repository=audit_repo,
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+        room2_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room2_widget'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room1_manual_review_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id "
+                "AND job_type = 'post_room1_final_scope_manual_review'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+    assert suggested_action.get("suggestion") == "accept"
+    assert int(room2_jobs) == 1
+    assert int(room1_manual_review_jobs) == 0
+    assert len(llm2_client.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_unknown_scope_with_explicit_dotted_eda_abbreviation_continues_to_llm2(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_unknown_scope_dotted_eda.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-scope-unknown-dotted-eda",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_service = Llm1Service(
+        llm_client=FakeLlmClient(
+            json.dumps(_llm1_payload_with_exam_type("12345", exam_type="unknown"))
+        )
+    )
+    llm2_client = FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 "
+                    "Motivo da Solicitacao: E.D.A"
+                )
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=llm1_service,
+        llm2_service=Llm2Service(llm_client=llm2_client),
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+        room2_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room2_widget'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room1_manual_review_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id "
+                "AND job_type = 'post_room1_final_scope_manual_review'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+    assert suggested_action.get("suggestion") == "accept"
+    assert int(room2_jobs) == 1
+    assert int(room1_manual_review_jobs) == 0
+    assert len(llm2_client.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_unknown_scope_with_videoendoscopia_evidence_span_continues_to_llm2(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "llm2_unknown_scope_videoendoscopia_evidence.db",
+    )
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-scope-unknown-videoendoscopia-evidence",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_service = Llm1Service(
+        llm_client=FakeLlmClient(
+            json.dumps(
+                _llm1_payload_with_exam_type(
+                    "12345",
+                    exam_type="unknown",
+                    evidence_excerpt=(
+                        "Motivo da Solicitacao: Videoendoscopia Digestiva Alta"
+                    ),
+                )
+            )
+        )
+    )
+    llm2_client = FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf("RELATORIO DE OCORRENCIAS 12345 texto clinico")
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=llm1_service,
+        llm2_service=Llm2Service(llm_client=llm2_client),
         job_queue=queue_repo,
     )
 
