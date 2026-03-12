@@ -53,6 +53,5 @@ def test_app_runtime_role_validates_room4_summary_env_when_scheduler_cron_enable
     assert "ats_room4_scheduler_cron_enabled | bool" in tasks
     assert "ROOM4_ID" in tasks
     assert "SUPERVISOR_SUMMARY_TIMEZONE" in tasks
-    assert "SUPERVISOR_SUMMARY_MORNING_HOUR" in tasks
-    assert "SUPERVISOR_SUMMARY_EVENING_HOUR" in tasks
+    assert "SUPERVISOR_SUMMARY_CUTOFF_HOURS" in tasks
     assert "Room-4 scheduler cron requires non-empty summary env keys" in tasks
