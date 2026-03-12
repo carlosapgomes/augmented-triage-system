@@ -5,13 +5,14 @@ from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AliasChoices, Field, HttpUrl, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 PositiveInt = Annotated[int, Field(gt=0)]
 HourOfDayInt = Annotated[int, Field(ge=0, le=23)]
 TemperatureFloat = Annotated[float, Field(ge=0.0, le=2.0)]
+CutoffHours = Annotated[list[HourOfDayInt], NoDecode]
 
 
 class Settings(BaseSettings):
@@ -50,13 +51,9 @@ class Settings(BaseSettings):
         default="America/Bahia",
         validation_alias="TRIAGE_DEFAULT_TIMEZONE",
     )
-    supervisor_summary_morning_hour: HourOfDayInt = Field(
-        default=7,
-        validation_alias="SUPERVISOR_SUMMARY_MORNING_HOUR",
-    )
-    supervisor_summary_evening_hour: HourOfDayInt = Field(
-        default=19,
-        validation_alias="SUPERVISOR_SUMMARY_EVENING_HOUR",
+    supervisor_summary_cutoff_hours: CutoffHours = Field(
+        default_factory=lambda: [7, 13, 19],
+        validation_alias="SUPERVISOR_SUMMARY_CUTOFF_HOURS",
     )
     webhook_public_url: HttpUrl = Field(validation_alias="WEBHOOK_PUBLIC_URL")
     widget_public_url: HttpUrl = Field(
@@ -109,6 +106,56 @@ class Settings(BaseSettings):
         except ZoneInfoNotFoundError as exc:
             raise ValueError(f"invalid timezone: {value}") from exc
         return value
+
+    @field_validator("supervisor_summary_cutoff_hours", mode="before")
+    @classmethod
+    def parse_supervisor_summary_cutoff_hours(cls, value: object) -> object:
+        """Parse comma-separated cutoff hours into a list for validation."""
+
+        if not isinstance(value, str):
+            return value
+
+        tokens = [token.strip() for token in value.split(",") if token.strip()]
+        if not tokens:
+            raise ValueError("SUPERVISOR_SUMMARY_CUTOFF_HOURS must not be empty")
+
+        parsed: list[int] = []
+        for token in tokens:
+            try:
+                parsed.append(int(token))
+            except ValueError as exc:
+                raise ValueError(
+                    "SUPERVISOR_SUMMARY_CUTOFF_HOURS must contain integer hours"
+                ) from exc
+        return parsed
+
+    @field_validator("supervisor_summary_cutoff_hours")
+    @classmethod
+    def normalize_supervisor_summary_cutoff_hours(
+        cls,
+        value: list[int],
+    ) -> list[int]:
+        """Normalize cutoff list order and reject duplicates/undersized sets."""
+
+        if len(value) < 2:
+            raise ValueError(
+                "SUPERVISOR_SUMMARY_CUTOFF_HOURS must contain at least two cutoffs"
+            )
+        if len(set(value)) != len(value):
+            raise ValueError("SUPERVISOR_SUMMARY_CUTOFF_HOURS contains duplicates")
+        return sorted(value)
+
+    @property
+    def supervisor_summary_morning_hour(self) -> int:
+        """Return the first configured summary cutoff hour for compatibility."""
+
+        return self.supervisor_summary_cutoff_hours[0]
+
+    @property
+    def supervisor_summary_evening_hour(self) -> int:
+        """Return the last configured summary cutoff hour for compatibility."""
+
+        return self.supervisor_summary_cutoff_hours[-1]
 
 
 @lru_cache(maxsize=1)

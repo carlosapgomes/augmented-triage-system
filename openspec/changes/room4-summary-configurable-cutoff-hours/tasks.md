@@ -3,7 +3,7 @@
 ## 1. Contrato de configuração de cutoffs no runtime
 
 - [x] 1.1 Adicionar testes unitários (red) para `Settings` cobrindo `SUPERVISOR_SUMMARY_CUTOFF_HOURS` com: normalização/sort (`19,7,13` -> `[7,13,19]`), rejeição de duplicados e rejeição de valores fora de `0..23`.
-- [ ] 1.2 Implementar migração imediata para contrato único de cutoffs em `src/triage_automation/config/settings.py`, removendo dependência de `SUPERVISOR_SUMMARY_MORNING_HOUR` e `SUPERVISOR_SUMMARY_EVENING_HOUR`.
+- [x] 1.2 Implementar migração imediata para contrato único de cutoffs em `src/triage_automation/config/settings.py`, removendo dependência de `SUPERVISOR_SUMMARY_MORNING_HOUR` e `SUPERVISOR_SUMMARY_EVENING_HOUR`.
 - [ ] 1.3 Atualizar `.env.example` e testes de configuração para novo padrão global `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19`.
 
 ## 2. Resolução de janela no scheduler e observabilidade
