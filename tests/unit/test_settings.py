@@ -145,6 +145,37 @@ def test_widget_public_url_invalid_value_raises_validation_error(
         Settings(_env_file=None)
 
 
+def test_supervisor_summary_cutoff_hours_normalizes_free_order_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("SUPERVISOR_SUMMARY_CUTOFF_HOURS", "19,7,13")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.supervisor_summary_cutoff_hours == [7, 13, 19]
+
+
+def test_supervisor_summary_cutoff_hours_rejects_duplicates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("SUPERVISOR_SUMMARY_CUTOFF_HOURS", "7,13,13")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_supervisor_summary_cutoff_hours_rejects_out_of_range_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("SUPERVISOR_SUMMARY_CUTOFF_HOURS", "7,24,19")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
 def test_create_app_fails_fast_when_widget_url_config_is_invalid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
