@@ -20,7 +20,7 @@
 
 ## 4. Documentação operacional e coerência timezone/cron
 
-- [ ] 4.1 Atualizar `docs/runtime-smoke.md` e `docs/en/runtime-smoke.md` com o novo padrão de três execuções e janelas variáveis.
+- [x] 4.1 Atualizar `docs/runtime-smoke.md` e `docs/en/runtime-smoke.md` com o novo padrão de três execuções e janelas variáveis.
 - [ ] 4.2 Atualizar `docs/ansible_ops_runbook.md` e `docs/en/ansible_ops_runbook.md` com checklist explícito de coerência entre timezone do app e cron.
 - [ ] 4.3 Documentar comportamento sem catch-up automático e procedimentos de diagnóstico por logs/evidência de enfileiramento.
 

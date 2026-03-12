@@ -90,13 +90,14 @@ For provider mode, set:
 ## Room-4 periodic summary scheduling
 
 The Room-4 summary scheduler is a *one-shot* process.
-Each execution computes the previous 12-hour window in `America/Bahia`
+Each execution computes the window between consecutive cutoffs configured in
+`SUPERVISOR_SUMMARY_CUTOFF_HOURS` (timezone `SUPERVISOR_SUMMARY_TIMEZONE`)
 and enqueues at most one `post_room4_summary` job.
 
 Operational prerequisites:
 
 - `worker` is running (it consumes the queued job)
-- environment variables are configured: `ROOM4_ID`, `SUPERVISOR_SUMMARY_TIMEZONE`, `SUPERVISOR_SUMMARY_MORNING_HOUR`, `SUPERVISOR_SUMMARY_EVENING_HOUR`
+- environment variables are configured: `ROOM4_ID`, `SUPERVISOR_SUMMARY_TIMEZONE`, `SUPERVISOR_SUMMARY_CUTOFF_HOURS`
 - migrations are applied (`uv run alembic upgrade head`)
 
 Manual execution (spot validation):
@@ -105,17 +106,19 @@ Manual execution (spot validation):
 uv run python -m apps.scheduler.main
 ```
 
-Expected behavior:
+Expected behavior for baseline `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19` (`America/Bahia`):
 
-- at 07:00 (`America/Bahia`): schedules window `[19:00 previous day, 07:00 current day)`
-- at 19:00 (`America/Bahia`): schedules window `[07:00 current day, 19:00 current day)`
+- at 07:00: schedules window `[19:00 previous day, 07:00 current day)`
+- at 13:00: schedules window `[07:00 current day, 13:00 current day)`
+- at 19:00: schedules window `[13:00 current day, 19:00 current day)`
+- no automatic catch-up: if a cutoff run fails, the next execution processes only the immediately previous window
 - re-running the same window does not duplicate Room-4 posting (window idempotency)
 
 Linux cron example (production):
 
 ```cron
 CRON_TZ=America/Bahia
-0 7,19 * * * cd /srv/triage-automation && /usr/local/bin/uv run python -m apps.scheduler.main >> /var/log/ats-room4-scheduler.log 2>&1
+0 7,13,19 * * * cd /srv/triage-automation && /usr/local/bin/uv run python -m apps.scheduler.main >> /var/log/ats-room4-scheduler.log 2>&1
 ```
 
 ## Matrix invite auto-accept for configured rooms

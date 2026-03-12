@@ -90,13 +90,14 @@ Para modo provider, defina:
 ## Agendamento do resumo periódico da Room-4
 
 O scheduler de resumo da Room-4 é um processo *one-shot*.
-Cada execução calcula a janela anterior de 12h no timezone `America/Bahia`
+Cada execução calcula a janela entre cortes consecutivos configurados em
+`SUPERVISOR_SUMMARY_CUTOFF_HOURS` (timezone `SUPERVISOR_SUMMARY_TIMEZONE`)
 e enfileira no máximo um job `post_room4_summary`.
 
 Pré-condições operacionais:
 
 - `worker` em execução (consome o job enfileirado)
-- variáveis de ambiente configuradas: `ROOM4_ID`, `SUPERVISOR_SUMMARY_TIMEZONE`, `SUPERVISOR_SUMMARY_MORNING_HOUR`, `SUPERVISOR_SUMMARY_EVENING_HOUR`
+- variáveis de ambiente configuradas: `ROOM4_ID`, `SUPERVISOR_SUMMARY_TIMEZONE`, `SUPERVISOR_SUMMARY_CUTOFF_HOURS`
 - migrações aplicadas (`uv run alembic upgrade head`)
 
 Execução manual (validação pontual):
@@ -105,17 +106,19 @@ Execução manual (validação pontual):
 uv run python -m apps.scheduler.main
 ```
 
-Comportamento esperado:
+Comportamento esperado para baseline `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19` (`America/Bahia`):
 
-- em 07:00 (`America/Bahia`): agenda janela `[19:00 dia anterior, 07:00 dia atual)`
-- em 19:00 (`America/Bahia`): agenda janela `[07:00 dia atual, 19:00 dia atual)`
+- em 07:00: agenda janela `[19:00 dia anterior, 07:00 dia atual)`
+- em 13:00: agenda janela `[07:00 dia atual, 13:00 dia atual)`
+- em 19:00: agenda janela `[13:00 dia atual, 19:00 dia atual)`
+- sem catch-up automático: se um corte falhar, a próxima execução processa apenas a janela imediatamente anterior
 - reexecução da mesma janela não duplica postagem na Room-4 (idempotência por janela)
 
 Exemplo de cron Linux (produção):
 
 ```cron
 CRON_TZ=America/Bahia
-0 7,19 * * * cd /srv/triage-automation && /usr/local/bin/uv run python -m apps.scheduler.main >> /var/log/ats-room4-scheduler.log 2>&1
+0 7,13,19 * * * cd /srv/triage-automation && /usr/local/bin/uv run python -m apps.scheduler.main >> /var/log/ats-room4-scheduler.log 2>&1
 ```
 
 ## Autoaceite de convites Matrix para salas configuradas
