@@ -27,6 +27,6 @@
 ## 5. Verificação, validação e fechamento
 
 - [x] 5.1 Executar testes-alvo (`uv run pytest`) para settings, scheduler, runtime scheduler e contratos Ansible alterados.
-- [ ] 5.2 Executar `uv run ruff check` e `uv run mypy` nos paths alterados.
+- [x] 5.2 Executar `uv run ruff check` e `uv run mypy` nos paths alterados.
 - [ ] 5.3 Executar `markdownlint-cli2 "openspec/changes/room4-summary-configurable-cutoff-hours/**/*.md"` e registrar evidências no próprio `tasks.md`.
 - [ ] 5.4 Executar `openspec validate room4-summary-configurable-cutoff-hours` antes de iniciar implementação.
