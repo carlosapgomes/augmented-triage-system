@@ -64,6 +64,8 @@ def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_portuguese() -> N
     assert "SUPERVISOR_SUMMARY_TIMEZONE" in runbook
     assert "SUPERVISOR_SUMMARY_CUTOFF_HOURS" in runbook
     assert "Checklist de coerência entre timezone do app e cron" in runbook
+    assert "sem catch-up automático" in runbook
+    assert "janela imediatamente anterior" in runbook
     assert "crontab -u ats -l" in runbook
     assert "ATS Room-4 Scheduler" in runbook
     assert "post_room4_summary" in runbook
@@ -137,6 +139,8 @@ def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_english() -> None
     assert "SUPERVISOR_SUMMARY_TIMEZONE" in runbook
     assert "SUPERVISOR_SUMMARY_CUTOFF_HOURS" in runbook
     assert "Timezone-coherence checklist between app runtime and cron" in runbook
+    assert "no automatic catch-up" in runbook
+    assert "immediately previous window" in runbook
     assert "crontab -u ats -l" in runbook
     assert "ATS Room-4 Scheduler" in runbook
     assert "post_room4_summary" in runbook

@@ -190,6 +190,13 @@ crontab -u ats -l | grep -E "CRON_TZ|ATS Room-4 Scheduler"
 - `SUPERVISOR_SUMMARY_TIMEZONE` and `SUPERVISOR_SUMMARY_CUTOFF_HOURS` must represent the same cutoff schedule used by cron.
 - In the current baseline this means `SUPERVISOR_SUMMARY_TIMEZONE=America/Bahia`, `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19`, and UTC cron hours `10,16,22`.
 
+### No automatic catch-up policy and diagnostics
+
+- The scheduler runs with **no automatic catch-up**: after a missed cutoff, the next execution processes only the **immediately previous window**.
+- To diagnose missed periods, check in sequence:
+  - scheduler logs (`ats_room4_scheduler_cron_log_file`) to identify failure at the expected cutoff;
+  - `post_room4_summary` enqueue evidence in the `jobs` table to confirm job absence/presence for the target window.
+
 ## Image pull policy in deploy/upgrade
 
 Current runtime default policy:

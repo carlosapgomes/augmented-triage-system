@@ -190,6 +190,13 @@ crontab -u ats -l | grep -E "CRON_TZ|ATS Room-4 Scheduler"
 - `SUPERVISOR_SUMMARY_TIMEZONE` e `SUPERVISOR_SUMMARY_CUTOFF_HOURS` devem representar os mesmos cortes usados no cron.
 - No baseline atual, isso significa `SUPERVISOR_SUMMARY_TIMEZONE=America/Bahia`, `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19` e cron UTC em `10,16,22`.
 
+### Política sem catch-up automático e diagnóstico
+
+- O scheduler opera **sem catch-up automático**: após falha de um corte, a execução seguinte processa apenas a **janela imediatamente anterior**.
+- Para diagnóstico de período perdido, usar em sequência:
+  - logs do scheduler (`ats_room4_scheduler_cron_log_file`) para identificar a falha no corte esperado;
+  - evidência de enfileiramento `post_room4_summary` na tabela `jobs` para confirmar ausência/presença de job na janela.
+
 ## Política de pull de imagem no deploy/upgrade
 
 Política padrão atual do runtime:
