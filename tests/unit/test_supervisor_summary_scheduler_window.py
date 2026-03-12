@@ -17,8 +17,7 @@ def _resolve_previous_summary_window(*, run_at_utc: datetime) -> Any:
     return resolver(
         run_at_utc=run_at_utc,
         timezone_name="America/Bahia",
-        morning_hour=7,
-        evening_hour=19,
+        cutoff_hours=[7, 13, 19],
     )
 
 
@@ -33,15 +32,26 @@ def test_morning_cutoff_resolves_previous_night_window_in_utc() -> None:
     assert resolved.window_end_utc - resolved.window_start_utc == timedelta(hours=12)
 
 
-def test_evening_cutoff_resolves_same_day_window_in_utc() -> None:
-    run_at_utc = datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
+def test_midday_cutoff_resolves_same_day_morning_window_in_utc() -> None:
+    run_at_utc = datetime(2026, 2, 16, 16, 0, tzinfo=UTC)
 
     resolved = _resolve_previous_summary_window(run_at_utc=run_at_utc)
 
     assert resolved.window_start_utc == datetime(2026, 2, 16, 10, 0, tzinfo=UTC)
+    assert resolved.window_end_utc == datetime(2026, 2, 16, 16, 0, tzinfo=UTC)
+    assert resolved.window_start_utc < resolved.window_end_utc
+    assert resolved.window_end_utc - resolved.window_start_utc == timedelta(hours=6)
+
+
+def test_evening_cutoff_resolves_same_day_midday_window_in_utc() -> None:
+    run_at_utc = datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
+
+    resolved = _resolve_previous_summary_window(run_at_utc=run_at_utc)
+
+    assert resolved.window_start_utc == datetime(2026, 2, 16, 16, 0, tzinfo=UTC)
     assert resolved.window_end_utc == datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
     assert resolved.window_start_utc < resolved.window_end_utc
-    assert resolved.window_end_utc - resolved.window_start_utc == timedelta(hours=12)
+    assert resolved.window_end_utc - resolved.window_start_utc == timedelta(hours=6)
 
 
 class _QueueSpy:
@@ -98,8 +108,7 @@ async def test_scheduler_service_enqueues_post_room4_summary_with_canonical_utc_
         dispatch_repository=dispatches,
         room4_id="!room4:example.org",
         timezone_name="America/Bahia",
-        morning_hour=7,
-        evening_hour=19,
+        cutoff_hours=[7, 13, 19],
     )
 
     result = await service.enqueue_previous_window_summary(
@@ -112,7 +121,7 @@ async def test_scheduler_service_enqueues_post_room4_summary_with_canonical_utc_
     assert call["case_id"] is None
     assert call["payload"] == {
         "room_id": "!room4:example.org",
-        "window_start": "2026-02-16T10:00:00+00:00",
+        "window_start": "2026-02-16T16:00:00+00:00",
         "window_end": "2026-02-16T22:00:00+00:00",
         "timezone": "America/Bahia",
     }
@@ -134,8 +143,7 @@ async def test_scheduler_service_skips_duplicate_window_for_manual_rerun() -> No
         dispatch_repository=dispatches,
         room4_id="!room4:example.org",
         timezone_name="America/Bahia",
-        morning_hour=7,
-        evening_hour=19,
+        cutoff_hours=[7, 13, 19],
     )
 
     first = await service.enqueue_previous_window_summary(
