@@ -10,7 +10,7 @@
 
 - [x] 2.1 Adicionar/ajustar testes unitários do scheduler para janelas `[19:00,07:00)`, `[07:00,13:00)` e `[13:00,19:00)` no timezone configurado.
 - [x] 2.2 Ajustar `supervisor_summary_scheduler_service` para resolver `window_end` no último cutoff `<= run_at_local` e `window_start` no cutoff imediatamente anterior (sequência circular diária).
-- [ ] 2.3 Manter política sem catch-up automático e reforçar logs do scheduler com `window_start/window_end`, timezone, cutoff aplicado e marcador explícito `catch_up=false`.
+- [x] 2.3 Manter política sem catch-up automático e reforçar logs do scheduler com `window_start/window_end`, timezone, cutoff aplicado e marcador explícito `catch_up=false`.
 
 ## 3. Convergência Ansible para baseline global 7,13,19
 

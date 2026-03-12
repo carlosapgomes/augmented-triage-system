@@ -62,11 +62,18 @@ async def run_scheduler_once(
     logger.info(
         (
             "scheduler_room4_summary_run claimed_dispatch=%s enqueued_job_id=%s "
-            "room4_id=%s window_start_utc=%s window_end_utc=%s"
+            "room4_id=%s timezone=%s cutoff_hour_local=%s catch_up_enabled=%s "
+            "window_start_local=%s window_end_local=%s "
+            "window_start_utc=%s window_end_utc=%s"
         ),
         result.claimed_dispatch,
         result.enqueued_job_id,
         runtime_settings.room4_id,
+        runtime_settings.supervisor_summary_timezone,
+        result.window.window_end_local.hour,
+        False,
+        result.window.window_start_local.isoformat(),
+        result.window.window_end_local.isoformat(),
         result.window.window_start_utc.isoformat(),
         result.window.window_end_utc.isoformat(),
     )
