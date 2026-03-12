@@ -16,7 +16,7 @@
 
 - [x] 3.1 Atualizar testes de Ansible para exigir `SUPERVISOR_SUMMARY_CUTOFF_HOURS` como pré-requisito do cron da Room-4.
 - [x] 3.2 Atualizar `ansible/inventory/group_vars/all.yml` e validações de runtime para refletir o novo contrato de env obrigatório.
-- [ ] 3.3 Atualizar defaults do cron para baseline UTC equivalente (`ats_room4_scheduler_cron_hour: "10,16,22"`) e ajustar testes/documentação associados.
+- [x] 3.3 Atualizar defaults do cron para baseline UTC equivalente (`ats_room4_scheduler_cron_hour: "10,16,22"`) e ajustar testes/documentação associados.
 
 ## 4. Documentação operacional e coerência timezone/cron
 

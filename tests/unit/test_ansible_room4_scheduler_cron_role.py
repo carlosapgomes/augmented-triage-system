@@ -21,7 +21,7 @@ def test_room4_scheduler_cron_role_declares_defaults_and_rootless_cron_tasks() -
     assert "ats_room4_scheduler_cron_hour:" in defaults
     assert "ats_room4_scheduler_cron_log_file:" in defaults
     assert 'ats_room4_scheduler_cron_timezone: "UTC"' in defaults
-    assert 'ats_room4_scheduler_cron_hour: "10,22"' in defaults
+    assert 'ats_room4_scheduler_cron_hour: "10,16,22"' in defaults
 
     assert "id -u {{ ats_service_user }}" in tasks
     assert "ats_room4_scheduler_cron_state" in tasks

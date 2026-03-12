@@ -82,4 +82,4 @@ def test_ansible_group_vars_declares_room4_scheduler_cron_defaults() -> None:
     assert "ats_room4_scheduler_cron_enabled: true" in variables
     assert 'ats_room4_scheduler_cron_timezone: "UTC"' in variables
     assert 'ats_room4_scheduler_cron_minute: "0"' in variables
-    assert 'ats_room4_scheduler_cron_hour: "10,22"' in variables
+    assert 'ats_room4_scheduler_cron_hour: "10,16,22"' in variables
