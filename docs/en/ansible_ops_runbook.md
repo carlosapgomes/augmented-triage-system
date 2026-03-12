@@ -136,12 +136,12 @@ Operational variables (override in `ansible/host_vars/<host>.yml` when needed):
 ats_room4_scheduler_cron_enabled: true
 ats_room4_scheduler_cron_timezone: "UTC"
 ats_room4_scheduler_cron_minute: "0"
-ats_room4_scheduler_cron_hour: "10,22"
+ats_room4_scheduler_cron_hour: "10,16,22"
 ats_room4_scheduler_cron_log_file: "/home/ats/augmented-triage-system/logs/room4-scheduler-cron.log"
 ```
 
-Note: in the current baseline, the host clock runs in UTC; `10,22` in UTC
-maps to `07:00 and 19:00 in America/Bahia`.
+Note: in the current baseline, the host clock runs in UTC; `10,16,22` in UTC
+maps to `07:00, 13:00, and 19:00 in America/Bahia`.
 
 Managed cron command:
 
@@ -170,6 +170,25 @@ docker compose \
   exec -T postgres psql -U triage -d triage \
   -c "SELECT job_id, job_type, status, created_at FROM jobs WHERE job_type = 'post_room4_summary' ORDER BY job_id DESC LIMIT 5;"
 ```
+
+### Timezone-coherence checklist between app runtime and cron
+
+1. Verify runtime app values in `.env`:
+
+```bash
+grep -E "SUPERVISOR_SUMMARY_TIMEZONE|SUPERVISOR_SUMMARY_CUTOFF_HOURS" /home/ats/augmented-triage-system/.env
+```
+
+1. Verify cron timezone and schedule values in `ats` user crontab:
+
+```bash
+crontab -u ats -l | grep -E "CRON_TZ|ATS Room-4 Scheduler"
+```
+
+1. Operational success criteria:
+
+- `SUPERVISOR_SUMMARY_TIMEZONE` and `SUPERVISOR_SUMMARY_CUTOFF_HOURS` must represent the same cutoff schedule used by cron.
+- In the current baseline this means `SUPERVISOR_SUMMARY_TIMEZONE=America/Bahia`, `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19`, and UTC cron hours `10,16,22`.
 
 ## Image pull policy in deploy/upgrade
 
