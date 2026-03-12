@@ -53,6 +53,7 @@ def test_defaults_are_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.matrix_poll_interval_seconds == 1.0
     assert settings.worker_poll_interval_seconds == 1.0
     assert settings.worker_claim_limit == 10
+    assert settings.supervisor_summary_cutoff_hours == [7, 13, 19]
     assert settings.llm_runtime_mode == "deterministic"
     assert settings.openai_api_key is None
     assert settings.openai_model_llm1 == "gpt-4o-mini"
