@@ -38,8 +38,7 @@ def build_scheduler_service(
         ),
         room4_id=settings.room4_id,
         timezone_name=settings.supervisor_summary_timezone,
-        morning_hour=settings.supervisor_summary_morning_hour,
-        evening_hour=settings.supervisor_summary_evening_hour,
+        cutoff_hours=settings.supervisor_summary_cutoff_hours,
     )
 
 

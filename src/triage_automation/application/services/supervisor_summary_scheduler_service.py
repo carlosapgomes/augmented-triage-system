@@ -45,15 +45,13 @@ class SupervisorSummarySchedulerService:
         dispatch_repository: SupervisorSummaryDispatchRepositoryPort,
         room4_id: str,
         timezone_name: str,
-        morning_hour: int,
-        evening_hour: int,
+        cutoff_hours: list[int],
     ) -> None:
         self._job_queue = job_queue
         self._dispatch_repository = dispatch_repository
         self._room4_id = room4_id
         self._timezone_name = timezone_name
-        self._morning_hour = morning_hour
-        self._evening_hour = evening_hour
+        self._cutoff_hours = list(cutoff_hours)
 
     async def enqueue_previous_window_summary(
         self,
@@ -66,8 +64,7 @@ class SupervisorSummarySchedulerService:
         window = resolve_previous_summary_window(
             run_at_utc=reference_now_utc,
             timezone_name=self._timezone_name,
-            morning_hour=self._morning_hour,
-            evening_hour=self._evening_hour,
+            cutoff_hours=self._cutoff_hours,
         )
         claimed_dispatch = await self._dispatch_repository.claim_window(
             SupervisorSummaryWindowKey(
@@ -107,49 +104,48 @@ def resolve_previous_summary_window(
     *,
     run_at_utc: datetime,
     timezone_name: str,
-    morning_hour: int,
-    evening_hour: int,
+    cutoff_hours: list[int],
 ) -> SupervisorSummaryWindow:
-    """Resolve the latest completed 12-hour summary window for configured cutoffs."""
+    """Resolve the latest completed summary window using configured daily cutoffs."""
 
     if run_at_utc.tzinfo is None:
         raise ValueError("run_at_utc must be timezone-aware")
+    if len(cutoff_hours) < 2:
+        raise ValueError("cutoff_hours must contain at least two entries")
+
+    normalized_cutoffs = sorted(cutoff_hours)
+    if len(set(normalized_cutoffs)) != len(normalized_cutoffs):
+        raise ValueError("cutoff_hours must not contain duplicates")
 
     timezone = ZoneInfo(timezone_name)
     run_at_local = run_at_utc.astimezone(timezone)
 
     candidates: list[datetime] = []
-    for day_offset in (-1, 0):
+    for day_offset in (-2, -1, 0):
         day = (run_at_local + timedelta(days=day_offset)).date()
-        candidates.append(
-            datetime(
-                day.year,
-                day.month,
-                day.day,
-                morning_hour,
-                0,
-                0,
-                tzinfo=timezone,
+        for cutoff_hour in normalized_cutoffs:
+            candidates.append(
+                datetime(
+                    day.year,
+                    day.month,
+                    day.day,
+                    cutoff_hour,
+                    0,
+                    0,
+                    tzinfo=timezone,
+                )
             )
-        )
-        candidates.append(
-            datetime(
-                day.year,
-                day.month,
-                day.day,
-                evening_hour,
-                0,
-                0,
-                tzinfo=timezone,
-            )
-        )
 
-    eligible = [candidate for candidate in candidates if candidate <= run_at_local]
-    if not eligible:
+    eligible_end = [candidate for candidate in candidates if candidate <= run_at_local]
+    if not eligible_end:
         raise ValueError("unable to resolve previous summary cutoff")
 
-    window_end_local = max(eligible)
-    window_start_local = window_end_local - timedelta(hours=12)
+    window_end_local = max(eligible_end)
+    eligible_start = [candidate for candidate in candidates if candidate < window_end_local]
+    if not eligible_start:
+        raise ValueError("unable to resolve previous summary window start")
+
+    window_start_local = max(eligible_start)
 
     return SupervisorSummaryWindow(
         window_start_local=window_start_local,
