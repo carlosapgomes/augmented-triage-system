@@ -164,18 +164,20 @@ async def test_llm1_extracts_preop_screening_scope_and_risk_fields() -> None:
     except Llm1RetriableError as error:
         pytest.fail(f"unexpected LLM1 validation failure: {error}")
 
-    assert result.structured_data_json["preop_screening"] == {
-        "exam_type": "eda",
-        "has_cardiovascular_disease": "yes",
-        "has_active_respiratory_symptoms": "no",
-        "has_prior_respiratory_disease": "unknown",
-        "has_ecg_report": "yes",
-        "has_chest_xray_report": "no",
-        "hb_g_dl": 10.2,
-        "platelets_per_mm3": 140000,
-        "inr": 1.1,
-        "evidence_spans": [],
-    }
+    preop_screening = result.structured_data_json["preop_screening"]
+
+    assert preop_screening["exam_type"] == "eda"
+    assert preop_screening["has_cardiovascular_disease"] == "yes"
+    assert preop_screening["has_active_respiratory_symptoms"] == "no"
+    assert preop_screening["has_prior_respiratory_disease"] == "unknown"
+    assert preop_screening["has_ecg_report"] == "yes"
+    assert preop_screening["has_chest_xray_report"] == "no"
+    assert preop_screening["has_echocardiogram_report"] == "unknown"
+    assert preop_screening["hb_g_dl"] == 10.2
+    assert preop_screening["platelets_per_mm3"] == 140000
+    assert preop_screening["inr"] == 1.1
+    assert preop_screening["evidence_spans"] == []
+    assert preop_screening["rulebook_signals"]["eda_subtype"] == "unknown"
 
 
 @pytest.mark.asyncio
@@ -205,18 +207,20 @@ async def test_llm1_preop_screening_accepts_unknown_fallback_values() -> None:
     except Llm1RetriableError as error:
         pytest.fail(f"unexpected LLM1 validation failure: {error}")
 
-    assert result.structured_data_json["preop_screening"] == {
-        "exam_type": "unknown",
-        "has_cardiovascular_disease": "unknown",
-        "has_active_respiratory_symptoms": "unknown",
-        "has_prior_respiratory_disease": "unknown",
-        "has_ecg_report": "unknown",
-        "has_chest_xray_report": "unknown",
-        "hb_g_dl": None,
-        "platelets_per_mm3": None,
-        "inr": None,
-        "evidence_spans": [],
-    }
+    preop_screening = result.structured_data_json["preop_screening"]
+
+    assert preop_screening["exam_type"] == "unknown"
+    assert preop_screening["has_cardiovascular_disease"] == "unknown"
+    assert preop_screening["has_active_respiratory_symptoms"] == "unknown"
+    assert preop_screening["has_prior_respiratory_disease"] == "unknown"
+    assert preop_screening["has_ecg_report"] == "unknown"
+    assert preop_screening["has_chest_xray_report"] == "unknown"
+    assert preop_screening["has_echocardiogram_report"] == "unknown"
+    assert preop_screening["hb_g_dl"] is None
+    assert preop_screening["platelets_per_mm3"] is None
+    assert preop_screening["inr"] is None
+    assert preop_screening["evidence_spans"] == []
+    assert preop_screening["rulebook_signals"]["eda_subtype"] == "unknown"
 
 
 @pytest.mark.asyncio
@@ -263,6 +267,110 @@ async def test_llm1_preop_screening_preserves_evidence_spans() -> None:
             "excerpt": "eletrocardiograma anexo",
         },
     ]
+
+
+@pytest.mark.asyncio
+async def test_llm1_accepts_rewritten_eda_rulebook_subtype_and_signals() -> None:
+    agency_record = "12345"
+    payload = _valid_llm1_payload(agency_record)
+    payload["eda"]["requested_procedure"]["subtype"] = "foreign_body"
+    payload["eda"]["asa"] = {
+        "bucket": "III ou mais",
+        "source_text_hint": "cardiopatia com dispneia aos esforcos",
+    }
+    payload["eda"]["cardiovascular_risk"] = {
+        "level": "moderate_high",
+        "source_text_hint": "IAM previo com angioplastia",
+    }
+    payload["preop_screening"]["rulebook_signals"] = {
+        "eda_subtype": "foreign_body",
+        "minimum_exam_evidence": {
+            "hb_or_hct_present": "unknown",
+            "hb_numeric_present": "unknown",
+            "platelets_numeric_present": "unknown",
+            "tp_inr_rni_numeric_present": "unknown",
+            "ttpa_present": "unknown",
+            "urea_present": "unknown",
+            "creatinine_present": "unknown",
+            "coagulogram_normal_supports_ttpa": "no",
+            "renal_function_preserved_supports_urea_and_creatinine": "no",
+        },
+        "conditional_exam_requirements": {
+            "ecg_required": "no",
+            "chest_xray_required": "no",
+            "echocardiogram_required": "no",
+            "ecg_report_finding_present": "unknown",
+            "chest_xray_report_finding_present": "unknown",
+            "echocardiogram_report_finding_present": "unknown",
+        },
+        "clinical_flags": {
+            "hepatopathy_explicit": "no",
+            "cardiopathy_explicit": "yes",
+            "known_cardiovascular_disease": "yes",
+            "active_respiratory_symptoms": "no",
+            "prior_respiratory_disease": "no",
+            "multiple_comorbidities": "unknown",
+            "qt_prolonging_medications": "unknown",
+            "diabetes_mellitus": "unknown",
+            "explicit_obesity": "unknown",
+            "recent_chest_pain": "unknown",
+            "recent_dyspnea": "yes",
+            "recent_palpitations": "no",
+            "recent_syncope": "no",
+            "unexplained_dyspnea": "unknown",
+            "heart_failure_signs": "unknown",
+            "new_or_unevaluated_murmur": "unknown",
+            "moderate_or_severe_valvulopathy_without_recent_echo": "unknown",
+            "worsening_cardiomyopathy": "unknown",
+            "pulmonary_hypertension": "unknown",
+            "prior_myocardial_infarction": "yes",
+            "prior_coronary_bypass": "no",
+            "prior_coronary_angioplasty": "yes",
+        },
+    }
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="texto limpo",
+    )
+
+    assert result.structured_data_json["eda"]["requested_procedure"]["subtype"] == "foreign_body"
+    assert result.structured_data_json["eda"]["asa"] == {
+        "bucket": "III ou mais",
+        "source_text_hint": "cardiopatia com dispneia aos esforcos",
+    }
+    assert result.structured_data_json["eda"]["cardiovascular_risk"] == {
+        "level": "moderate_high",
+        "source_text_hint": "IAM previo com angioplastia",
+    }
+    assert result.structured_data_json["preop_screening"]["rulebook_signals"]["eda_subtype"] == (
+        "foreign_body"
+    )
+    assert result.structured_data_json["preop_screening"]["rulebook_signals"][
+        "conditional_exam_requirements"
+    ]["ecg_required"] == "no"
+
+
+@pytest.mark.asyncio
+async def test_llm1_rejects_unsupported_eda_subtype_in_rewritten_rulebook() -> None:
+    agency_record = "12345"
+    payload = _valid_llm1_payload(agency_record)
+    payload["eda"]["requested_procedure"]["subtype"] = "cpre"
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    with pytest.raises(Llm1RetriableError) as error_info:
+        await service.run(
+            case_id=uuid4(),
+            agency_record_number=agency_record,
+            clean_text="texto limpo",
+        )
+
+    assert error_info.value.cause == "llm1"
+    assert "requested_procedure.subtype" in error_info.value.details
 
 
 @pytest.mark.asyncio
