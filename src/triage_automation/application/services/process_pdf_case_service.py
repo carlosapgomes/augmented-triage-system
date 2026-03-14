@@ -431,6 +431,23 @@ def _with_preop_gate_block(
         "reason_text": reason_text,
         "evidence_spans": evidence_spans,
     }
+
+    suggestion = payload.get("suggestion")
+    if decision == "deny":
+        payload["suggestion"] = "deny"
+        payload["decision"] = "deny"
+        payload["reason_code"] = reason_code
+        payload["reason_text"] = reason_text
+        return payload
+
+    if decision == "accept" and isinstance(suggestion, str) and suggestion in {"accept", "deny"}:
+        payload["decision"] = suggestion
+    elif decision == "accept":
+        payload["decision"] = "accept"
+    else:
+        payload["decision"] = decision
+        payload["reason_code"] = reason_code
+        payload["reason_text"] = reason_text
     return payload
 
 

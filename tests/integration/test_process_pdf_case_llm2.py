@@ -1133,8 +1133,10 @@ async def test_supported_gastrostomy_subtype_from_llm1_payload_skips_scope_manua
 
 
 @pytest.mark.asyncio
-async def test_llm2_contradiction_emits_audit_event_and_forces_deny(tmp_path: Path) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "llm2_contradiction.db")
+async def test_legacy_precheck_flags_do_not_force_persisted_deny_after_rulebook_rewrite(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_legacy_precheck_no_force.db")
     session_factory = create_session_factory(async_url)
 
     case_repo = SqlAlchemyCaseRepository(session_factory)
@@ -1209,9 +1211,80 @@ async def test_llm2_contradiction_emits_audit_event_and_forces_deny(tmp_path: Pa
 
     suggested_action = _decode_json(row["suggested_action_json"])
 
+    assert suggested_action["suggestion"] == "accept"
+    assert suggested_action["preop_gate"]["decision"] == "accept"
+    assert suggested_action["policy_alignment"]["excluded_request"] is False
+    assert contradiction_events == 0
+
+
+@pytest.mark.asyncio
+async def test_deterministic_preop_gate_deny_overrides_llm2_accept_for_persisted_suggestion(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_preop_gate_override.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-preop-override",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_payload = _valid_llm1_payload("12345")
+    eda = llm1_payload["eda"]
+    assert isinstance(eda, dict)
+    labs = eda["labs"]
+    assert isinstance(labs, dict)
+    labs["creatinine_mg_dl"] = None
+    preop_screening = llm1_payload["preop_screening"]
+    assert isinstance(preop_screening, dict)
+    rulebook_signals = preop_screening["rulebook_signals"]
+    assert isinstance(rulebook_signals, dict)
+    minimum_exam_evidence = rulebook_signals["minimum_exam_evidence"]
+    assert isinstance(minimum_exam_evidence, dict)
+    minimum_exam_evidence["creatinine_present"] = "no"
+
+    llm1_service = Llm1Service(llm_client=FakeLlmClient(json.dumps(llm1_payload)))
+    llm2_service = Llm2Service(
+        llm_client=FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
+    )
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=llm1_service,
+        llm2_service=llm2_service,
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases ORDER BY created_at DESC LIMIT 1")
+        ).mappings().one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+
     assert suggested_action["suggestion"] == "deny"
-    assert suggested_action["policy_alignment"]["excluded_request"] is True
-    assert contradiction_events == 1
+    assert suggested_action["decision"] == "deny"
+    assert suggested_action["reason_code"] == "missing_minimum_exam_creatinine"
+    assert suggested_action["preop_gate"]["decision"] == "deny"
 
 
 @pytest.mark.asyncio

@@ -28,18 +28,12 @@ from triage_automation.application.services.prompt_template_service import (
 from triage_automation.application.services.ptbr_language_guard import (
     collect_forbidden_terms,
 )
-from triage_automation.domain.policy.eda_policy import (
-    EdaPolicyPrecheckInput,
-    Llm2PolicyAlignmentInput,
-    Llm2SuggestionInput,
-    reconcile_eda_policy,
-)
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
 
 
 @dataclass(frozen=True)
 class Llm2ServiceResult:
-    """Validated and policy-reconciled LLM2 artifact for persistence."""
+    """Validated LLM2 artifact prepared for downstream recommendation synthesis."""
 
     suggested_action_json: dict[str, object]
     contradictions: list[dict[str, object]]
@@ -90,10 +84,10 @@ class Llm2Service:
         prior_case_json: dict[str, object] | None = None,
         interaction_repository: CaseRepositoryPort | None = None,
     ) -> Llm2ServiceResult:
-        """Execute LLM2 and return policy-reconciled suggestion artifacts."""
+        """Execute LLM2 and return validated suggestion artifacts for downstream synthesis."""
 
         try:
-            llm1_payload = Llm1Response.model_validate(llm1_structured_data)
+            _ = Llm1Response.model_validate(llm1_structured_data)
         except ValidationError as error:
             raise Llm2RetriableError(
                 cause="llm2",
@@ -164,47 +158,9 @@ class Llm2Service:
                     ),
                 )
 
-        policy_result = reconcile_eda_policy(
-            precheck=EdaPolicyPrecheckInput(
-                excluded_from_eda_flow=llm1_payload.policy_precheck.excluded_from_eda_flow,
-                indication_category=llm1_payload.eda.indication_category,
-                labs_required=llm1_payload.policy_precheck.labs_required,
-                labs_pass=llm1_payload.policy_precheck.labs_pass,
-                ecg_required=llm1_payload.policy_precheck.ecg_required,
-                ecg_present=llm1_payload.policy_precheck.ecg_present,
-                pediatric_flag=llm1_payload.policy_precheck.pediatric_flag,
-            ),
-            llm2=Llm2SuggestionInput(
-                suggestion=validated.suggestion,
-                policy_alignment=Llm2PolicyAlignmentInput(
-                    excluded_request=validated.policy_alignment.excluded_request,
-                    labs_ok=validated.policy_alignment.labs_ok,
-                    ecg_ok=validated.policy_alignment.ecg_ok,
-                    pediatric_flag=validated.policy_alignment.pediatric_flag,
-                    notes=validated.policy_alignment.notes,
-                ),
-            ),
-        )
-
         normalized = validated.model_dump(mode="json", by_alias=True)
-        normalized["suggestion"] = policy_result.suggestion
-        normalized["policy_alignment"] = {
-            "excluded_request": policy_result.policy_alignment.excluded_request,
-            "labs_ok": policy_result.policy_alignment.labs_ok,
-            "ecg_ok": policy_result.policy_alignment.ecg_ok,
-            "pediatric_flag": policy_result.policy_alignment.pediatric_flag,
-            "notes": policy_result.policy_alignment.notes,
-        }
 
-        contradictions: list[dict[str, object]] = [
-            {
-                "rule": item.rule,
-                "field": item.field,
-                "previous_value": item.previous_value,
-                "reconciled_value": item.reconciled_value,
-            }
-            for item in policy_result.contradictions
-        ]
+        contradictions: list[dict[str, object]] = []
 
         return Llm2ServiceResult(
             suggested_action_json=normalized,
