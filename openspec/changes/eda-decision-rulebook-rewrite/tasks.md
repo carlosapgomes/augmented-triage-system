@@ -11,7 +11,7 @@
 - [x] 2.1 Refactor scope classification so `gastrostomy`, `esophageal_dilation`, and `foreign_body` remain inside supported EDA flow while true `non_eda` and unresolved `unknown` requests continue to `manual_review_required`.
 - [x] 2.2 Rewrite the deterministic EDA pre-procedure policy to enforce the new minimum-exam set, qualitative evidence equivalences, contraindication thresholds, and foreign-body bypass behavior.
 - [x] 2.3 Implement explicit handling for ECG, chest X-ray, and echocardiogram completeness gates, including the requirement for minimal reported findings rather than simple mention of exam existence.
-- [ ] 2.4 Add targeted unit tests for the rewritten clinical policy covering: missing minimum exams, qualitative evidence acceptance, hepatopathy thresholds, cardiopathy thresholds, combined hepatopathy+cardiopathy thresholds, respiratory/ECG/ECO gates, and foreign-body bypass.
+- [x] 2.4 Add targeted unit tests for the rewritten clinical policy covering: missing minimum exams, qualitative evidence acceptance, hepatopathy thresholds, cardiopathy thresholds, combined hepatopathy+cardiopathy thresholds, respiratory/ECG/ECO gates, and foreign-body bypass.
 
 ## 3. Recommendation synthesis, ASA, and support mapping
 
@@ -66,4 +66,8 @@
 - Slice 2.3 verification executed successfully:
   - `uv run pytest tests/unit/test_eda_preop_policy.py tests/unit/test_eda_policy_crosscheck.py tests/integration/test_process_pdf_case_llm2.py -q`
   - `uv run ruff check src/triage_automation/domain/policy/eda_preop_policy.py tests/unit/test_eda_preop_policy.py tests/integration/test_process_pdf_case_llm2.py`
+  - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py`
+- Slice 2.4 verification executed successfully:
+  - `uv run pytest tests/unit/test_eda_preop_policy.py tests/unit/test_eda_policy_crosscheck.py -q`
+  - `uv run ruff check tests/unit/test_eda_preop_policy.py`
   - `uv run mypy src/triage_automation/domain/policy/eda_preop_policy.py`

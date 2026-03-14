@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib
 from typing import cast
 
+import pytest
+
 
 def _base_llm1_structured_data() -> dict[str, object]:
     return {
@@ -370,3 +372,75 @@ def test_pediatric_case_sets_flag_and_explicit_reason_text_signal() -> None:
     assert result["pediatric_flag"] is True
     reason_text = cast(str, result["reason_text"])
     assert "pedi" in reason_text.lower()
+
+
+@pytest.mark.parametrize(
+    ("field_name", "lab_key", "reason_code"),
+    [
+        ("platelets_numeric_present", "platelets_per_mm3", "missing_minimum_exam_platelets"),
+        ("tp_inr_rni_numeric_present", "rni", "missing_minimum_exam_tp_inr_rni"),
+        ("creatinine_present", "creatinine_mg_dl", "missing_minimum_exam_creatinine"),
+    ],
+)
+def test_missing_minimum_exam_fields_map_to_explicit_reason_codes(
+    field_name: str,
+    lab_key: str,
+    reason_code: str,
+) -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    labs = cast(dict[str, object], eda["labs"])
+    labs[lab_key] = None
+    if field_name == "tp_inr_rni_numeric_present":
+        labs["inr"] = None
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    if field_name == "platelets_numeric_present":
+        preop["platelets_per_mm3"] = None
+    if field_name == "tp_inr_rni_numeric_present":
+        preop["inr"] = None
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    minimum_exam_evidence = cast(dict[str, object], rulebook_signals["minimum_exam_evidence"])
+    minimum_exam_evidence[field_name] = "no"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == reason_code
+
+
+@pytest.mark.parametrize(
+    ("profile", "lab_key", "lab_value", "reason_code"),
+    [
+        ("hepatopathy_hb", "hb_g_dl", 6.9, "hb_below_threshold"),
+        ("hepatopathy_rni", "rni", 1.6, "inr_above_threshold"),
+        ("general_hb", "hb_g_dl", 6.9, "hb_below_threshold"),
+    ],
+)
+def test_threshold_profiles_cover_hepatopathy_and_general_rulebook_paths(
+    profile: str,
+    lab_key: str,
+    lab_value: float,
+    reason_code: str,
+) -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    labs = cast(dict[str, object], eda["labs"])
+    labs[lab_key] = lab_value
+    if lab_key == "rni":
+        labs["inr"] = lab_value
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    if lab_key == "hb_g_dl":
+        preop["hb_g_dl"] = lab_value
+    if lab_key == "rni":
+        preop["inr"] = lab_value
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    clinical_flags = cast(dict[str, object], rulebook_signals["clinical_flags"])
+    if profile.startswith("hepatopathy"):
+        clinical_flags["hepatopathy_explicit"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == reason_code
