@@ -561,6 +561,8 @@ def _build_room2_critical_pending_lines(structured_data: dict[str, object]) -> l
         normalized_items = [str(item).strip() for item in labs_failed_items if str(item).strip()]
         if normalized_items:
             failed_items_text = ", ".join(normalized_items)
+        elif _is_room2_unknown_precheck_value(precheck_labs_pass):
+            failed_items_text = "indeterminadas (sem evidência no laudo)"
 
     lab_status = _format_room2_precheck_value(precheck_labs_pass)
     ecg_status = _format_room2_precheck_value(precheck_ecg_present)
@@ -761,6 +763,12 @@ def _is_room2_yes_precheck_value(value: object) -> bool:
     """Return True when precheck enum-like value explicitly means yes."""
 
     return isinstance(value, str) and value.strip().lower() == "yes"
+
+
+def _is_room2_unknown_precheck_value(value: object) -> bool:
+    """Return True when precheck enum-like value explicitly means unknown."""
+
+    return isinstance(value, str) and value.strip().lower() == "unknown"
 
 
 def _build_room2_objective_reason_accept_lines(

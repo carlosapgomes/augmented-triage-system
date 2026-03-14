@@ -658,7 +658,7 @@ def test_room2_summary_pending_precheck_unknown_uses_clear_text() -> None:
     assert pending_lines == [
         "- Laboratório obrigatório (pré-check): indeterminado (sem evidência no laudo)",
         "- ECG obrigatório (pré-check): indeterminado (sem evidência no laudo)",
-        "- Pendências de laboratório: não informado",
+        "- Pendências de laboratório: indeterminadas (sem evidência no laudo)",
     ]
 
 
@@ -684,6 +684,7 @@ def test_room2_summary_pending_precheck_unknown_uses_clear_text_in_html() -> Non
         in body
     )
     assert "<li>ECG obrigatório (pré-check): indeterminado (sem evidência no laudo)</li>" in body
+    assert "<li>Pendências de laboratório: indeterminadas (sem evidência no laudo)</li>" in body
 
 
 def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_instability() -> None:
