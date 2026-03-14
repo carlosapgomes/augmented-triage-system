@@ -752,6 +752,45 @@ def test_room2_summary_clinical_validation_example_for_pending_section() -> None
     ]
 
 
+def test_room2_summary_unknown_terms_do_not_render_as_desconhecido() -> None:
+    case_id = UUID("f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1f1")
+    structured_data = {
+        "eda": {
+            "ecg": {
+                "report_present": "unknown",
+                "abnormal_flag": "unknown",
+            },
+        },
+        "policy_precheck": {
+            "labs_pass": "unknown",
+            "ecg_present": "unknown",
+            "labs_failed_items": [],
+        },
+    }
+
+    markdown_body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data=structured_data,
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+    html_body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data=structured_data,
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "desconhecido" not in markdown_body
+    assert "desconhecido" not in html_body
+    assert "indeterminado" in markdown_body
+    assert "indeterminado" in html_body
+
+
 def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_instability() -> None:
     case_id = UUID("56565656-5656-5656-5656-565656565656")
     body = build_room2_case_summary_message(
