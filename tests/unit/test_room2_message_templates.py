@@ -145,6 +145,7 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "## Pendências críticas:" in body
     assert "## Decisão sugerida:" in body
     assert "## Suporte recomendado:" in body
+    assert "## ASA estimado:" in body
     assert "## Motivo objetivo:" in body
     assert "## Conduta sugerida:" not in body
     assert "## Dados extraídos:" not in body
@@ -155,6 +156,7 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
         "## Pendências críticas:",
         "## Decisão sugerida:",
         "## Suporte recomendado:",
+        "## ASA estimado:",
         "## Motivo objetivo:",
     ]
     section_positions = [body.index(section) for section in section_order]
@@ -301,6 +303,70 @@ def test_build_room2_case_summary_formatted_html_formats_recent_denial_datetime_
 
     assert "<h2>Histórico de negativa recente:</h2>" in body
     assert "Data/hora da negativa mais recente: 15/02/2026 12:30 BRT" in body
+
+
+def test_room2_summary_renders_explicit_asa_block_from_suggested_action() -> None:
+    case_id = UUID("24242424-2424-2424-2424-242424242424")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={},
+        summary_text="Resumo LLM1",
+        suggested_action={
+            "suggestion": "accept",
+            "support_recommendation": "anesthesist",
+            "asa": {
+                "bucket": "III ou mais",
+                "display_text": "III ou mais",
+            },
+        },
+    )
+
+    asa_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## ASA estimado:\n\n",
+        next_section="## Motivo objetivo:\n\n",
+    )
+
+    assert asa_lines == ["- III ou mais"]
+
+
+
+def test_room2_summary_renders_insufficient_asa_fallback_text() -> None:
+    case_id = UUID("25252525-2525-2525-2525-252525252525")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={
+            "eda": {
+                "asa": {
+                    "bucket": "insufficient_data",
+                },
+            },
+        },
+        summary_text="Resumo LLM1",
+        suggested_action={
+            "suggestion": "accept",
+            "support_recommendation": "none",
+            "asa": {
+                "bucket": "insufficient_data",
+                "display_text": "não foi possível estimar com os dados apresentados",
+            },
+        },
+    )
+
+    asa_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## ASA estimado:\n\n",
+        next_section="## Motivo objetivo:\n\n",
+    )
+
+    assert asa_lines == ["- não foi possível estimar com os dados apresentados"]
+
 
 
 def test_build_room2_case_decision_instructions_message_has_strict_template() -> None:
@@ -562,11 +628,17 @@ def test_room2_summary_decision_and_support_come_only_from_suggested_action_mark
     support_lines = _extract_markdown_section_lines(
         body=body,
         section="## Suporte recomendado:\n\n",
+        next_section="\n\n## ASA estimado:",
+    )
+    asa_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## ASA estimado:\n\n",
         next_section="\n\n## Motivo objetivo:",
     )
     assert decision_lines == ["- negar"]
     assert support_lines == ["- anestesista_uti"]
-    assert "aceitar" not in "\n".join(decision_lines + support_lines)
+    assert asa_lines == ["- não informado"]
+    assert "aceitar" not in "\n".join(decision_lines + support_lines + asa_lines)
 
 
 def test_room2_summary_decision_and_support_come_only_from_suggested_action_html() -> None:
@@ -594,12 +666,18 @@ def test_room2_summary_decision_and_support_come_only_from_suggested_action_html
     support_chunk = _extract_html_section_chunk(
         body=body,
         section="<h2>Suporte recomendado:</h2>",
+        next_section="<h2>ASA estimado:</h2>",
+    )
+    asa_chunk = _extract_html_section_chunk(
+        body=body,
+        section="<h2>ASA estimado:</h2>",
         next_section="<h2>Motivo objetivo:</h2>",
     )
 
     assert "<li>negar</li>" in decision_chunk
     assert "<li>anestesista</li>" in support_chunk
-    assert "aceitar" not in decision_chunk + support_chunk
+    assert "<li>não informado</li>" in asa_chunk
+    assert "aceitar" not in decision_chunk + support_chunk + asa_chunk
 
 
 def test_room2_summary_objective_reason_deny_ignores_short_rationale_text() -> None:

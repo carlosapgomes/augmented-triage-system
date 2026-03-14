@@ -369,6 +369,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "## Pendências críticas:" in summary_body
     assert "## Decisão sugerida:" in summary_body
     assert "## Suporte recomendado:" in summary_body
+    assert "## ASA estimado:" in summary_body
     assert "## Motivo objetivo:" in summary_body
     assert "## Conduta sugerida:" not in summary_body
     assert "## Histórico de negativa recente:" in summary_body
@@ -389,6 +390,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "- Laboratório obrigatório (pré-check): sim" in summary_body
     assert "- ECG obrigatório (pré-check): sim" in summary_body
     assert "- Pendências de laboratório: não informado" in summary_body
+    assert "- III ou mais" in summary_body
     assert "- Decisão negar com suporte anestesista." not in summary_body
     assert "- Informacoes insuficientes" not in summary_body
     assert "- Negado por: critérios mínimos de segurança não atendidos" in summary_body
@@ -402,6 +404,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "<h2>Pendências críticas:</h2>" in summary_formatted_body
     assert "<h2>Decisão sugerida:</h2>" in summary_formatted_body
     assert "<h2>Suporte recomendado:</h2>" in summary_formatted_body
+    assert "<h2>ASA estimado:</h2>" in summary_formatted_body
     assert "<h2>Motivo objetivo:</h2>" in summary_formatted_body
     assert "<h2>Conduta sugerida:</h2>" not in summary_formatted_body
     assert "<h2>Dados extraídos:</h2>" not in summary_formatted_body
@@ -409,6 +412,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "<li>Hb: 10.5</li>" in summary_formatted_body
     assert "<li>Plaquetas: 130000</li>" in summary_formatted_body
     assert "<li>INR: 1.2</li>" in summary_formatted_body
+    assert "<li>III ou mais</li>" in summary_formatted_body
     assert "<li>Decisão negar com suporte anestesista.</li>" not in summary_formatted_body
     assert "<li>Informacoes insuficientes</li>" not in summary_formatted_body
     assert (

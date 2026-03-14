@@ -270,6 +270,12 @@ def build_room2_case_summary_message(
     pending_block = "\n".join(_build_room2_critical_pending_lines(structured_data))
     decision_block = "\n".join(_build_room2_decision_lines(suggested_action))
     support_block = "\n".join(_build_room2_support_lines(suggested_action))
+    asa_block = "\n".join(
+        _build_room2_asa_lines(
+            suggested_action=suggested_action,
+            structured_data=structured_data,
+        )
+    )
     reason_block = "\n".join(
         _build_room2_objective_reason_lines(
             suggested_action=suggested_action,
@@ -298,6 +304,8 @@ def build_room2_case_summary_message(
         f"{decision_block}\n\n"
         "## Suporte recomendado:\n\n"
         f"{support_block}\n\n"
+        "## ASA estimado:\n\n"
+        f"{asa_block}\n\n"
         "## Motivo objetivo:\n\n"
         f"{reason_block}"
     )
@@ -328,6 +336,12 @@ def build_room2_case_summary_formatted_html(
     )
     decision_html = _format_markdown_lines_html(_build_room2_decision_lines(suggested_action))
     support_html = _format_markdown_lines_html(_build_room2_support_lines(suggested_action))
+    asa_html = _format_markdown_lines_html(
+        _build_room2_asa_lines(
+            suggested_action=suggested_action,
+            structured_data=structured_data,
+        )
+    )
     reason_html = _format_markdown_lines_html(
         _build_room2_objective_reason_lines(
             suggested_action=suggested_action,
@@ -356,6 +370,8 @@ def build_room2_case_summary_formatted_html(
         f"{decision_html}"
         "<h2>Suporte recomendado:</h2>"
         f"{support_html}"
+        "<h2>ASA estimado:</h2>"
+        f"{asa_html}"
         "<h2>Motivo objetivo:</h2>"
         f"{reason_html}"
     )
@@ -674,6 +690,41 @@ def _build_room2_support_lines(suggested_action: dict[str, object]) -> list[str]
     if isinstance(support_recommendation, str):
         return [f"- {_format_scalar(support_recommendation)}"]
     return ["- não informado"]
+
+
+
+def _build_room2_asa_lines(
+    *,
+    suggested_action: dict[str, object],
+    structured_data: dict[str, object],
+) -> list[str]:
+    """Return practical ASA section lines from recommendation context or structured data."""
+
+    asa_payload = suggested_action.get("asa")
+    if isinstance(asa_payload, dict):
+        display_text = asa_payload.get("display_text")
+        if isinstance(display_text, str) and display_text.strip():
+            return [f"- {display_text.strip()}"]
+
+        bucket = asa_payload.get("bucket")
+        if isinstance(bucket, str) and bucket.strip():
+            return [f"- {_format_room2_asa_bucket(bucket.strip())}"]
+
+    structured_asa = _extract_room2_nested_value(structured_data, "eda", "asa", "bucket")
+    if isinstance(structured_asa, str) and structured_asa.strip():
+        return [f"- {_format_room2_asa_bucket(structured_asa.strip())}"]
+
+    return ["- não informado"]
+
+
+
+def _format_room2_asa_bucket(value: str) -> str:
+    """Map persisted ASA bucket to Room-2 human-readable display text."""
+
+    if value == "insufficient_data":
+        return "não foi possível estimar com os dados apresentados"
+    return _map_presentation_value(value)
+
 
 
 def _build_room2_objective_reason_lines(
