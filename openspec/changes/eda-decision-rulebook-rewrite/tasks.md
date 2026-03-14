@@ -8,7 +8,7 @@
 
 ## 2. EDA scope classification and clinical policy rewrite
 
-- [ ] 2.1 Refactor scope classification so `gastrostomy`, `esophageal_dilation`, and `foreign_body` remain inside supported EDA flow while true `non_eda` and unresolved `unknown` requests continue to `manual_review_required`.
+- [x] 2.1 Refactor scope classification so `gastrostomy`, `esophageal_dilation`, and `foreign_body` remain inside supported EDA flow while true `non_eda` and unresolved `unknown` requests continue to `manual_review_required`.
 - [ ] 2.2 Rewrite the deterministic EDA pre-procedure policy to enforce the new minimum-exam set, qualitative evidence equivalences, contraindication thresholds, and foreign-body bypass behavior.
 - [ ] 2.3 Implement explicit handling for ECG, chest X-ray, and echocardiogram completeness gates, including the requirement for minimal reported findings rather than simple mention of exam existence.
 - [ ] 2.4 Add targeted unit tests for the rewritten clinical policy covering: missing minimum exams, qualitative evidence acceptance, hepatopathy thresholds, cardiopathy thresholds, combined hepatopathy+cardiopathy thresholds, respiratory/ECG/ECO gates, and foreign-body bypass.
@@ -55,3 +55,7 @@
   - `uv run pytest tests/unit/test_deterministic_llm_client.py tests/integration/test_process_pdf_case_llm1.py tests/integration/test_worker_runtime_service_wiring.py -q`
   - `uv run ruff check src/triage_automation/infrastructure/llm/deterministic_client.py tests/unit/test_deterministic_llm_client.py tests/integration/test_process_pdf_case_llm1.py tests/integration/test_worker_runtime_service_wiring.py`
   - `uv run mypy src/triage_automation/infrastructure/llm/deterministic_client.py`
+- Slice 2.1 verification executed successfully:
+  - `uv run pytest tests/integration/test_process_pdf_case_llm2.py -q`
+  - `uv run ruff check src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py`
+  - `uv run mypy src/triage_automation/application/services/process_pdf_case_service.py`

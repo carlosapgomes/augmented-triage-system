@@ -434,6 +434,13 @@ def _with_preop_gate_block(
     return payload
 
 
+_SUPPORTED_EDA_SUBTYPES = {
+    "standard",
+    "gastrostomy",
+    "esophageal_dilation",
+    "foreign_body",
+}
+
 _SCOPE_GASTROSTOMY_TERMS = (
     "gtt",
     "gastrostomia",
@@ -446,6 +453,11 @@ _SCOPE_ESOPHAGEAL_DILATION_TERMS = (
     "dilatacao esofagica",
     "dilatacao de esofago",
     "dilatacao do esofago",
+)
+
+_SCOPE_FOREIGN_BODY_TERMS = (
+    "corpo estranho",
+    "retirada de corpo estranho",
 )
 
 _SCOPE_EXPLICIT_EDA_TERMS = (
@@ -508,7 +520,36 @@ def _extract_scope_keyword_candidate_texts(
     return candidate_texts
 
 
-def _detect_non_eda_scope_keyword(
+def _extract_supported_eda_subtype_from_llm1(
+    *,
+    llm1_structured_data: dict[str, object],
+) -> str | None:
+    eda_payload = llm1_structured_data.get("eda")
+    if isinstance(eda_payload, dict):
+        requested_procedure = eda_payload.get("requested_procedure")
+        if isinstance(requested_procedure, dict):
+            subtype = requested_procedure.get("subtype")
+            if isinstance(subtype, str):
+                normalized = subtype.strip().lower()
+                if normalized in _SUPPORTED_EDA_SUBTYPES:
+                    return normalized
+
+    preop_screening = llm1_structured_data.get("preop_screening")
+    if not isinstance(preop_screening, dict):
+        return None
+    rulebook_signals = preop_screening.get("rulebook_signals")
+    if not isinstance(rulebook_signals, dict):
+        return None
+    subtype = rulebook_signals.get("eda_subtype")
+    if not isinstance(subtype, str):
+        return None
+    normalized = subtype.strip().lower()
+    if normalized in _SUPPORTED_EDA_SUBTYPES:
+        return normalized
+    return None
+
+
+def _detect_supported_eda_scope_keyword(
     *,
     llm1_structured_data: dict[str, object],
     cleaned_text: str,
@@ -520,6 +561,9 @@ def _detect_non_eda_scope_keyword(
 
     for candidate in candidate_texts:
         normalized_candidate = _normalize_scope_keyword_text(value=candidate)
+        for term in _SCOPE_FOREIGN_BODY_TERMS:
+            if _contains_scope_term(normalized_text=normalized_candidate, term=term):
+                return "foreign_body", term
         for term in _SCOPE_GASTROSTOMY_TERMS:
             if _contains_scope_term(normalized_text=normalized_candidate, term=term):
                 return "gastrostomy", term
@@ -592,52 +636,39 @@ def build_scope_gated_manual_review_payload(
     llm1_structured_data: dict[str, object],
     cleaned_text: str,
 ) -> dict[str, object] | None:
-    """Build deterministic manual-review payload for non-EDA or unknown exam scope."""
+    """Build deterministic manual-review payload for unresolved non-supported scope."""
 
     exam_type = _extract_preop_exam_type(llm1_structured_data=llm1_structured_data)
-    scope_keyword_type, matched_term = _detect_non_eda_scope_keyword(
+    supported_subtype = _extract_supported_eda_subtype_from_llm1(
         llm1_structured_data=llm1_structured_data,
-        cleaned_text=cleaned_text,
     )
-    if exam_type not in {"non_eda", "unknown"} and scope_keyword_type is not None:
-        exam_type = "non_eda"
-
-    if exam_type == "unknown" and scope_keyword_type is None:
-        explicit_eda_detected, _ = _detect_explicit_eda_scope_keyword(
+    if supported_subtype is None:
+        supported_subtype, _ = _detect_supported_eda_scope_keyword(
             llm1_structured_data=llm1_structured_data,
             cleaned_text=cleaned_text,
         )
-        if explicit_eda_detected:
-            exam_type = "eda"
+
+    explicit_eda_detected, _ = _detect_explicit_eda_scope_keyword(
+        llm1_structured_data=llm1_structured_data,
+        cleaned_text=cleaned_text,
+    )
+
+    if supported_subtype is not None or explicit_eda_detected:
+        exam_type = "eda"
 
     if exam_type not in {"non_eda", "unknown"}:
         return None
 
     reason_code = "non_eda_request" if exam_type == "non_eda" else "unknown_exam_type"
-    if exam_type == "unknown":
-        reason_text = "Tipo de exame nao identificado; revisao manual obrigatoria."
-    elif scope_keyword_type == "gastrostomy":
-        reason_text = (
-            "Relatorio fora de escopo EDA; solicitacao de gastrostomia/GTT detectada "
-            "e revisao manual obrigatoria."
-        )
-    elif scope_keyword_type == "esophageal_dilation":
-        reason_text = (
-            "Relatorio fora de escopo EDA; solicitacao de dilatacao esofagica detectada "
-            "e revisao manual obrigatoria."
-        )
-    else:
-        reason_text = "Relatorio fora de escopo EDA; revisao manual obrigatoria."
+    reason_text = (
+        "Relatorio fora de escopo EDA; revisao manual obrigatoria."
+        if exam_type == "non_eda"
+        else "Tipo de exame nao identificado; revisao manual obrigatoria."
+    )
 
     evidence_spans = _extract_preop_evidence_spans(
         llm1_structured_data=llm1_structured_data
     )
-    if scope_keyword_type is not None and matched_term is not None:
-        evidence_spans = _append_scope_keyword_evidence_span(
-            evidence_spans=evidence_spans,
-            scope_keyword_type=scope_keyword_type,
-            matched_term=matched_term,
-        )
 
     return {
         "schema_version": "1.1",
