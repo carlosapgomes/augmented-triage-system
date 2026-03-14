@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 DecisionValue = Literal["accept", "deny", "excluded", "manual_review_required"]
+SupportedEdaSubtype = Literal[
+    "standard",
+    "gastrostomy",
+    "esophageal_dilation",
+    "foreign_body",
+]
 
-_OPERATIONAL_INDICATIONS = {"bleeding", "abdominal_pain", "dyspepsia"}
+_REQUIRED_MINIMUM_EXAMS: tuple[tuple[str, str, str], ...] = (
+    ("hb_numeric_present", "missing_minimum_exam_hb_or_ht", "Hb/Ht"),
+    ("platelets_numeric_present", "missing_minimum_exam_platelets", "plaquetas"),
+    ("tp_inr_rni_numeric_present", "missing_minimum_exam_tp_inr_rni", "TP/INR/RNI"),
+    ("ttpa_present", "missing_minimum_exam_ttpa", "TTPa"),
+    ("urea_present", "missing_minimum_exam_urea", "ureia"),
+    ("creatinine_present", "missing_minimum_exam_creatinine", "creatinina"),
+)
 
 
 @dataclass(frozen=True)
@@ -32,153 +45,85 @@ class EdaPreopDecision:
         }
 
 
+@dataclass(frozen=True)
+class ContraindicationThresholds:
+    """Numeric contraindication thresholds derived from the rewritten rulebook."""
+
+    hb_min: float
+    platelets_min: int
+    rni_max: float
+    profile_name: str
+
+
 def evaluate_eda_preop_policy(*, structured_data: dict[str, object]) -> dict[str, object]:
     """Evaluate deterministic EDA pre-procedure criteria from structured extraction."""
 
-    eda_payload = _extract_dict(structured_data, "eda")
     preop_payload = _extract_dict(structured_data, "preop_screening")
     pediatric_flag = _is_pediatric(structured_data)
+    subtype = _extract_supported_eda_subtype(structured_data=structured_data)
 
-    exclusion_type = _extract_text(eda_payload, "exclusion_type")
-    if exclusion_type == "gastrostomy":
-        return EdaPreopDecision(
-            decision="excluded",
-            reason_code="excluded_gastrostomy",
-            reason_text=_with_pediatric_signal(
-                "Solicitação de gastrostomia fora de escopo da política automática EDA.",
-                pediatric_flag,
-            ),
-            evidence_spans=_extract_evidence_spans(preop_payload),
-            pediatric_flag=pediatric_flag,
-        ).to_dict()
-
-    if exclusion_type == "esophageal_dilation":
-        return EdaPreopDecision(
-            decision="excluded",
-            reason_code="excluded_esophageal_dilation",
-            reason_text=_with_pediatric_signal(
-                "Solicitação de dilatação esofágica fora de escopo da política automática EDA.",
-                pediatric_flag,
-            ),
-            evidence_spans=_extract_evidence_spans(preop_payload),
-            pediatric_flag=pediatric_flag,
-        ).to_dict()
-
-    has_cardiovascular_disease = _extract_text(preop_payload, "has_cardiovascular_disease")
-    has_ecg_report = _extract_text(preop_payload, "has_ecg_report")
-    if has_cardiovascular_disease == "yes" and has_ecg_report != "yes":
-        return _deny(
-            reason_code="missing_ecg_with_cardiovascular_disease",
-            reason_text=(
-                "Risco cardiovascular relatado sem laudo de ECG obrigatório para "
-                "recomendação automática EDA."
-            ),
-            structured_data=structured_data,
-        )
-
-    has_active_respiratory_symptoms = _extract_text(
-        preop_payload,
-        "has_active_respiratory_symptoms",
-    )
-    has_prior_respiratory_disease = _extract_text(
-        preop_payload,
-        "has_prior_respiratory_disease",
-    )
-    has_chest_xray_report = _extract_text(preop_payload, "has_chest_xray_report")
-    respiratory_risk_reported = (
-        has_active_respiratory_symptoms == "yes"
-        or has_prior_respiratory_disease == "yes"
-    )
-    if respiratory_risk_reported and has_chest_xray_report != "yes":
-        return _deny(
-            reason_code="missing_chest_xray_with_respiratory_risk",
-            reason_text=(
-                "Risco respiratório relatado sem laudo de RX de tórax obrigatório para "
-                "recomendação automática EDA."
-            ),
-            structured_data=structured_data,
-        )
-
-    indication_category = _extract_text(eda_payload, "indication_category")
-    if indication_category == "foreign_body":
+    if subtype == "foreign_body":
         return EdaPreopDecision(
             decision="accept",
             reason_code="foreign_body_exception",
             reason_text=_with_pediatric_signal(
-                "Exceção de corpo estranho: sem gate laboratorial de rotina nesta etapa.",
+                "EDA para retirada de corpo estranho: bypass de exames mínimos nesta etapa.",
                 pediatric_flag,
             ),
             evidence_spans=_extract_evidence_spans(preop_payload),
             pediatric_flag=pediatric_flag,
         ).to_dict()
 
-    if indication_category in _OPERATIONAL_INDICATIONS:
-        hb = _extract_float(preop_payload, "hb_g_dl")
-        if hb is not None and hb <= 7:
-            return _deny(
-                reason_code="hb_below_threshold",
-                reason_text="HB <= 7 para cenário operacional (hemorragia/dor/dispepsia).",
-                structured_data=structured_data,
-            )
+    minimum_exam_failure = _find_missing_minimum_exam(structured_data=structured_data)
+    if minimum_exam_failure is not None:
+        reason_code, exam_label = minimum_exam_failure
+        return _deny(
+            reason_code=reason_code,
+            reason_text=(
+                f"Exame mínimo obrigatório ausente ou insuficiente para EDA: {exam_label}."
+            ),
+            structured_data=structured_data,
+        )
 
-        platelets = _extract_int(preop_payload, "platelets_per_mm3")
-        if platelets is not None and platelets <= 100000:
-            return _deny(
-                reason_code="platelets_below_threshold",
-                reason_text=(
-                    "Plaquetas <= 100000 para cenário operacional "
-                    "(hemorragia/dor/dispepsia)."
-                ),
-                structured_data=structured_data,
-            )
+    thresholds = _resolve_contraindication_thresholds(structured_data=structured_data)
+    hb = _extract_hb_value(structured_data=structured_data)
+    if hb is not None and hb < thresholds.hb_min:
+        return _deny(
+            reason_code="hb_below_threshold",
+            reason_text=(
+                f"HB < {thresholds.hb_min:g} para perfil {thresholds.profile_name} do "
+                "rulebook EDA."
+            ),
+            structured_data=structured_data,
+        )
 
-        inr = _extract_float(preop_payload, "inr")
-        if inr is not None and inr >= 1.5:
-            return _deny(
-                reason_code="inr_above_threshold",
-                reason_text="INR >= 1.5 para cenário operacional (hemorragia/dor/dispepsia).",
-                structured_data=structured_data,
-            )
+    platelets = _extract_platelets_value(structured_data=structured_data)
+    if platelets is not None and platelets < thresholds.platelets_min:
+        return _deny(
+            reason_code="platelets_below_threshold",
+            reason_text=(
+                f"Plaquetas < {thresholds.platelets_min} para perfil "
+                f"{thresholds.profile_name} do rulebook EDA."
+            ),
+            structured_data=structured_data,
+        )
 
-        has_ecg_report = _extract_text(preop_payload, "has_ecg_report")
-        if has_ecg_report != "yes":
-            return _deny(
-                reason_code="missing_ecg_with_cardiovascular_disease",
-                reason_text="ECG obrigatório ausente para cenário operacional.",
-                structured_data=structured_data,
-            )
-    else:
-        hb = _extract_float(preop_payload, "hb_g_dl")
-        if hb is not None and hb < 7:
-            return _deny(
-                reason_code="hb_below_threshold",
-                reason_text="HB < 7 para baseline CHD em demais indicações EDA.",
-                structured_data=structured_data,
-            )
-
-        platelets = _extract_int(preop_payload, "platelets_per_mm3")
-        if platelets is not None and platelets < 50000:
-            return _deny(
-                reason_code="platelets_below_threshold",
-                reason_text=(
-                    "Plaquetas < 50000 para baseline CHD em demais indicações EDA."
-                ),
-                structured_data=structured_data,
-            )
-
-        inr = _extract_float(preop_payload, "inr")
-        if inr is not None and inr > 2:
-            return _deny(
-                reason_code="inr_above_threshold",
-                reason_text="INR > 2 para baseline CHD em demais indicações EDA.",
-                structured_data=structured_data,
-            )
+    rni = _extract_rni_value(structured_data=structured_data)
+    if rni is not None and rni > thresholds.rni_max:
+        return _deny(
+            reason_code="inr_above_threshold",
+            reason_text=(
+                f"RNI/INR > {thresholds.rni_max:g} para perfil {thresholds.profile_name} "
+                "do rulebook EDA."
+            ),
+            structured_data=structured_data,
+        )
 
     return EdaPreopDecision(
         decision="accept",
         reason_code="criteria_met",
         reason_text=_with_pediatric_signal(
-            "Critérios determinísticos avaliados sem gatilhos de negação nesta etapa.",
+            "Critérios determinísticos do rulebook EDA atendidos nesta etapa.",
             pediatric_flag,
         ),
         evidence_spans=_extract_evidence_spans(preop_payload),
@@ -201,6 +146,125 @@ def _deny(
         evidence_spans=_extract_evidence_spans(preop_payload),
         pediatric_flag=pediatric_flag,
     ).to_dict()
+
+
+def _find_missing_minimum_exam(
+    *,
+    structured_data: dict[str, object],
+) -> tuple[str, str] | None:
+    minimum_exam_evidence = _extract_minimum_exam_evidence(structured_data=structured_data)
+    for field_name, reason_code, exam_label in _REQUIRED_MINIMUM_EXAMS:
+        if _extract_text(minimum_exam_evidence, field_name) != "yes":
+            return reason_code, exam_label
+    return None
+
+
+def _resolve_contraindication_thresholds(
+    *,
+    structured_data: dict[str, object],
+) -> ContraindicationThresholds:
+    clinical_flags = _extract_clinical_flags(structured_data=structured_data)
+    hepatopathy = _extract_text(clinical_flags, "hepatopathy_explicit") == "yes"
+    cardiopathy = _extract_text(clinical_flags, "cardiopathy_explicit") == "yes"
+
+    if hepatopathy and cardiopathy:
+        return ContraindicationThresholds(
+            hb_min=8.0,
+            platelets_min=50000,
+            rni_max=1.5,
+            profile_name="hepatopatia+cardiopatia",
+        )
+    if cardiopathy:
+        return ContraindicationThresholds(
+            hb_min=8.0,
+            platelets_min=100000,
+            rni_max=1.5,
+            profile_name="cardiopatia",
+        )
+    if hepatopathy:
+        return ContraindicationThresholds(
+            hb_min=7.0,
+            platelets_min=50000,
+            rni_max=1.5,
+            profile_name="hepatopatia",
+        )
+    return ContraindicationThresholds(
+        hb_min=7.0,
+        platelets_min=100000,
+        rni_max=1.5,
+        profile_name="geral",
+    )
+
+
+def _extract_supported_eda_subtype(*, structured_data: dict[str, object]) -> SupportedEdaSubtype:
+    eda_payload = _extract_dict(structured_data, "eda")
+    requested_procedure = _extract_dict(eda_payload, "requested_procedure")
+    subtype = _extract_text(requested_procedure, "subtype")
+    if subtype in {"standard", "gastrostomy", "esophageal_dilation", "foreign_body"}:
+        return cast(SupportedEdaSubtype, subtype)
+
+    rulebook_signals = _extract_rulebook_signals(structured_data=structured_data)
+    rulebook_subtype = _extract_text(rulebook_signals, "eda_subtype")
+    if rulebook_subtype in {
+        "standard",
+        "gastrostomy",
+        "esophageal_dilation",
+        "foreign_body",
+    }:
+        return cast(SupportedEdaSubtype, rulebook_subtype)
+
+    indication_category = _extract_text(eda_payload, "indication_category")
+    if indication_category == "foreign_body":
+        return "foreign_body"
+    return "standard"
+
+
+def _extract_hb_value(*, structured_data: dict[str, object]) -> float | None:
+    labs_payload = _extract_labs_payload(structured_data=structured_data)
+    hb = _extract_float(labs_payload, "hb_g_dl")
+    if hb is not None:
+        return hb
+    preop_payload = _extract_dict(structured_data, "preop_screening")
+    return _extract_float(preop_payload, "hb_g_dl")
+
+
+def _extract_platelets_value(*, structured_data: dict[str, object]) -> int | None:
+    labs_payload = _extract_labs_payload(structured_data=structured_data)
+    platelets = _extract_int(labs_payload, "platelets_per_mm3")
+    if platelets is not None:
+        return platelets
+    preop_payload = _extract_dict(structured_data, "preop_screening")
+    return _extract_int(preop_payload, "platelets_per_mm3")
+
+
+def _extract_rni_value(*, structured_data: dict[str, object]) -> float | None:
+    labs_payload = _extract_labs_payload(structured_data=structured_data)
+    for key in ("rni", "inr"):
+        value = _extract_float(labs_payload, key)
+        if value is not None:
+            return value
+    preop_payload = _extract_dict(structured_data, "preop_screening")
+    return _extract_float(preop_payload, "inr")
+
+
+def _extract_rulebook_signals(*, structured_data: dict[str, object]) -> dict[str, object]:
+    preop_payload = _extract_dict(structured_data, "preop_screening")
+    return _extract_dict(preop_payload, "rulebook_signals")
+
+
+def _extract_minimum_exam_evidence(*, structured_data: dict[str, object]) -> dict[str, object]:
+    rulebook_signals = _extract_rulebook_signals(structured_data=structured_data)
+    return _extract_dict(rulebook_signals, "minimum_exam_evidence")
+
+
+def _extract_clinical_flags(*, structured_data: dict[str, object]) -> dict[str, object]:
+    rulebook_signals = _extract_rulebook_signals(structured_data=structured_data)
+    return _extract_dict(rulebook_signals, "clinical_flags")
+
+
+def _extract_labs_payload(*, structured_data: dict[str, object]) -> dict[str, object]:
+    eda_payload = _extract_dict(structured_data, "eda")
+    return _extract_dict(eda_payload, "labs")
 
 
 def _extract_dict(payload: dict[str, object], key: str) -> dict[str, object]:

@@ -126,11 +126,21 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
             "exclusion_type": "none",
             "is_pediatric": False,
             "foreign_body_suspected": False,
-            "requested_procedure": {"name": "EDA", "urgency": "eletivo"},
+            "requested_procedure": {
+                "name": "EDA",
+                "urgency": "eletivo",
+                "subtype": "standard",
+            },
             "labs": {
                 "hb_g_dl": 10.5,
+                "hct_percent": 31.0,
                 "platelets_per_mm3": 130000,
+                "tp_seconds": 12.0,
                 "inr": 1.2,
+                "rni": 1.2,
+                "ttpa_seconds": 30.0,
+                "urea_mg_dl": 28.0,
+                "creatinine_mg_dl": 0.9,
                 "source_text_hint": None,
             },
             "ecg": {
@@ -138,6 +148,8 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
                 "abnormal_flag": "no",
                 "source_text_hint": None,
             },
+            "asa": {"bucket": "I-II", "source_text_hint": "bom estado clinico"},
+            "cardiovascular_risk": {"level": "low", "source_text_hint": "sem alto risco"},
         },
         "preop_screening": {
             "exam_type": "eda",
@@ -146,9 +158,56 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
             "has_prior_respiratory_disease": "no",
             "has_ecg_report": "yes",
             "has_chest_xray_report": "yes",
+            "has_echocardiogram_report": "unknown",
             "hb_g_dl": 10.5,
             "platelets_per_mm3": 130000,
             "inr": 1.2,
+            "rulebook_signals": {
+                "eda_subtype": "standard",
+                "minimum_exam_evidence": {
+                    "hb_or_hct_present": "yes",
+                    "hb_numeric_present": "yes",
+                    "platelets_numeric_present": "yes",
+                    "tp_inr_rni_numeric_present": "yes",
+                    "ttpa_present": "yes",
+                    "urea_present": "yes",
+                    "creatinine_present": "yes",
+                    "coagulogram_normal_supports_ttpa": "no",
+                    "renal_function_preserved_supports_urea_and_creatinine": "no",
+                },
+                "conditional_exam_requirements": {
+                    "ecg_required": "unknown",
+                    "chest_xray_required": "unknown",
+                    "echocardiogram_required": "unknown",
+                    "ecg_report_finding_present": "unknown",
+                    "chest_xray_report_finding_present": "unknown",
+                    "echocardiogram_report_finding_present": "unknown",
+                },
+                "clinical_flags": {
+                    "hepatopathy_explicit": "no",
+                    "cardiopathy_explicit": "no",
+                    "known_cardiovascular_disease": "no",
+                    "active_respiratory_symptoms": "no",
+                    "prior_respiratory_disease": "no",
+                    "multiple_comorbidities": "unknown",
+                    "qt_prolonging_medications": "unknown",
+                    "diabetes_mellitus": "unknown",
+                    "explicit_obesity": "unknown",
+                    "recent_chest_pain": "no",
+                    "recent_dyspnea": "no",
+                    "recent_palpitations": "no",
+                    "recent_syncope": "no",
+                    "unexplained_dyspnea": "unknown",
+                    "heart_failure_signs": "unknown",
+                    "new_or_unevaluated_murmur": "unknown",
+                    "moderate_or_severe_valvulopathy_without_recent_echo": "unknown",
+                    "worsening_cardiomyopathy": "unknown",
+                    "pulmonary_hypertension": "unknown",
+                    "prior_myocardial_infarction": "no",
+                    "prior_coronary_bypass": "no",
+                    "prior_coronary_angioplasty": "no",
+                },
+            },
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,
@@ -210,6 +269,20 @@ def _llm1_payload_with_exam_type(
             ),
         }
     ]
+
+    eda = payload["eda"]
+    assert isinstance(eda, dict)
+    requested_procedure = eda["requested_procedure"]
+    assert isinstance(requested_procedure, dict)
+    rulebook_signals = preop_screening["rulebook_signals"]
+    assert isinstance(rulebook_signals, dict)
+
+    if exam_type in {"non_eda", "unknown"}:
+        requested_procedure["subtype"] = "unknown"
+        rulebook_signals["eda_subtype"] = "unknown"
+    else:
+        requested_procedure["subtype"] = "standard"
+        rulebook_signals["eda_subtype"] = "standard"
     return payload
 
 
@@ -1015,6 +1088,11 @@ async def test_supported_gastrostomy_subtype_from_llm1_payload_skips_scope_manua
     assert isinstance(requested_procedure, dict)
     requested_procedure["subtype"] = "gastrostomy"
     requested_procedure["name"] = "EDA para gastrostomia"
+    preop_screening = llm1_payload["preop_screening"]
+    assert isinstance(preop_screening, dict)
+    rulebook_signals = preop_screening["rulebook_signals"]
+    assert isinstance(rulebook_signals, dict)
+    rulebook_signals["eda_subtype"] = "gastrostomy"
 
     llm2_client = FakeLlmClient(json.dumps(_valid_llm2_payload(str(case.case_id), "12345")))
 

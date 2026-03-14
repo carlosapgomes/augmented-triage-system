@@ -3,8 +3,6 @@ from __future__ import annotations
 import importlib
 from typing import cast
 
-import pytest
-
 
 def _base_llm1_structured_data() -> dict[str, object]:
     return {
@@ -22,11 +20,21 @@ def _base_llm1_structured_data() -> dict[str, object]:
             "exclusion_type": "none",
             "is_pediatric": False,
             "foreign_body_suspected": False,
-            "requested_procedure": {"name": "EDA", "urgency": "eletivo"},
+            "requested_procedure": {
+                "name": "EDA",
+                "urgency": "eletivo",
+                "subtype": "standard",
+            },
             "labs": {
                 "hb_g_dl": 10.5,
+                "hct_percent": 31.0,
                 "platelets_per_mm3": 180000,
+                "tp_seconds": 12.0,
                 "inr": 1.1,
+                "rni": 1.1,
+                "ttpa_seconds": 30.0,
+                "urea_mg_dl": 28.0,
+                "creatinine_mg_dl": 0.9,
                 "source_text_hint": None,
             },
             "ecg": {
@@ -42,10 +50,62 @@ def _base_llm1_structured_data() -> dict[str, object]:
             "has_prior_respiratory_disease": "no",
             "has_ecg_report": "yes",
             "has_chest_xray_report": "yes",
+            "has_echocardiogram_report": "unknown",
             "hb_g_dl": 10.5,
             "platelets_per_mm3": 180000,
             "inr": 1.1,
-            "evidence_spans": [],
+            "evidence_spans": [
+                {
+                    "field_path": "preop_screening.rulebook_signals.minimum_exam_evidence",
+                    "excerpt": "hb, plaquetas, inr, ttpa e funcao renal presentes",
+                }
+            ],
+            "rulebook_signals": {
+                "eda_subtype": "standard",
+                "minimum_exam_evidence": {
+                    "hb_or_hct_present": "yes",
+                    "hb_numeric_present": "yes",
+                    "platelets_numeric_present": "yes",
+                    "tp_inr_rni_numeric_present": "yes",
+                    "ttpa_present": "yes",
+                    "urea_present": "yes",
+                    "creatinine_present": "yes",
+                    "coagulogram_normal_supports_ttpa": "no",
+                    "renal_function_preserved_supports_urea_and_creatinine": "no",
+                },
+                "conditional_exam_requirements": {
+                    "ecg_required": "unknown",
+                    "chest_xray_required": "unknown",
+                    "echocardiogram_required": "unknown",
+                    "ecg_report_finding_present": "unknown",
+                    "chest_xray_report_finding_present": "unknown",
+                    "echocardiogram_report_finding_present": "unknown",
+                },
+                "clinical_flags": {
+                    "hepatopathy_explicit": "no",
+                    "cardiopathy_explicit": "no",
+                    "known_cardiovascular_disease": "no",
+                    "active_respiratory_symptoms": "no",
+                    "prior_respiratory_disease": "no",
+                    "multiple_comorbidities": "unknown",
+                    "qt_prolonging_medications": "unknown",
+                    "diabetes_mellitus": "unknown",
+                    "explicit_obesity": "unknown",
+                    "recent_chest_pain": "no",
+                    "recent_dyspnea": "no",
+                    "recent_palpitations": "no",
+                    "recent_syncope": "no",
+                    "unexplained_dyspnea": "unknown",
+                    "heart_failure_signs": "unknown",
+                    "new_or_unevaluated_murmur": "unknown",
+                    "moderate_or_severe_valvulopathy_without_recent_echo": "unknown",
+                    "worsening_cardiomyopathy": "unknown",
+                    "pulmonary_hypertension": "unknown",
+                    "prior_myocardial_infarction": "no",
+                    "prior_coronary_bypass": "no",
+                    "prior_coronary_angioplasty": "no",
+                },
+            },
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,
@@ -78,216 +138,141 @@ def _evaluate_preop_policy(*, structured_data: dict[str, object]) -> dict[str, o
     return cast(dict[str, object], result)
 
 
-@pytest.mark.parametrize(
-    ("exclusion_type", "reason_code"),
-    [
-        ("gastrostomy", "excluded_gastrostomy"),
-        ("esophageal_dilation", "excluded_esophageal_dilation"),
-    ],
-)
-def test_exclusions_take_priority_over_threshold_denials(
-    exclusion_type: str,
-    reason_code: str,
-) -> None:
+def test_gastrostomy_uses_supported_eda_rulebook_and_is_not_excluded() -> None:
     payload = _base_llm1_structured_data()
     eda = cast(dict[str, object], payload["eda"])
-    eda["exclusion_type"] = exclusion_type
+    requested_procedure = cast(dict[str, object], eda["requested_procedure"])
+    requested_procedure["subtype"] = "gastrostomy"
+    requested_procedure["name"] = "EDA para gastrostomia"
 
     preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 5.0
-    preop["platelets_per_mm3"] = 30000
-    preop["inr"] = 3.0
-    preop["has_ecg_report"] = "no"
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    rulebook_signals["eda_subtype"] = "gastrostomy"
 
     result = _evaluate_preop_policy(structured_data=payload)
 
-    assert result["decision"] == "excluded"
-    assert result["reason_code"] == reason_code
+    assert result["decision"] == "accept"
+    assert result["reason_code"] == "criteria_met"
 
 
-def test_foreign_body_exception_does_not_trigger_routine_labs_denial() -> None:
+def test_missing_creatinine_minimum_exam_drives_deny() -> None:
+    payload = _base_llm1_structured_data()
+    preop = cast(dict[str, object], payload["preop_screening"])
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    minimum_exam_evidence = cast(dict[str, object], rulebook_signals["minimum_exam_evidence"])
+    minimum_exam_evidence["creatinine_present"] = "no"
+
+    eda = cast(dict[str, object], payload["eda"])
+    labs = cast(dict[str, object], eda["labs"])
+    labs["creatinine_mg_dl"] = None
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "missing_minimum_exam_creatinine"
+
+
+def test_qualitative_ttpa_and_renal_equivalences_satisfy_minimum_exam_rulebook() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    labs = cast(dict[str, object], eda["labs"])
+    labs["ttpa_seconds"] = None
+    labs["urea_mg_dl"] = None
+    labs["creatinine_mg_dl"] = None
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    minimum_exam_evidence = cast(dict[str, object], rulebook_signals["minimum_exam_evidence"])
+    minimum_exam_evidence["ttpa_present"] = "yes"
+    minimum_exam_evidence["coagulogram_normal_supports_ttpa"] = "yes"
+    minimum_exam_evidence["urea_present"] = "yes"
+    minimum_exam_evidence["creatinine_present"] = "yes"
+    minimum_exam_evidence["renal_function_preserved_supports_urea_and_creatinine"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "accept"
+    assert result["reason_code"] == "criteria_met"
+
+
+def test_cardiopathy_threshold_uses_hb_less_than_8_rule() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    labs = cast(dict[str, object], eda["labs"])
+    labs["hb_g_dl"] = 7.9
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["hb_g_dl"] = 7.9
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    clinical_flags = cast(dict[str, object], rulebook_signals["clinical_flags"])
+    clinical_flags["cardiopathy_explicit"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "hb_below_threshold"
+
+
+def test_combined_hepatopathy_and_cardiopathy_uses_mixed_platelet_threshold() -> None:
+    payload = _base_llm1_structured_data()
+    eda = cast(dict[str, object], payload["eda"])
+    labs = cast(dict[str, object], eda["labs"])
+    labs["platelets_per_mm3"] = 49999
+
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["platelets_per_mm3"] = 49999
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    clinical_flags = cast(dict[str, object], rulebook_signals["clinical_flags"])
+    clinical_flags["hepatopathy_explicit"] = "yes"
+    clinical_flags["cardiopathy_explicit"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "platelets_below_threshold"
+
+
+def test_foreign_body_bypasses_minimum_exam_and_threshold_denials() -> None:
     payload = _base_llm1_structured_data()
     eda = cast(dict[str, object], payload["eda"])
     eda["indication_category"] = "foreign_body"
+    eda["foreign_body_suspected"] = True
+    requested_procedure = cast(dict[str, object], eda["requested_procedure"])
+    requested_procedure["subtype"] = "foreign_body"
+    requested_procedure["name"] = "EDA para retirada de corpo estranho"
+    labs = cast(dict[str, object], eda["labs"])
+    labs["hb_g_dl"] = None
+    labs["platelets_per_mm3"] = None
+    labs["inr"] = None
+    labs["rni"] = None
+    labs["ttpa_seconds"] = None
+    labs["urea_mg_dl"] = None
+    labs["creatinine_mg_dl"] = None
 
     preop = cast(dict[str, object], payload["preop_screening"])
     preop["hb_g_dl"] = None
     preop["platelets_per_mm3"] = None
     preop["inr"] = None
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    rulebook_signals["eda_subtype"] = "foreign_body"
+    minimum_exam_evidence = cast(dict[str, object], rulebook_signals["minimum_exam_evidence"])
+    for key in tuple(minimum_exam_evidence):
+        minimum_exam_evidence[key] = "unknown"
 
     result = _evaluate_preop_policy(structured_data=payload)
 
-    assert result["decision"] != "deny"
-    assert result.get("reason_code") not in {
-        "hb_below_threshold",
-        "platelets_below_threshold",
-        "inr_above_threshold",
-    }
-
-
-@pytest.mark.parametrize("indication", ["bleeding", "abdominal_pain", "dyspepsia"])
-def test_operational_indications_deny_hb_equal_to_7(indication: str) -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = indication
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 7.0
-    preop["platelets_per_mm3"] = 150000
-    preop["inr"] = 1.1
-    preop["has_ecg_report"] = "yes"
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "hb_below_threshold"
-
-
-def test_operational_indications_require_ecg_report() -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "dyspepsia"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 10.5
-    preop["platelets_per_mm3"] = 180000
-    preop["inr"] = 1.1
-    preop["has_ecg_report"] = "no"
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-
-
-def test_operational_indications_deny_platelets_equal_to_100k() -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "abdominal_pain"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 10.5
-    preop["platelets_per_mm3"] = 100000
-    preop["inr"] = 1.1
-    preop["has_ecg_report"] = "yes"
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "platelets_below_threshold"
-
-
-def test_operational_indications_deny_inr_equal_to_1_5() -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "bleeding"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 10.5
-    preop["platelets_per_mm3"] = 150000
-    preop["inr"] = 1.5
-    preop["has_ecg_report"] = "yes"
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "inr_above_threshold"
-
-
-def test_baseline_non_operational_eda_deny_hb_below_7() -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "other"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 6.9
-    preop["platelets_per_mm3"] = 180000
-    preop["inr"] = 1.1
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "hb_below_threshold"
-
-
-def test_baseline_non_operational_eda_deny_platelets_below_50k() -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "other"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 10.5
-    preop["platelets_per_mm3"] = 49999
-    preop["inr"] = 1.1
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "platelets_below_threshold"
-
-
-def test_baseline_non_operational_eda_deny_inr_above_2() -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "other"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["hb_g_dl"] = 10.5
-    preop["platelets_per_mm3"] = 180000
-    preop["inr"] = 2.1
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "inr_above_threshold"
-
-
-def test_all_eda_deny_when_cardiovascular_risk_and_missing_ecg() -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "other"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop["has_cardiovascular_disease"] = "yes"
-    preop["has_ecg_report"] = "no"
-    preop["hb_g_dl"] = 10.5
-    preop["platelets_per_mm3"] = 180000
-    preop["inr"] = 1.1
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "missing_ecg_with_cardiovascular_disease"
-
-
-@pytest.mark.parametrize(
-    "risk_field",
-    ["has_active_respiratory_symptoms", "has_prior_respiratory_disease"],
-)
-def test_all_eda_deny_when_respiratory_risk_and_missing_chest_xray(
-    risk_field: str,
-) -> None:
-    payload = _base_llm1_structured_data()
-    eda = cast(dict[str, object], payload["eda"])
-    eda["indication_category"] = "other"
-
-    preop = cast(dict[str, object], payload["preop_screening"])
-    preop[risk_field] = "yes"
-    preop["has_chest_xray_report"] = "no"
-    preop["has_ecg_report"] = "yes"
-    preop["hb_g_dl"] = 10.5
-    preop["platelets_per_mm3"] = 180000
-    preop["inr"] = 1.1
-
-    result = _evaluate_preop_policy(structured_data=payload)
-
-    assert result["decision"] == "deny"
-    assert result["reason_code"] == "missing_chest_xray_with_respiratory_risk"
+    assert result["decision"] == "accept"
+    assert result["reason_code"] == "foreign_body_exception"
 
 
 def test_pediatric_case_sets_flag_and_explicit_reason_text_signal() -> None:
     payload = _base_llm1_structured_data()
     patient = cast(dict[str, object], payload["patient"])
     patient["age"] = 15
+    eda = cast(dict[str, object], payload["eda"])
+    eda["is_pediatric"] = True
+    policy_precheck = cast(dict[str, object], payload["policy_precheck"])
+    policy_precheck["pediatric_flag"] = True
 
     result = _evaluate_preop_policy(structured_data=payload)
 
