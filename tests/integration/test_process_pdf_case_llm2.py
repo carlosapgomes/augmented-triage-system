@@ -176,10 +176,10 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
                     "renal_function_preserved_supports_urea_and_creatinine": "no",
                 },
                 "conditional_exam_requirements": {
-                    "ecg_required": "unknown",
+                    "ecg_required": "yes",
                     "chest_xray_required": "unknown",
                     "echocardiogram_required": "unknown",
-                    "ecg_report_finding_present": "unknown",
+                    "ecg_report_finding_present": "yes",
                     "chest_xray_report_finding_present": "unknown",
                     "echocardiogram_report_finding_present": "unknown",
                 },

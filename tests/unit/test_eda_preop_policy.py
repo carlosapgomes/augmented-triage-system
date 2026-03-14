@@ -74,10 +74,10 @@ def _base_llm1_structured_data() -> dict[str, object]:
                     "renal_function_preserved_supports_urea_and_creatinine": "no",
                 },
                 "conditional_exam_requirements": {
-                    "ecg_required": "unknown",
+                    "ecg_required": "yes",
                     "chest_xray_required": "unknown",
                     "echocardiogram_required": "unknown",
-                    "ecg_report_finding_present": "unknown",
+                    "ecg_report_finding_present": "yes",
                     "chest_xray_report_finding_present": "unknown",
                     "echocardiogram_report_finding_present": "unknown",
                 },
@@ -232,6 +232,87 @@ def test_combined_hepatopathy_and_cardiopathy_uses_mixed_platelet_threshold() ->
     assert result["reason_code"] == "platelets_below_threshold"
 
 
+def test_age_above_40_requires_ecg_finding_not_only_exam_mention() -> None:
+    payload = _base_llm1_structured_data()
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["has_ecg_report"] = "yes"
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    conditional_exam_requirements = cast(
+        dict[str, object],
+        rulebook_signals["conditional_exam_requirements"],
+    )
+    conditional_exam_requirements["ecg_required"] = "unknown"
+    conditional_exam_requirements["ecg_report_finding_present"] = "unknown"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "missing_ecg_with_cardiovascular_disease"
+
+
+def test_respiratory_risk_requires_chest_xray_finding_not_only_exam_mention() -> None:
+    payload = _base_llm1_structured_data()
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["has_chest_xray_report"] = "yes"
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    conditional_exam_requirements = cast(
+        dict[str, object],
+        rulebook_signals["conditional_exam_requirements"],
+    )
+    conditional_exam_requirements["chest_xray_required"] = "unknown"
+    conditional_exam_requirements["chest_xray_report_finding_present"] = "unknown"
+    clinical_flags = cast(dict[str, object], rulebook_signals["clinical_flags"])
+    clinical_flags["active_respiratory_symptoms"] = "yes"
+    preop["has_active_respiratory_symptoms"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "missing_chest_xray_with_respiratory_risk"
+
+
+def test_structural_heart_risk_requires_echocardiogram_finding() -> None:
+    payload = _base_llm1_structured_data()
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["has_echocardiogram_report"] = "yes"
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    conditional_exam_requirements = cast(
+        dict[str, object],
+        rulebook_signals["conditional_exam_requirements"],
+    )
+    conditional_exam_requirements["echocardiogram_required"] = "unknown"
+    conditional_exam_requirements["echocardiogram_report_finding_present"] = "unknown"
+    clinical_flags = cast(dict[str, object], rulebook_signals["clinical_flags"])
+    clinical_flags["prior_myocardial_infarction"] = "yes"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "deny"
+    assert result["reason_code"] == "missing_echocardiogram_with_structural_heart_risk"
+
+
+def test_unknown_suspicion_does_not_force_ecg_gate_without_explicit_trigger() -> None:
+    payload = _base_llm1_structured_data()
+    patient = cast(dict[str, object], payload["patient"])
+    patient["age"] = 39
+    preop = cast(dict[str, object], payload["preop_screening"])
+    preop["has_cardiovascular_disease"] = "unknown"
+    rulebook_signals = cast(dict[str, object], preop["rulebook_signals"])
+    conditional_exam_requirements = cast(
+        dict[str, object],
+        rulebook_signals["conditional_exam_requirements"],
+    )
+    conditional_exam_requirements["ecg_required"] = "unknown"
+    conditional_exam_requirements["ecg_report_finding_present"] = "unknown"
+    clinical_flags = cast(dict[str, object], rulebook_signals["clinical_flags"])
+    clinical_flags["known_cardiovascular_disease"] = "unknown"
+
+    result = _evaluate_preop_policy(structured_data=payload)
+
+    assert result["decision"] == "accept"
+    assert result["reason_code"] == "criteria_met"
+
+
 def test_foreign_body_bypasses_minimum_exam_and_threshold_denials() -> None:
     payload = _base_llm1_structured_data()
     eda = cast(dict[str, object], payload["eda"])
@@ -258,6 +339,16 @@ def test_foreign_body_bypasses_minimum_exam_and_threshold_denials() -> None:
     minimum_exam_evidence = cast(dict[str, object], rulebook_signals["minimum_exam_evidence"])
     for key in tuple(minimum_exam_evidence):
         minimum_exam_evidence[key] = "unknown"
+    conditional_exam_requirements = cast(
+        dict[str, object],
+        rulebook_signals["conditional_exam_requirements"],
+    )
+    conditional_exam_requirements["ecg_required"] = "yes"
+    conditional_exam_requirements["chest_xray_required"] = "yes"
+    conditional_exam_requirements["echocardiogram_required"] = "yes"
+    conditional_exam_requirements["ecg_report_finding_present"] = "no"
+    conditional_exam_requirements["chest_xray_report_finding_present"] = "no"
+    conditional_exam_requirements["echocardiogram_report_finding_present"] = "no"
 
     result = _evaluate_preop_policy(structured_data=payload)
 
