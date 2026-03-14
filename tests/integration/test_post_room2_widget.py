@@ -302,8 +302,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "- INR: 1.2" in summary_body
     assert "- ECG presente: sim" in summary_body
     assert "- ECG sinal de alerta: nao" in summary_body
-    assert "- Pré-check laboratório: sim" in summary_body
-    assert "- Pré-check ECG: sim" in summary_body
+    assert "- Laboratório obrigatório (pré-check): sim" in summary_body
+    assert "- ECG obrigatório (pré-check): sim" in summary_body
     assert "- Pendências de laboratório: não informado" in summary_body
     assert "- Decisão negar com suporte anestesista." not in summary_body
     assert "- Informacoes insuficientes" not in summary_body

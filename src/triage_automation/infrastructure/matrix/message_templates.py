@@ -562,9 +562,12 @@ def _build_room2_critical_pending_lines(structured_data: dict[str, object]) -> l
         if normalized_items:
             failed_items_text = ", ".join(normalized_items)
 
+    lab_status = _format_room2_precheck_value(precheck_labs_pass)
+    ecg_status = _format_room2_precheck_value(precheck_ecg_present)
+
     return [
-        f"- Pré-check laboratório: {_format_room2_precheck_value(precheck_labs_pass)}",
-        f"- Pré-check ECG: {_format_room2_precheck_value(precheck_ecg_present)}",
+        f"- Laboratório obrigatório (pré-check): {lab_status}",
+        f"- ECG obrigatório (pré-check): {ecg_status}",
         f"- Pendências de laboratório: {failed_items_text}",
     ]
 

@@ -164,8 +164,8 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "- INR: não informado" in body
     assert "- ECG presente: nao" in body
     assert "- ECG sinal de alerta: desconhecido" in body
-    assert "- Pré-check laboratório: sim" in body
-    assert "- Pré-check ECG: nao" in body
+    assert "- Laboratório obrigatório (pré-check): sim" in body
+    assert "- ECG obrigatório (pré-check): nao" in body
     assert "- Pendências de laboratório: INR ausente" in body
     assert "flag_pediatrico" not in body
     assert "abnormal_flag" not in body
@@ -391,8 +391,8 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     assert "<li>INR: não informado</li>" in body
     assert "<li>ECG presente: nao</li>" in body
     assert "<li>ECG sinal de alerta: desconhecido</li>" in body
-    assert "<li>Pré-check laboratório: sim</li>" in body
-    assert "<li>Pré-check ECG: nao</li>" in body
+    assert "<li>Laboratório obrigatório (pré-check): sim</li>" in body
+    assert "<li>ECG obrigatório (pré-check): nao</li>" in body
     assert "<li>Pendências de laboratório: INR ausente</li>" in body
     assert "prechecagem_politica:" not in body
     assert "ecg.sinal de alerta=" not in body
@@ -626,8 +626,8 @@ def test_room2_summary_critical_sections_use_nao_informado_fallback() -> None:
         "- ECG sinal de alerta: não informado",
     ]
     assert pending_lines == [
-        "- Pré-check laboratório: não informado",
-        "- Pré-check ECG: não informado",
+        "- Laboratório obrigatório (pré-check): não informado",
+        "- ECG obrigatório (pré-check): não informado",
         "- Pendências de laboratório: não informado",
     ]
 
@@ -656,8 +656,8 @@ def test_room2_summary_pending_precheck_unknown_uses_clear_text() -> None:
     )
 
     assert pending_lines == [
-        "- Pré-check laboratório: indeterminado (sem evidência no laudo)",
-        "- Pré-check ECG: indeterminado (sem evidência no laudo)",
+        "- Laboratório obrigatório (pré-check): indeterminado (sem evidência no laudo)",
+        "- ECG obrigatório (pré-check): indeterminado (sem evidência no laudo)",
         "- Pendências de laboratório: não informado",
     ]
 
@@ -679,8 +679,11 @@ def test_room2_summary_pending_precheck_unknown_uses_clear_text_in_html() -> Non
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
 
-    assert "<li>Pré-check laboratório: indeterminado (sem evidência no laudo)</li>" in body
-    assert "<li>Pré-check ECG: indeterminado (sem evidência no laudo)</li>" in body
+    assert (
+        "<li>Laboratório obrigatório (pré-check): indeterminado (sem evidência no laudo)</li>"
+        in body
+    )
+    assert "<li>ECG obrigatório (pré-check): indeterminado (sem evidência no laudo)</li>" in body
 
 
 def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_instability() -> None:
