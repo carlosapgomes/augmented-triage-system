@@ -360,6 +360,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert summary_parent == root_event_id
     assert "## no. ocorrência: 12345" in summary_body
     assert "## paciente: Paciente" in summary_body
+    assert "procedimento solicitado: EDA" in summary_body
+    assert "paciente pediátrico: sim" not in summary_body
     assert f"caso: {current_case.case_id}" not in summary_body
     assert "# Resumo técnico da triagem" in summary_body
     assert "## Resumo clínico:" in summary_body

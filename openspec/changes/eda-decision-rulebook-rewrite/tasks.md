@@ -21,7 +21,7 @@
 
 ## 4. Room-2 clinical summary and context propagation
 
-- [ ] 4.1 Update Room-2 message rendering to display the canonical requested procedure for supported EDA subtypes and the contextual marker `paciente pediátrico: sim` when applicable.
+- [x] 4.1 Update Room-2 message rendering to display the canonical requested procedure for supported EDA subtypes and the contextual marker `paciente pediátrico: sim` when applicable.
 - [ ] 4.2 Add the explicit `ASA estimado` block to the Room-2 summary in the agreed order (`Decisão sugerida`, `Suporte recomendado`, `ASA estimado`, `Motivo objetivo`).
 - [ ] 4.3 Rewrite Room-2 objective-reason rendering to explain the new denial causes coherently, including missing minimum exams, missing ECG/RX/ECO evidence, and contraindication thresholds.
 - [ ] 4.4 Update unit and integration tests for Room-2 summary rendering to cover ASA display, pediatric marker propagation, supported subtype wording, and new objective-reason precedence.
@@ -83,3 +83,7 @@
   - `uv run pytest tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py -q`
   - `uv run ruff check src/triage_automation/application/services/post_room2_widget_service.py tests/integration/test_post_room2_widget.py tests/integration/test_process_pdf_case_llm2.py`
   - `uv run mypy src/triage_automation/application/services/post_room2_widget_service.py`
+- Slice 4.1 verification executed successfully:
+  - `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q`
+  - `uv run ruff check src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`
+  - `uv run mypy src/triage_automation/infrastructure/matrix/message_templates.py`

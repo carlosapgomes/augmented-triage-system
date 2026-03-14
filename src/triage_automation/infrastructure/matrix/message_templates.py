@@ -282,10 +282,12 @@ def build_room2_case_summary_message(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
     )
+    context_block = _build_room2_case_context_markdown_block(structured_data)
 
     message = (
         "# Resumo técnico da triagem\n\n"
         f"{identification_block}\n\n"
+        f"{context_block}\n\n"
         "## Resumo clínico:\n\n"
         f"{summary_block}\n\n"
         "## Achados críticos:\n\n"
@@ -338,10 +340,12 @@ def build_room2_case_summary_formatted_html(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
     )
+    context_html = _build_room2_case_context_html(structured_data)
 
     formatted = (
         "<h1>Resumo técnico da triagem</h1>"
         f"{identification_html}"
+        f"{context_html}"
         "<h2>Resumo clínico:</h2>"
         f"{summary_html}"
         "<h2>Achados críticos:</h2>"
@@ -358,6 +362,84 @@ def build_room2_case_summary_formatted_html(
     if recent_denial_html is not None:
         formatted = f"{formatted}<h2>Histórico de negativa recente:</h2>{recent_denial_html}"
     return formatted
+
+
+def _build_room2_case_context_markdown_block(structured_data: dict[str, object]) -> str:
+    """Return compact context lines shown near Room-2 human identification area."""
+
+    return "\n".join(_build_room2_case_context_lines(structured_data))
+
+
+
+def _build_room2_case_context_html(structured_data: dict[str, object]) -> str:
+    """Return HTML context paragraphs shown near Room-2 human identification area."""
+
+    return "".join(
+        f"<p>{escape(line)}</p>" for line in _build_room2_case_context_lines(structured_data)
+    )
+
+
+
+def _build_room2_case_context_lines(structured_data: dict[str, object]) -> list[str]:
+    """Build canonical procedure and pediatric context lines for Room-2 summary."""
+
+    lines = [
+        f"procedimento solicitado: {_resolve_room2_canonical_procedure_name(structured_data)}"
+    ]
+    if _is_room2_pediatric_case(structured_data):
+        lines.append("paciente pediátrico: sim")
+    return lines
+
+
+
+def _resolve_room2_canonical_procedure_name(structured_data: dict[str, object]) -> str:
+    """Resolve supported EDA subtype to canonical human-readable procedure text."""
+
+    subtype = _extract_room2_supported_eda_subtype(structured_data)
+    if subtype == "gastrostomy":
+        return "EDA para gastrostomia"
+    if subtype == "esophageal_dilation":
+        return "EDA para dilatação esofágica"
+    if subtype == "foreign_body":
+        return "EDA para retirada de corpo estranho"
+    return "EDA"
+
+
+
+def _extract_room2_supported_eda_subtype(structured_data: dict[str, object]) -> str:
+    """Extract normalized supported EDA subtype from structured payload."""
+
+    requested_subtype = _extract_room2_nested_value(
+        structured_data,
+        "eda",
+        "requested_procedure",
+        "subtype",
+    )
+    if requested_subtype in {"standard", "gastrostomy", "esophageal_dilation", "foreign_body"}:
+        return str(requested_subtype)
+
+    rulebook_subtype = _extract_room2_nested_value(
+        structured_data,
+        "preop_screening",
+        "rulebook_signals",
+        "eda_subtype",
+    )
+    if rulebook_subtype in {"standard", "gastrostomy", "esophageal_dilation", "foreign_body"}:
+        return str(rulebook_subtype)
+    return "standard"
+
+
+
+def _is_room2_pediatric_case(structured_data: dict[str, object]) -> bool:
+    """Return True when structured context explicitly marks a pediatric case."""
+
+    age = _extract_room2_nested_value(structured_data, "patient", "age")
+    if isinstance(age, int) and not isinstance(age, bool):
+        return age < 16
+
+    is_pediatric = _extract_room2_nested_value(structured_data, "eda", "is_pediatric")
+    return is_pediatric is True
+
 
 
 def _build_room2_recent_denial_markdown_block(

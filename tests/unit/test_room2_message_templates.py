@@ -179,6 +179,66 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "```json" not in body
 
 
+def test_room2_summary_includes_supported_procedure_context_and_pediatric_marker() -> None:
+    case_id = UUID("21212121-2121-2121-2121-212121212121")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={
+            "patient": {"age": 12},
+            "eda": {
+                "is_pediatric": True,
+                "requested_procedure": {
+                    "name": "pedido textual livre",
+                    "urgency": "eletivo",
+                    "subtype": "gastrostomy",
+                },
+            },
+            "preop_screening": {
+                "rulebook_signals": {"eda_subtype": "gastrostomy"},
+            },
+        },
+        summary_text="Resumo LLM1",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "procedimento solicitado: EDA para gastrostomia" in body
+    assert "paciente pediátrico: sim" in body
+    assert "pedido textual livre" not in body
+
+
+def test_room2_summary_html_includes_supported_procedure_context_and_pediatric_marker() -> None:
+    case_id = UUID("23232323-2323-2323-2323-232323232323")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={
+            "patient": {"age": 15},
+            "eda": {
+                "is_pediatric": True,
+                "requested_procedure": {
+                    "name": "texto livre diferente",
+                    "urgency": "eletivo",
+                    "subtype": "foreign_body",
+                },
+            },
+            "preop_screening": {
+                "rulebook_signals": {"eda_subtype": "foreign_body"},
+            },
+        },
+        summary_text="Resumo LLM1",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "procedimento solicitado: EDA para retirada de corpo estranho" in body
+    assert "paciente pediátrico: sim" in body
+    assert "texto livre diferente" not in body
+
+
 def test_build_room2_case_summary_formats_recent_denial_datetime_in_brt() -> None:
     case_id = UUID("22222222-2222-2222-2222-222222222222")
 
