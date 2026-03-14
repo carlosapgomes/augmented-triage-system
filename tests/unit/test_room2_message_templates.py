@@ -715,6 +715,43 @@ def test_room2_summary_pending_precheck_unknown_uses_clear_text_in_html() -> Non
     assert "<li>Pendências de laboratório: indeterminadas (sem evidência no laudo)</li>" in body
 
 
+def test_room2_summary_clinical_validation_example_for_pending_section() -> None:
+    case_id = UUID("f0f0f0f0-f0f0-f0f0-f0f0-f0f0f0f0f0f0")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="4809481",
+        patient_name="VALDIRA GONCALVES DA SILVA REIS",
+        structured_data={
+            "eda": {
+                "labs": {"hb_g_dl": None, "platelets_per_mm3": None, "inr": None},
+                "ecg": {"report_present": "no", "abnormal_flag": "unknown"},
+            },
+            "policy_precheck": {
+                "labs_pass": "unknown",
+                "ecg_present": "no",
+                "labs_failed_items": [],
+            },
+        },
+        summary_text=(
+            "Mulher de 64 anos com hematêmese e melena, dor epigástrica, "
+            "encaminhada para EDA urgente."
+        ),
+        suggested_action={"suggestion": "deny", "support_recommendation": "anesthesist_icu"},
+    )
+
+    pending_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Pendências críticas:\n\n",
+        next_section="\n\n## Decisão sugerida:",
+    )
+
+    assert pending_lines == [
+        "- Laboratório obrigatório (pré-check): indeterminado (sem evidência no laudo)",
+        "- ECG obrigatório (pré-check): nao",
+        "- Pendências de laboratório: indeterminadas (sem evidência no laudo)",
+    ]
+
+
 def test_room2_summary_includes_emergent_priority_phrase_for_bleeding_with_instability() -> None:
     case_id = UUID("56565656-5656-5656-5656-565656565656")
     body = build_room2_case_summary_message(
