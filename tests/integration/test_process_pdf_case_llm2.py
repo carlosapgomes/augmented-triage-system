@@ -378,6 +378,11 @@ async def test_llm2_persists_suggestion_and_enqueues_room2_widget_job(tmp_path: 
 
     assert row["status"] == "LLM_SUGGEST"
     assert suggested_action["suggestion"] == "accept"
+    assert suggested_action["support_recommendation"] == "none"
+    asa = suggested_action.get("asa")
+    assert isinstance(asa, dict)
+    assert asa.get("bucket") == "I-II"
+    assert asa.get("display_text") == "I-II"
     _assert_preop_gate_contract(suggested_action, expected_decision="accept")
     preop_gate = suggested_action["preop_gate"]
     assert isinstance(preop_gate, dict)
@@ -1215,6 +1220,77 @@ async def test_legacy_precheck_flags_do_not_force_persisted_deny_after_rulebook_
     assert suggested_action["preop_gate"]["decision"] == "accept"
     assert suggested_action["policy_alignment"]["excluded_request"] is False
     assert contradiction_events == 0
+
+
+@pytest.mark.asyncio
+async def test_high_risk_asa_maps_persisted_support_to_anesthesist_icu(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_support_mapping_high_risk.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.R1_ACK_PROCESSING,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-llm2-support-high-risk",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    llm1_payload = _valid_llm1_payload("12345")
+    eda = llm1_payload["eda"]
+    assert isinstance(eda, dict)
+    asa = eda["asa"]
+    assert isinstance(asa, dict)
+    asa["bucket"] = "insufficient_data"
+    cardiovascular_risk = eda["cardiovascular_risk"]
+    assert isinstance(cardiovascular_risk, dict)
+    cardiovascular_risk["level"] = "moderate_high"
+
+    llm1_service = Llm1Service(llm_client=FakeLlmClient(json.dumps(llm1_payload)))
+    llm2_payload = _valid_llm2_payload(str(case.case_id), "12345")
+    llm2_payload["support_recommendation"] = "none"
+    llm2_service = Llm2Service(llm_client=FakeLlmClient(json.dumps(llm2_payload)))
+
+    service = ProcessPdfCaseService(
+        case_repository=case_repo,
+        mxc_downloader=MatrixMxcDownloader(
+            FakeMatrixMediaClient(
+                _build_simple_pdf(
+                    "RELATORIO DE OCORRENCIAS 12345 " "clinical text 12345"
+                )
+            )
+        ),
+        text_extractor=PdfTextExtractor(),
+        llm1_service=llm1_service,
+        llm2_service=llm2_service,
+        job_queue=queue_repo,
+    )
+
+    await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text("SELECT suggested_action_json FROM cases ORDER BY created_at DESC LIMIT 1")
+        ).mappings().one()
+
+    suggested_action = _decode_json(row["suggested_action_json"])
+
+    assert suggested_action["suggestion"] == "accept"
+    assert suggested_action["support_recommendation"] == "anesthesist_icu"
+    asa_payload = suggested_action.get("asa")
+    assert isinstance(asa_payload, dict)
+    assert asa_payload.get("bucket") == "insufficient_data"
+    assert (
+        asa_payload.get("display_text")
+        == "não foi possível estimar com os dados apresentados"
+    )
 
 
 @pytest.mark.asyncio

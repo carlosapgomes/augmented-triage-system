@@ -25,6 +25,9 @@ from triage_automation.application.services.llm2_service import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.policy.eda_preop_policy import evaluate_eda_preop_policy
+from triage_automation.domain.policy.eda_recommendation_synthesis import (
+    synthesize_eda_support_context,
+)
 from triage_automation.domain.record_number import (
     extract_and_strip_agency_record_number,
 )
@@ -291,9 +294,12 @@ class ProcessPdfCaseService:
                     deterministic_preop_gate = evaluate_eda_preop_policy(
                         structured_data=llm1_result.structured_data_json
                     )
-                    llm2_suggested_action_json = _with_preop_gate_block(
-                        suggested_action_json=llm2_result.suggested_action_json,
-                        preop_gate_payload=deterministic_preop_gate,
+                    llm2_suggested_action_json = _with_rewritten_eda_support_context(
+                        suggested_action_json=_with_preop_gate_block(
+                            suggested_action_json=llm2_result.suggested_action_json,
+                            preop_gate_payload=deterministic_preop_gate,
+                        ),
+                        llm1_structured_data=llm1_result.structured_data_json,
                     )
 
                     await self._case_repository.store_llm2_artifacts(
@@ -448,6 +454,32 @@ def _with_preop_gate_block(
         payload["decision"] = decision
         payload["reason_code"] = reason_code
         payload["reason_text"] = reason_text
+    return payload
+
+
+def _with_rewritten_eda_support_context(
+    *,
+    suggested_action_json: dict[str, object],
+    llm1_structured_data: dict[str, object],
+) -> dict[str, object]:
+    support_context = synthesize_eda_support_context(structured_data=llm1_structured_data)
+    payload = dict(suggested_action_json)
+    payload["support_recommendation"] = support_context.support_recommendation
+
+    eda_payload = llm1_structured_data.get("eda")
+    source_text_hint: str | None = None
+    if isinstance(eda_payload, dict):
+        asa_payload = eda_payload.get("asa")
+        if isinstance(asa_payload, dict):
+            raw_hint = asa_payload.get("source_text_hint")
+            if isinstance(raw_hint, str) and raw_hint.strip():
+                source_text_hint = raw_hint.strip()
+
+    payload["asa"] = {
+        "bucket": support_context.asa_bucket,
+        "display_text": support_context.asa_display,
+        "source_text_hint": source_text_hint,
+    }
     return payload
 
 

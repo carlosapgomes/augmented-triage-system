@@ -16,7 +16,7 @@
 ## 3. Recommendation synthesis, ASA, and support mapping
 
 - [x] 3.1 Update recommendation synthesis/reconciliation so the persisted recommendation reflects the rewritten rulebook instead of the legacy operational-vs-non-operational split.
-- [ ] 3.2 Implement practical ASA propagation and support mapping to `none`, `anesthesist`, and `anesthesist_icu`, including the explicit insufficient-data fallback.
+- [x] 3.2 Implement practical ASA propagation and support mapping to `none`, `anesthesist`, and `anesthesist_icu`, including the explicit insufficient-data fallback.
 - [ ] 3.3 Add or adjust integration tests for the pipeline (`process_pdf_case`, recommendation persistence, and Room-2 inputs) to validate the new rulebook outputs and support mapping.
 
 ## 4. Room-2 clinical summary and context propagation
@@ -75,3 +75,7 @@
   - `uv run pytest tests/unit/test_llm2_validation.py tests/integration/test_process_pdf_case_llm2.py -q`
   - `uv run ruff check src/triage_automation/application/services/llm2_service.py src/triage_automation/application/services/process_pdf_case_service.py tests/integration/test_process_pdf_case_llm2.py`
   - `uv run mypy src/triage_automation/application/services/llm2_service.py src/triage_automation/application/services/process_pdf_case_service.py`
+- Slice 3.2 verification executed successfully:
+  - `uv run pytest tests/unit/test_eda_recommendation_synthesis.py tests/integration/test_process_pdf_case_llm2.py -q`
+  - `uv run ruff check src/triage_automation/domain/policy/eda_recommendation_synthesis.py src/triage_automation/application/services/process_pdf_case_service.py tests/unit/test_eda_recommendation_synthesis.py tests/integration/test_process_pdf_case_llm2.py`
+  - `uv run mypy src/triage_automation/domain/policy/eda_recommendation_synthesis.py src/triage_automation/application/services/process_pdf_case_service.py`
