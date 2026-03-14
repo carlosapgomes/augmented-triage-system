@@ -989,7 +989,7 @@ def _format_room2_unknown_value_with_evidence(value: object | None) -> str:
     """Return clearer wording when scalar value is unknown in source evidence."""
 
     formatted = _format_room2_value_or_fallback(value)
-    if formatted == "desconhecido":
+    if formatted in {"desconhecido", "indeterminado"}:
         return "indeterminado (sem evidência no laudo)"
     return formatted
 
@@ -1389,7 +1389,7 @@ def _map_presentation_value(value: str) -> str:
         "anesthesist_icu": "anestesista_uti",
         "yes": "sim",
         "no": "nao",
-        "unknown": "desconhecido",
+        "unknown": "indeterminado",
         "bleeding": "sangramento",
         "moderate": "moderado",
         "low": "baixo",

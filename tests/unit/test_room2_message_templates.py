@@ -662,6 +662,34 @@ def test_room2_summary_pending_precheck_unknown_uses_clear_text() -> None:
     ]
 
 
+def test_room2_summary_findings_unknown_uses_indeterminado_label() -> None:
+    case_id = UUID("efefefef-efef-efef-efef-efefefefefef")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "eda": {
+                "ecg": {
+                    "report_present": "unknown",
+                    "abnormal_flag": "unknown",
+                },
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    findings_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Achados críticos:\n\n",
+        next_section="\n\n## Pendências críticas:",
+    )
+
+    assert "- ECG presente: indeterminado" in findings_lines
+    assert "- ECG sinal de alerta: indeterminado (sem evidência no laudo)" in findings_lines
+
+
 def test_room2_summary_pending_precheck_unknown_uses_clear_text_in_html() -> None:
     case_id = UUID("dededede-dede-dede-dede-dededededede")
     body = build_room2_case_summary_formatted_html(
