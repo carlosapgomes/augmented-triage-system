@@ -163,7 +163,7 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "- Plaquetas: 140000" in body
     assert "- INR: não informado" in body
     assert "- ECG presente: nao" in body
-    assert "- ECG sinal de alerta: desconhecido" in body
+    assert "- ECG sinal de alerta: indeterminado (sem evidência no laudo)" in body
     assert "- Laboratório obrigatório (pré-check): sim" in body
     assert "- ECG obrigatório (pré-check): nao" in body
     assert "- Pendências de laboratório: INR ausente" in body
@@ -390,7 +390,7 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     assert "<li>Plaquetas: 140000</li>" in body
     assert "<li>INR: não informado</li>" in body
     assert "<li>ECG presente: nao</li>" in body
-    assert "<li>ECG sinal de alerta: desconhecido</li>" in body
+    assert "<li>ECG sinal de alerta: indeterminado (sem evidência no laudo)</li>" in body
     assert "<li>Laboratório obrigatório (pré-check): sim</li>" in body
     assert "<li>ECG obrigatório (pré-check): nao</li>" in body
     assert "<li>Pendências de laboratório: INR ausente</li>" in body

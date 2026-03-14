@@ -533,7 +533,7 @@ def _build_room2_critical_findings_lines(structured_data: dict[str, object]) -> 
         f"- Plaquetas: {_format_room2_value_or_fallback(platelets_value)}",
         f"- INR: {_format_room2_value_or_fallback(inr_value)}",
         f"- ECG presente: {_format_room2_value_or_fallback(ecg_present_value)}",
-        f"- ECG sinal de alerta: {_format_room2_value_or_fallback(ecg_alert_value)}",
+        f"- ECG sinal de alerta: {_format_room2_unknown_value_with_evidence(ecg_alert_value)}",
     ]
 
 
@@ -564,8 +564,8 @@ def _build_room2_critical_pending_lines(structured_data: dict[str, object]) -> l
         elif _is_room2_unknown_precheck_value(precheck_labs_pass):
             failed_items_text = "indeterminadas (sem evidência no laudo)"
 
-    lab_status = _format_room2_precheck_value(precheck_labs_pass)
-    ecg_status = _format_room2_precheck_value(precheck_ecg_present)
+    lab_status = _format_room2_unknown_value_with_evidence(precheck_labs_pass)
+    ecg_status = _format_room2_unknown_value_with_evidence(precheck_ecg_present)
 
     return [
         f"- Laboratório obrigatório (pré-check): {lab_status}",
@@ -985,8 +985,8 @@ def _format_room2_value_or_fallback(value: object | None) -> str:
     return str(value)
 
 
-def _format_room2_precheck_value(value: object | None) -> str:
-    """Return precheck status text with clearer wording for unknown evidence."""
+def _format_room2_unknown_value_with_evidence(value: object | None) -> str:
+    """Return clearer wording when scalar value is unknown in source evidence."""
 
     formatted = _format_room2_value_or_fallback(value)
     if formatted == "desconhecido":
