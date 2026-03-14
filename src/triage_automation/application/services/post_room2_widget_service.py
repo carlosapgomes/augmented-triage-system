@@ -535,17 +535,24 @@ def _build_widget_payload(
         },
     }
 
+    casted_suggested_action = payload["suggested_action"]
+    assert isinstance(casted_suggested_action, dict)
+
     rationale = _extract_rationale(suggested_action_json)
     if rationale is not None:
-        casted_suggested_action = payload["suggested_action"]
-        assert isinstance(casted_suggested_action, dict)
         casted_suggested_action["rationale"] = rationale
+
+    support_recommendation = suggested_action_json.get("support_recommendation")
+    if isinstance(support_recommendation, str):
+        casted_suggested_action["support_recommendation"] = support_recommendation
 
     policy_precheck = structured_data.get("policy_precheck")
     if isinstance(policy_precheck, dict):
         payload["policy_precheck"] = policy_precheck
 
-    asa = _extract_nested_dict(structured_data, "eda", "asa")
+    asa = suggested_action_json.get("asa")
+    if not isinstance(asa, dict):
+        asa = _extract_nested_dict(structured_data, "eda", "asa")
     if asa is not None:
         payload["asa"] = asa
 

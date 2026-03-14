@@ -12,7 +12,10 @@ from alembic.config import Config
 
 from alembic import command
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
-from triage_automation.application.services.post_room2_widget_service import PostRoom2WidgetService
+from triage_automation.application.services.post_room2_widget_service import (
+    PostRoom2WidgetService,
+    _build_widget_payload,
+)
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
@@ -103,7 +106,11 @@ def _structured_data(agency_record_number: str) -> dict[str, Any]:
             "exclusion_type": "none",
             "is_pediatric": False,
             "foreign_body_suspected": False,
-            "requested_procedure": {"name": "EDA", "urgency": "eletivo"},
+            "requested_procedure": {
+                "name": "EDA",
+                "urgency": "eletivo",
+                "subtype": "standard",
+            },
             "labs": {
                 "hb_g_dl": 10.5,
                 "platelets_per_mm3": 130000,
@@ -115,6 +122,8 @@ def _structured_data(agency_record_number: str) -> dict[str, Any]:
                 "abnormal_flag": "no",
                 "source_text_hint": None,
             },
+            "asa": {"bucket": "I-II", "source_text_hint": "bom estado clinico"},
+            "cardiovascular_risk": {"level": "low", "source_text_hint": "sem alto risco"},
         },
         "preop_screening": {
             "exam_type": "eda",
@@ -151,6 +160,11 @@ def _suggested_action(case_id: UUID, agency_record_number: str) -> dict[str, Any
         "agency_record_number": agency_record_number,
         "suggestion": "deny",
         "support_recommendation": "anesthesist",
+        "asa": {
+            "bucket": "III ou mais",
+            "display_text": "III ou mais",
+            "source_text_hint": "ASA pratico elevado",
+        },
         "rationale": {
             "short_reason": "Informacoes insuficientes",
             "details": ["d1", "d2"],
@@ -173,6 +187,74 @@ def _extract_payload_from_widget_body(body: str) -> dict[str, Any]:
     end = body.index("\n```", start)
     parsed = json.loads(body[start:end])
     return cast(dict[str, Any], parsed)
+
+
+@pytest.mark.asyncio
+async def test_room2_widget_payload_uses_rewritten_support_and_asa_context(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "post_room2_widget_payload_rewrite.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-current-room2-payload",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/current",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+
+    structured_data = _structured_data("12345")
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=structured_data,
+        summary_text="Resumo LLM1",
+    )
+
+    suggested_action = _suggested_action(current_case.case_id, "12345")
+    suggested_action["support_recommendation"] = "anesthesist_icu"
+    suggested_action["asa"] = {
+        "bucket": "insufficient_data",
+        "display_text": "não foi possível estimar com os dados apresentados",
+        "source_text_hint": "dados insuficientes para ASA pratico",
+    }
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json=suggested_action,
+    )
+
+    snapshot = await case_repo.get_case_room2_widget_snapshot(case_id=current_case.case_id)
+    assert snapshot is not None
+    prior_context = await prior_queries.lookup_recent_context(
+        case_id=current_case.case_id,
+        agency_record_number="12345",
+    )
+
+    payload = _build_widget_payload(
+        case=snapshot,
+        prior_context=prior_context,
+        widget_public_base_url="https://bot-api.example.org",
+    )
+
+    suggested_action_payload = payload.get("suggested_action")
+    assert isinstance(suggested_action_payload, dict)
+    assert suggested_action_payload["suggestion"] == "deny"
+    assert suggested_action_payload["support_recommendation"] == "anesthesist_icu"
+    assert payload["llm_support_recommendation"] == "anesthesist_icu"
+    asa_payload = payload.get("asa")
+    assert isinstance(asa_payload, dict)
+    assert asa_payload["bucket"] == "insufficient_data"
+    assert asa_payload["display_text"] == "não foi possível estimar com os dados apresentados"
+    assert asa_payload["source_text_hint"] == "dados insuficientes para ASA pratico"
 
 
 @pytest.mark.asyncio
