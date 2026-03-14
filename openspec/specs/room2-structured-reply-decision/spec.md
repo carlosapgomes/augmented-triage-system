@@ -3,24 +3,17 @@
 ## Purpose
 
 TBD - created by archiving change room2-single-path-matrix-reply. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: Room-2 SHALL Publish Three-Message Decision Combo
 
-The system SHALL publish a deterministic three-message combo in Room-2 for each case requiring doctor decision. Message II MUST use concise clinical-opinion formatting for physician reading speed while preserving strict coherence between displayed decision fields and objective reason text.
+The system SHALL publish a deterministic three-message combo in Room-2 for each case requiring doctor decision, adding human-readable identification context to doctor-facing text messages.
 
 #### Scenario: Case enters Room-2 doctor decision stage
 
 - **WHEN** a case is ready for doctor decision in Room-2
 - **THEN** the bot MUST post message I with the original PDF report
-- **AND** the bot MUST post message II with concise clinical summary and recommendation blocks, including at least: `Resumo clínico`, `Achados críticos`, `Pendências críticas`, `Decisão sugerida`, `Suporte recomendado`, and `Motivo objetivo`
-- **AND** message II MUST NOT include `Conduta sugerida` as a standalone section
-- **AND** `Motivo objetivo` MUST be coherent with the final displayed `Decisão sugerida`
-- **AND** when `Decisão sugerida` is `negar`, `Motivo objetivo` MUST report objective denial causes and MUST NOT contain acceptance or support phrasing
-- **AND** when `Decisão sugerida` is `aceitar`, `Motivo objetivo` MUST be a short acceptance phrase with support context only
-- **AND** message II MUST avoid full flattened dump of complete LLM1/LLM2 structured payloads
-- **AND** the bot MUST post message III with strict reply template and instructions to reply to message I
+- **AND** the bot MUST post message II with extracted data + summary + recommendation, including `no. ocorrência` and `paciente` near the top
+- **AND** the bot MUST post message III with strict reply template and instructions to reply to message I, including `no. ocorrência` and `paciente`
 
 ### Requirement: Room-2 Combo SHALL Be Grouped By Flat Reply Relations
 
@@ -112,18 +105,19 @@ The structured reply path SHALL preserve existing state-machine gating, idempote
 
 ### Requirement: Bot SHALL Emit Decision Result Feedback In Room-2
 
-The bot SHALL publish deterministic success/error feedback in Room-2 after processing a structured decision reply.
+The bot SHALL publish deterministic success/error feedback in Room-2 after processing a structured decision reply, with human-readable identification context and UUID preservation only where structurally required.
 
 #### Scenario: Decision accepted and applied
 
 - **WHEN** structured decision processing succeeds
-- **THEN** the bot MUST send a Room-2 confirmation message describing successful processing
+- **THEN** the bot MUST send a Room-2 confirmation message describing successful processing and including `no. ocorrência` and `paciente`
 - **AND** the confirmation message MUST be persisted as a reaction-ack target for Room-2 acknowledgment tracking
 
 #### Scenario: Decision rejected by validation or state
 
 - **WHEN** structured decision processing fails due to format, authorization, or state constraints
-- **THEN** the bot MUST send a Room-2 error message with actionable correction guidance
+- **THEN** the bot MUST send a Room-2 error message with actionable correction guidance and including `no. ocorrência` and `paciente`
+- **AND** when a strict correction model is shown, it MUST preserve the UUID case line required by parser validation
 
 ### Requirement: Room-2 Final Acknowledgment SHALL Be Positive-Only And Non-Blocking
 
@@ -142,6 +136,23 @@ The system SHALL treat positive reaction on the Room-2 decision confirmation mes
 - **AND** no rollback or re-opening of decision state MUST occur
 
 # room2-structured-reply-decision Delta Specification
+
+### Requirement: Room-2 Message II SHALL Include Recent Denial Context When Available
+
+The system SHALL enrich Room-2 message II with an optional recent-denial context block when a denial for the same occurrence exists in the last 7 days.
+
+#### Scenario: Recent denial exists for same occurrence
+
+- **WHEN** a case is ready for Room-2 message II rendering and recent denial context is available for the same `agency_record_number`
+- **THEN** message II MUST include a dedicated recent-denial block
+- **AND** the block MUST include denial date/time, denial class, and denial reason
+- **AND** the block MUST keep compatibility with the existing three-message Room-2 flow
+
+#### Scenario: No recent denial exists in lookback window
+
+- **WHEN** a case is ready for Room-2 message II rendering and no recent denial context is available
+- **THEN** message II MUST omit the recent-denial block
+- **AND** the message MUST preserve all currently required Room-2 decision content and sequencing
 
 ## ADDED Requirements
 

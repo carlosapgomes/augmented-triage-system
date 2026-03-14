@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change room2-concise-medical-opinion-message. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: Room-2 Clinical Opinion Message SHALL Be Concise And Decision-Oriented
 
 The system SHALL publish a concise medical-opinion summary in Room-2 focused on clinical context and decision support, without dumping full flattened structured payloads and without adding standalone conduct guidance.
@@ -99,3 +97,21 @@ The system SHALL avoid publishing Room-2 recommendation summary for requests rou
 - **WHEN** scope gating resolves to `manual_review_required` for non-EDA or unknown exam type
 - **THEN** the system MUST NOT post Room-2 recommendation summary blocks for that case in the same processing cycle
 - **AND** closure communication MUST be handled through Room-1 manual-review notification
+
+### Requirement: Recent Denial Block SHALL Be Concise And Deterministic In Room-2 Summary
+
+When rendered, the recent-denial context in message II SHALL preserve concise physician reading by using a short, deterministic structure.
+
+#### Scenario: Recent denial block is rendered
+
+- **WHEN** recent denial context is available during Room-2 summary rendering
+- **THEN** the summary MUST render one concise block for recent denial context without full historical dumps
+- **AND** the block MUST include at least: denial date/time, denial class, and reason
+- **AND** the reason field MUST use deterministic fallback text when not available
+
+#### Scenario: Multiple denials exist but summary remains concise
+
+- **WHEN** more than one denial exists in the 7-day window
+- **THEN** the summary MUST display details only for the most recent denial
+- **AND** it MAY include only the total count of denials in the same window as additional context
+
