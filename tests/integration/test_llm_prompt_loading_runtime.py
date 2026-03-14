@@ -354,13 +354,14 @@ async def test_default_prompt_names_resolve_seeded_rows(tmp_path: Path) -> None:
     llm1_system_prompt, llm1_user_prompt = llm1_client.calls[0]
     assert "Retorne APENAS JSON valido" in llm1_system_prompt
     assert "portugues brasileiro (pt-BR)" in llm1_system_prompt
-    assert "Nao inferir, classificar ou estimar ASA" in llm1_system_prompt
+    assert "ASA pratico" in llm1_system_prompt
     assert "Tarefa: extrair dados estruturados" in llm1_user_prompt
-    assert "evidencia textual" in llm1_user_prompt
+    assert "rulebook_signals" in llm1_user_prompt
+    assert "paciente pediatrico" in llm1_user_prompt
     assert llm1_result.prompt_system_name == "llm1_system"
     assert llm1_result.prompt_user_name == "llm1_user"
-    assert llm1_result.prompt_system_version == 4
-    assert llm1_result.prompt_user_version == 4
+    assert llm1_result.prompt_system_version == 5
+    assert llm1_result.prompt_user_version == 5
 
     llm2_system_prompt, llm2_user_prompt = llm2_client.calls[0]
     assert "Retorne APENAS JSON valido" in llm2_system_prompt

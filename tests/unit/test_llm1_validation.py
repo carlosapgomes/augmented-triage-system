@@ -374,6 +374,27 @@ async def test_llm1_rejects_unsupported_eda_subtype_in_rewritten_rulebook() -> N
 
 
 @pytest.mark.asyncio
+async def test_llm1_rejects_inconsistent_pediatric_flags_when_age_is_below_16() -> None:
+    agency_record = "12345"
+    payload = _valid_llm1_payload(agency_record)
+    payload["patient"]["age"] = 12
+    payload["eda"]["is_pediatric"] = False
+    payload["policy_precheck"]["pediatric_flag"] = False
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    with pytest.raises(Llm1RetriableError) as error_info:
+        await service.run(
+            case_id=uuid4(),
+            agency_record_number=agency_record,
+            clean_text="texto limpo",
+        )
+
+    assert error_info.value.cause == "llm1"
+    assert "pediatric" in error_info.value.details.lower()
+
+
+@pytest.mark.asyncio
 async def test_invalid_schema_is_retriable_llm1_error() -> None:
     client = FakeLlmClient(json.dumps({"schema_version": "1.1"}))
     service = Llm1Service(llm_client=client)
@@ -429,7 +450,7 @@ async def test_agency_record_number_is_injected_exactly_into_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_llm1_prompt_requires_textual_evidence_and_forbids_asa_mallampati_osa() -> None:
+async def test_llm1_prompt_requires_rulebook_evidence_and_allows_practical_asa() -> None:
     agency_record = "54321"
     client = FakeLlmClient(json.dumps(_valid_llm1_payload(agency_record)))
     service = Llm1Service(llm_client=client)
@@ -444,8 +465,10 @@ async def test_llm1_prompt_requires_textual_evidence_and_forbids_asa_mallampati_
     lowered_system = system_prompt.lower()
     lowered_user = user_prompt.lower()
 
-    assert "nao inferir" in lowered_system
-    assert "asa" in lowered_system
+    assert "asa pratico" in lowered_system
+    assert "i-ii" in lowered_system
+    assert "iii ou mais" in lowered_system
+    assert "insufficient_data" in lowered_system
     assert "mallampati" in lowered_system
     assert "osa" in lowered_system
     assert "evidencia textual" in lowered_user
@@ -453,8 +476,11 @@ async def test_llm1_prompt_requires_textual_evidence_and_forbids_asa_mallampati_
     assert "evidence_spans" in lowered_user
     assert "gtt" in lowered_user
     assert "dilatacao esofagica" in lowered_user
-    assert "exclusion_type=gastrostomy" in lowered_user
-    assert "exclusion_type=esophageal_dilation" in lowered_user
+    assert "foreign_body" in lowered_user
+    assert "rulebook_signals" in lowered_user
+    assert "paciente pediatrico" in lowered_user
+    assert "coagulogram_normal_supports_ttpa" in lowered_user
+    assert "renal_function_preserved_supports_urea_and_creatinine" in lowered_user
 
 
 @pytest.mark.asyncio

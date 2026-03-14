@@ -3,7 +3,7 @@
 ## 1. LLM1 contract and extraction inputs
 
 - [x] 1.1 Update the LLM1 schema models to represent the rewritten EDA scope and subtype set (`standard`, `gastrostomy`, `esophageal_dilation`, `foreign_body`) and add the structured fields required by the new rulebook.
-- [ ] 1.2 Update the LLM1 prompts and validation rules to allow practical ASA estimation (`I-II`, `III ou mais`, insufficient-data fallback) and to capture the evidence model required for minimum exams, conditional exams, and pediatric context.
+- [x] 1.2 Update the LLM1 prompts and validation rules to allow practical ASA estimation (`I-II`, `III ou mais`, insufficient-data fallback) and to capture the evidence model required for minimum exams, conditional exams, and pediatric context.
 - [ ] 1.3 Add or update deterministic/adaptor fixtures and validation tests for the new LLM1 schema, including supported EDA subtypes, ASA estimate outputs, and evidence-insufficient cases.
 
 ## 2. EDA scope classification and clinical policy rewrite
@@ -47,3 +47,7 @@
   - `uv run ruff check src/triage_automation/application/dto/llm1_models.py tests/unit/test_llm1_validation.py`
   - `uv run mypy src/triage_automation/application/dto/llm1_models.py`
   - `markdownlint-cli2 "openspec/changes/eda-decision-rulebook-rewrite/tasks.md"`
+- Slice 1.2 verification executed successfully:
+  - `uv run pytest tests/unit/test_llm1_validation.py tests/integration/test_llm_prompt_loading_runtime.py tests/integration/test_process_pdf_case_llm1.py tests/integration/test_prompt_management_admin_endpoints.py tests/integration/test_migration_prompt_templates.py -q`
+  - `uv run ruff check src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py alembic/versions/0016_prompt_templates_llm1_ptbr_v5.py tests/unit/test_llm1_validation.py tests/integration/test_llm_prompt_loading_runtime.py tests/integration/test_prompt_management_admin_endpoints.py`
+  - `uv run mypy src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py`

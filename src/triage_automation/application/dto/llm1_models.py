@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 EvidenceFlag = Literal["yes", "no", "unknown"]
 EdaRequestedProcedureSubtype = Literal[
@@ -229,3 +229,37 @@ class Llm1Response(StrictModel):
     policy_precheck: Llm1PolicyPrecheck
     summary: Llm1Summary
     extraction_quality: Llm1ExtractionQuality
+
+    @model_validator(mode="after")
+    def validate_rulebook_consistency(self) -> Llm1Response:
+        """Enforce cross-field consistency required by the rewritten EDA contract."""
+
+        self._validate_pediatric_flags()
+        self._validate_eda_subtype_alignment()
+        return self
+
+    def _validate_pediatric_flags(self) -> None:
+        """Ensure pediatric markers stay aligned with the extracted patient age."""
+
+        age = self.patient.age
+        if age is None:
+            return
+
+        expected_pediatric = age < 16
+        if self.eda.is_pediatric != expected_pediatric:
+            raise ValueError("eda.is_pediatric must match patient.age < 16")
+        if self.policy_precheck.pediatric_flag != expected_pediatric:
+            raise ValueError("policy_precheck.pediatric_flag must match patient.age < 16")
+
+    def _validate_eda_subtype_alignment(self) -> None:
+        """Keep duplicated subtype fields aligned when both are explicitly populated."""
+
+        requested_subtype = self.eda.requested_procedure.subtype
+        rulebook_subtype = self.preop_screening.rulebook_signals.eda_subtype
+        if requested_subtype == "unknown" or rulebook_subtype == "unknown":
+            return
+        if requested_subtype != rulebook_subtype:
+            raise ValueError(
+                "eda.requested_procedure.subtype must match "
+                "preop_screening.rulebook_signals.eda_subtype"
+            )
