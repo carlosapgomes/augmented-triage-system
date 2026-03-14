@@ -96,11 +96,21 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
             "exclusion_type": "none",
             "is_pediatric": False,
             "foreign_body_suspected": False,
-            "requested_procedure": {"name": "EDA", "urgency": "eletivo"},
+            "requested_procedure": {
+                "name": "EDA",
+                "urgency": "eletivo",
+                "subtype": "standard",
+            },
             "labs": {
                 "hb_g_dl": 11.2,
+                "hct_percent": 33.0,
                 "platelets_per_mm3": 180000,
+                "tp_seconds": 12.0,
                 "inr": 1.1,
+                "rni": 1.1,
+                "ttpa_seconds": 30.0,
+                "urea_mg_dl": 28.0,
+                "creatinine_mg_dl": 0.9,
                 "source_text_hint": None,
             },
             "ecg": {
@@ -108,6 +118,8 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
                 "abnormal_flag": "no",
                 "source_text_hint": None,
             },
+            "asa": {"bucket": "I-II", "source_text_hint": "bom estado clinico"},
+            "cardiovascular_risk": {"level": "low", "source_text_hint": "sem alto risco"},
         },
         "preop_screening": {
             "exam_type": "eda",
@@ -116,9 +128,56 @@ def _valid_llm1_payload(agency_record_number: str) -> dict[str, object]:
             "has_prior_respiratory_disease": "no",
             "has_ecg_report": "yes",
             "has_chest_xray_report": "yes",
+            "has_echocardiogram_report": "unknown",
             "hb_g_dl": 11.2,
             "platelets_per_mm3": 180000,
             "inr": 1.1,
+            "rulebook_signals": {
+                "eda_subtype": "standard",
+                "minimum_exam_evidence": {
+                    "hb_or_hct_present": "yes",
+                    "hb_numeric_present": "yes",
+                    "platelets_numeric_present": "yes",
+                    "tp_inr_rni_numeric_present": "yes",
+                    "ttpa_present": "yes",
+                    "urea_present": "yes",
+                    "creatinine_present": "yes",
+                    "coagulogram_normal_supports_ttpa": "no",
+                    "renal_function_preserved_supports_urea_and_creatinine": "no",
+                },
+                "conditional_exam_requirements": {
+                    "ecg_required": "yes",
+                    "chest_xray_required": "no",
+                    "echocardiogram_required": "no",
+                    "ecg_report_finding_present": "yes",
+                    "chest_xray_report_finding_present": "unknown",
+                    "echocardiogram_report_finding_present": "unknown",
+                },
+                "clinical_flags": {
+                    "hepatopathy_explicit": "no",
+                    "cardiopathy_explicit": "no",
+                    "known_cardiovascular_disease": "no",
+                    "active_respiratory_symptoms": "no",
+                    "prior_respiratory_disease": "no",
+                    "multiple_comorbidities": "unknown",
+                    "qt_prolonging_medications": "unknown",
+                    "diabetes_mellitus": "unknown",
+                    "explicit_obesity": "unknown",
+                    "recent_chest_pain": "no",
+                    "recent_dyspnea": "no",
+                    "recent_palpitations": "no",
+                    "recent_syncope": "no",
+                    "unexplained_dyspnea": "unknown",
+                    "heart_failure_signs": "unknown",
+                    "new_or_unevaluated_murmur": "unknown",
+                    "moderate_or_severe_valvulopathy_without_recent_echo": "unknown",
+                    "worsening_cardiomyopathy": "unknown",
+                    "pulmonary_hypertension": "unknown",
+                    "prior_myocardial_infarction": "no",
+                    "prior_coronary_bypass": "no",
+                    "prior_coronary_angioplasty": "no",
+                },
+            },
         },
         "policy_precheck": {
             "excluded_from_eda_flow": False,
@@ -647,6 +706,10 @@ async def test_runtime_worker_deterministic_mode_processes_llm_path_without_inje
     assert process_row["last_error"] is None
     assert case_row["status"] == "LLM_SUGGEST"
     assert case_row["structured_data_json"] is not None
+    structured_data = json.loads(str(case_row["structured_data_json"]))
+    assert structured_data["eda"]["requested_procedure"]["subtype"] == "standard"
+    assert structured_data["eda"]["asa"]["bucket"] == "I-II"
+    assert structured_data["preop_screening"]["rulebook_signals"]["eda_subtype"] == "standard"
     assert case_row["suggested_action_json"] is not None
     assert int(room2_job_count) == 1
     assert int(llm1_event_count) == 1
