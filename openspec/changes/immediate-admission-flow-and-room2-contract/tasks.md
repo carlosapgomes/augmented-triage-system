@@ -39,6 +39,8 @@
 
 ## 5. Documentation and verification
 
-- [ ] 5.1 Update `docs/manual_e2e_runbook.md` to document the new Room-2 template, scheduled acceptance path, immediate-admission path, and new negative validation cases.
+- [x] 5.1 Update `docs/manual_e2e_runbook.md` to document the new Room-2 template, scheduled acceptance path, immediate-admission path, and new negative validation cases.
+  - 2026-03-14 verification (Task 5.1 slice): `uv run pytest tests/unit/test_manual_e2e_runbook_docs.py -q`, `uv run ruff check tests/unit/test_manual_e2e_runbook_docs.py`, `uv run mypy tests/unit/test_manual_e2e_runbook_docs.py`, and `markdownlint-cli2 "docs/manual_e2e_runbook.md"` passed.
+  - 2026-03-14 bilingual sync exception: `docs/en/manual_e2e_runbook.md` was intentionally deferred to Task 5.2 to respect the one-slice stop rule in `AGENTS.md`; the required mirror follow-up already exists as the next checklist item and must be completed before merge.
 - [ ] 5.2 Update `docs/en/manual_e2e_runbook.md` as the required English mirror for the runbook changes.
 - [ ] 5.3 Run targeted `pytest`, `ruff`, `mypy`, markdown lint, and bilingual doc guards for the changed paths and record the results in this task file during implementation.

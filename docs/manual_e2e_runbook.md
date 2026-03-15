@@ -80,20 +80,52 @@ Esperado no resumo técnico:
 
 1. Abrir a mensagem III e copiar o template estrito.
 
-2. Enviar decisão como reply Matrix para a mensagem I (`reply to message I`):
+2. Validar que o template de aceite inclui explicitamente a linha
+   `fluxo de admissão: agendamento`.
+
+3. Enviar decisão como reply Matrix para a mensagem I (`reply to message I`):
 
 - manter exatamente uma linha por campo do template
 - respeitar os valores válidos fornecidos pelo bot
 - `motivo` pode ser vazio/opcional
+- para `decisao: aceitar`, preencher obrigatoriamente `fluxo de admissão`
 
-1. Para validação do fluxo positivo, enviar uma resposta de aceite sem suporte
-   adicional.
+### Aceite com agendamento
+
+1. Para validação do caminho positivo padrão, enviar uma resposta de aceite sem
+   suporte adicional usando `fluxo de admissão: agendamento`.
 
 2. Validar progressão esperada:
 
 - status do caso move para `DOCTOR_ACCEPTED`
 - próximo job `post_room3_request` é enfileirado
+- a confirmação do bot na Sala 2 ecoa o fluxo normalizado como `agendamento`
+- a Sala 3 recebe o combo padrão de solicitação + template de agendamento
 - auditoria inclui sender Matrix como ator e outcome
+
+### Aceite com vinda imediata
+
+1. Repetir o fluxo de aceite usando `fluxo de admissão: vinda_imediata`.
+
+2. Validar aliases aceitos em cliente mobile, quando aplicável:
+
+- `vinda_imediata`
+- `vinda imediata`
+
+1. Validar progressão esperada do ramo imediato:
+
+- status médico continua em `DOCTOR_ACCEPTED` até a mensagem final da Sala 1
+- próximo job `post_immediate_admission_flow` é enfileirado
+- a confirmação do bot na Sala 2 ecoa o fluxo normalizado imediato
+- a Sala 3 recebe apenas a comunicação informativa de vinda imediata e o alvo
+  de ACK auditável
+- a Sala 3 não deve receber o combo padrão de agendamento (`post_room3_request`)
+- a Sala 1 recebe a mensagem final equivalente a
+  `aceito com vinda imediata autorizada`
+- o fechamento segue pela reação positiva da Sala 1, via
+  `post_room1_final_immediate`
+- a reação/observação da Sala 3 permanece opcional, não obrigatória, para o
+  fechamento do caso
 
 ## Casos suportados EDA: subtipo e contexto na Room-2
 
@@ -332,6 +364,20 @@ Exemplo recomendado:
 - enviar template como reply para message II/III ou evento não relacionado
 - esperado: feedback do bot inclui `error_code: invalid_template`
 - esperado: nenhuma mutação de decisão (`no decision mutation`) e nenhum novo job downstream
+
+1. Postar `decisao: aceitar` sem a linha obrigatória `fluxo de admissão`:
+
+- exemplo: aceitar sem a linha obrigatória `fluxo de admissão`
+- esperado: decisão rejeitada sem mutação de estado/job
+- esperado: mensagem de correção do bot restaura o campo obrigatório no template
+
+1. Postar `decisao: aceitar` com valor inválido de `fluxo de admissão`:
+
+- exemplos inválidos: `plantao`, `urgente`, qualquer valor fora de
+  `agendamento|vinda_imediata`
+- esperado: decisão rejeitada sem mutação de estado/job
+- esperado: nenhuma abertura de agendamento e nenhum job
+  `post_immediate_admission_flow`
 
 ## Checagens de dashboard e API de monitoramento
 

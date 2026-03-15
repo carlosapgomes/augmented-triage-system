@@ -82,6 +82,25 @@ def test_manual_e2e_runbook_defines_room2_negative_reply_checks() -> None:
     assert "no decision mutation" in runbook
 
 
+def test_manual_e2e_runbook_covers_admission_flow_and_immediate_branch() -> None:
+    runbook = _read("docs/manual_e2e_runbook.md")
+
+    assert "fluxo de admissão" in runbook
+    assert "agendamento" in runbook
+    assert "vinda_imediata" in runbook
+    assert "aceito com vinda imediata autorizada" in runbook
+    assert "Room-3 MUST NOT receive the standard scheduling request/template combo" not in runbook
+    assert "post_immediate_admission_flow" in runbook
+    assert "post_room3_request" in runbook
+    assert "post_room1_final_immediate" in runbook
+    assert "Room-3 acknowledgment MUST be observable as optional, not mandatory" not in runbook
+    assert "opcional, não obrigatória" in runbook or "opcional, nao obrigatoria" in runbook
+    assert (
+        "aceitar sem a linha obrigatória `fluxo de admissão`" in runbook
+        or "aceitar sem a linha obrigatoria `fluxo de admissão`" in runbook
+    )
+
+
 def test_manual_e2e_runbook_defines_dashboard_api_and_auditable_timeline_checks() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
