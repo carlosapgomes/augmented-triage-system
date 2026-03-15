@@ -33,6 +33,8 @@ INFORMATIONAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
     "build_room2_decision_ack_message",
     "build_room3_request_message",
     "build_room3_ack_message",
+    "build_room3_immediate_admission_message",
+    "build_room3_immediate_admission_ack_message",
     "build_room1_final_accepted_message",
     "build_room1_final_denied_triage_message",
     "build_room1_final_denied_appointment_message",
@@ -1698,6 +1700,62 @@ def build_room3_ack_message(
     )
     return (
         "Solicitacao de agendamento registrada\n"
+        f"{identification_block}\n"
+        f"{details_block}\n"
+        "Reaja com +1 para confirmar ciência do encerramento."
+    )
+
+
+def build_room3_immediate_admission_message(
+    *,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+    requested_exam: str | None,
+    doctor_display_name: str | None = None,
+) -> str:
+    """Build Room-3 informational message for doctor-approved immediate admission."""
+
+    identification_block = build_human_identification_heading_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
+    details_block = _build_room3_details_block(
+        patient_age=patient_age,
+        requested_exam=requested_exam,
+        doctor_display_name=doctor_display_name,
+        include_doctor_line=True,
+    )
+    return (
+        "Vinda imediata autorizada\n\n"
+        f"{identification_block}\n"
+        f"{details_block}\n\n"
+        "Nao abrir agendamento para este caso. Comunicacao apenas para ciencia operacional."
+    )
+
+
+def build_room3_immediate_admission_ack_message(
+    *,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+    requested_exam: str | None,
+    doctor_display_name: str | None = None,
+) -> str:
+    """Build Room-3 audit-only acknowledgment target for immediate admission."""
+
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
+    details_block = _build_room3_details_block(
+        patient_age=patient_age,
+        requested_exam=requested_exam,
+        doctor_display_name=doctor_display_name,
+        include_doctor_line=True,
+    )
+    return (
+        "Vinda imediata registrada\n"
         f"{identification_block}\n"
         f"{details_block}\n"
         "Reaja com +1 para confirmar ciência do encerramento."

@@ -1,0 +1,241 @@
+from __future__ import annotations
+
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+import sqlalchemy as sa
+from alembic.config import Config
+
+from alembic import command
+from triage_automation.application.ports.case_repository_port import (
+    CaseCreateInput,
+    DoctorDecisionUpdateInput,
+)
+from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
+)
+from triage_automation.application.services.post_immediate_admission_flow_service import (
+    PostImmediateAdmissionFlowService,
+)
+from triage_automation.domain.case_status import CaseStatus
+from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
+from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
+from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
+from triage_automation.infrastructure.db.session import create_session_factory
+
+
+class FakeMatrixPoster:
+    def __init__(self) -> None:
+        self.send_calls: list[tuple[str, str]] = []
+        self.reply_calls: list[tuple[str, str, str]] = []
+        self._counter = 0
+
+    async def send_text(self, *, room_id: str, body: str) -> str:
+        self.send_calls.append((room_id, body))
+        self._counter += 1
+        return f"$room3-immediate-{self._counter}"
+
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        self.reply_calls.append((room_id, event_id, body))
+        self._counter += 1
+        return f"$room3-immediate-{self._counter}"
+
+
+def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
+    db_path = tmp_path / filename
+    sync_url = f"sqlite+pysqlite:///{db_path}"
+    async_url = f"sqlite+aiosqlite:///{db_path}"
+
+    alembic_config = Config("alembic.ini")
+    alembic_config.set_main_option("sqlalchemy.url", sync_url)
+    command.upgrade(alembic_config, "head")
+
+    return sync_url, async_url
+
+
+@pytest.mark.asyncio
+async def test_immediate_admission_flow_posts_room3_info_and_ack_without_wait_appt(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_immediate_flow_ok.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room3-immediate-1",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=case.case_id,
+        pdf_mxc_url="mxc://example.org/report",
+        extracted_text="texto extraido",
+        agency_record_number="4777300",
+    )
+    await case_repo.store_llm1_artifacts(
+        case_id=case.case_id,
+        structured_data_json={
+            "eda": {"requested_procedure": {"name": "EDA para corpo estranho"}},
+            "patient": {
+                "name": "EVALDO CARDOSO DOS SANTOS",
+                "age": 42,
+            },
+        },
+        summary_text="Resumo",
+    )
+    await case_repo.apply_doctor_decision_if_waiting(
+        DoctorDecisionUpdateInput(
+            case_id=case.case_id,
+            doctor_user_id="@doctor:example.org",
+            decision="accept",
+            support_flag="none",
+            admission_flow="immediate",
+            reason="vinda imediata autorizada",
+        )
+    )
+    await message_repo.append_case_matrix_message_transcript(
+        CaseMatrixMessageTranscriptCreateInput(
+            case_id=case.case_id,
+            room_id="!room2:example.org",
+            event_id="$doctor-reply-1",
+            sender="@doctor:example.org",
+            sender_display_name="Dra. Beatriz Silva",
+            message_type="room2_doctor_reply",
+            message_text="decisao: aceitar",
+            reply_to_event_id="$room2-template-1",
+        )
+    )
+
+    service = PostImmediateAdmissionFlowService(
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_poster=matrix_poster,
+    )
+
+    result = await service.post(case_id=case.case_id)
+
+    assert result.posted is True
+    assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_calls) == 1
+
+    info_room_id, info_body = matrix_poster.send_calls[0]
+    assert info_room_id == "!room3:example.org"
+    assert "Vinda imediata autorizada" in info_body
+    assert "## no. ocorrência: 4777300" in info_body
+    assert "## paciente: EVALDO CARDOSO DOS SANTOS" in info_body
+    assert "idade: 42" in info_body
+    assert "exame solicitado: EDA para corpo estranho" in info_body
+    assert "aceito por: Dra. Beatriz Silva" in info_body
+    assert "copie a proxima mensagem" not in info_body.lower()
+    assert str(case.case_id) not in info_body
+
+    ack_room_id, ack_parent_event_id, ack_body = matrix_poster.reply_calls[0]
+    assert ack_room_id == "!room3:example.org"
+    assert ack_parent_event_id == "$room3-immediate-1"
+    assert "Vinda imediata registrada" in ack_body
+    assert "Reaja com +1" in ack_body
+    assert str(case.case_id) not in ack_body
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        status = connection.execute(
+            sa.text("SELECT status FROM cases WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        kinds = connection.execute(
+            sa.text(
+                "SELECT kind FROM case_messages "
+                "WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalars().all()
+        transcript_rows = connection.execute(
+            sa.text(
+                "SELECT message_type, sender, message_text, reply_to_event_id "
+                "FROM case_matrix_message_transcripts "
+                "WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().all()
+
+    assert status == "DOCTOR_ACCEPTED"
+    assert list(kinds) == ["room3_immediate_info", "room3_immediate_ack"]
+    assert len(transcript_rows) == 3
+    assert transcript_rows[0]["message_type"] == "room2_doctor_reply"
+    assert transcript_rows[1]["message_type"] == "room3_immediate_info"
+    assert transcript_rows[1]["sender"] == "bot"
+    assert transcript_rows[1]["message_text"] == info_body
+    assert transcript_rows[1]["reply_to_event_id"] is None
+    assert transcript_rows[2]["message_type"] == "room3_immediate_ack"
+    assert transcript_rows[2]["sender"] == "bot"
+    assert transcript_rows[2]["message_text"] == ack_body
+    assert transcript_rows[2]["reply_to_event_id"] == "$room3-immediate-1"
+
+
+@pytest.mark.asyncio
+async def test_immediate_admission_flow_is_idempotent_when_room3_messages_exist(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_immediate_flow_idempotent.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room3-immediate-2",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.apply_doctor_decision_if_waiting(
+        DoctorDecisionUpdateInput(
+            case_id=case.case_id,
+            doctor_user_id="@doctor:example.org",
+            decision="accept",
+            support_flag="none",
+            admission_flow="immediate",
+            reason=None,
+        )
+    )
+
+    service = PostImmediateAdmissionFlowService(
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_poster=matrix_poster,
+    )
+
+    first = await service.post(case_id=case.case_id)
+    second = await service.post(case_id=case.case_id)
+
+    assert first.posted is True
+    assert second.posted is False
+    assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_calls) == 1
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        message_count = connection.execute(
+            sa.text("SELECT COUNT(*) FROM case_messages WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    assert int(message_count) == 2

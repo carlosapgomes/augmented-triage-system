@@ -20,7 +20,8 @@
 
 ## 3. Immediate-admission orchestration across rooms
 
-- [ ] 3.1 Implement the dedicated immediate-admission workflow job/service that posts the informational Room-3 message and Room-3 acknowledgment target without opening scheduling.
+- [x] 3.1 Implement the dedicated immediate-admission workflow job/service that posts the informational Room-3 message and Room-3 acknowledgment target without opening scheduling.
+  - 2026-03-14 verification (Task 3.1 slice): `uv run pytest tests/integration/test_post_immediate_admission_flow.py tests/unit/test_worker_main.py -q`, `uv run ruff check src/triage_automation/application/services/post_immediate_admission_flow_service.py src/triage_automation/infrastructure/matrix/message_templates.py apps/worker/main.py tests/integration/test_post_immediate_admission_flow.py tests/unit/test_worker_main.py`, and `uv run mypy src/triage_automation/application/services/post_immediate_admission_flow_service.py src/triage_automation/infrastructure/matrix/message_templates.py apps/worker/main.py` passed.
 - [ ] 3.2 Ensure the immediate-admission workflow propagates the required context (requested procedure, physician, support, pediatric marker, and relevant subtype) consistently to Room-3 and Room-1 messages.
 - [ ] 3.3 Make the Room-3 portion of the immediate-admission workflow explicitly non-blocking, idempotent, and auditable when posting fails or when only partial progress is completed.
 

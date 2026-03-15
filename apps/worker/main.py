@@ -18,6 +18,9 @@ from triage_automation.application.services.execute_cleanup_service import Execu
 from triage_automation.application.services.job_failure_service import JobFailureService
 from triage_automation.application.services.llm1_service import Llm1Service
 from triage_automation.application.services.llm2_service import Llm2Service
+from triage_automation.application.services.post_immediate_admission_flow_service import (
+    PostImmediateAdmissionFlowService,
+)
 from triage_automation.application.services.post_room1_final_service import (
     PostRoom1FinalService,
 )
@@ -128,6 +131,7 @@ class WorkerRuntimeServices:
     process_pdf_case_service: ProcessPdfCaseService
     post_room2_widget_service: PostRoom2WidgetService
     post_room3_request_service: PostRoom3RequestService
+    post_immediate_admission_flow_service: PostImmediateAdmissionFlowService
     post_room4_summary_service: PostRoom4SummaryService
     post_room1_final_service: PostRoom1FinalService
     execute_cleanup_service: ExecuteCleanupService
@@ -146,6 +150,7 @@ def build_worker_handlers(
     process_pdf_case_handler: JobHandler,
     post_room2_widget_handler: JobHandler,
     post_room3_request_handler: JobHandler,
+    post_immediate_admission_flow_handler: JobHandler,
     post_room4_summary_handler: JobHandler,
     post_room1_final_handler: JobHandler,
     execute_cleanup_handler: JobHandler,
@@ -156,6 +161,7 @@ def build_worker_handlers(
         "process_pdf_case": process_pdf_case_handler,
         "post_room2_widget": post_room2_widget_handler,
         "post_room3_request": post_room3_request_handler,
+        "post_immediate_admission_flow": post_immediate_admission_flow_handler,
         "post_room4_summary": post_room4_summary_handler,
         "post_room1_final_denial_triage": post_room1_final_handler,
         "post_room1_final_appt": post_room1_final_handler,
@@ -213,6 +219,13 @@ def build_runtime_services(
         message_repository=message_repository,
         matrix_poster=matrix_client,
     )
+    post_immediate_admission_flow_service = PostImmediateAdmissionFlowService(
+        room3_id=settings.room3_id,
+        case_repository=case_repository,
+        audit_repository=audit_repository,
+        message_repository=message_repository,
+        matrix_poster=matrix_client,
+    )
     post_room4_summary_service = PostRoom4SummaryService(
         room4_id=settings.room4_id,
         timezone_name=settings.supervisor_summary_timezone,
@@ -241,6 +254,7 @@ def build_runtime_services(
         process_pdf_case_service=process_pdf_case_service,
         post_room2_widget_service=post_room2_widget_service,
         post_room3_request_service=post_room3_request_service,
+        post_immediate_admission_flow_service=post_immediate_admission_flow_service,
         post_room4_summary_service=post_room4_summary_service,
         post_room1_final_service=post_room1_final_service,
         execute_cleanup_service=execute_cleanup_service,
@@ -265,6 +279,10 @@ def build_runtime_job_handlers(*, services: WorkerRuntimeServices) -> dict[str, 
     async def handle_post_room3_request(job: JobRecord) -> None:
         case_id = _require_case_id(job)
         await services.post_room3_request_service.post_request(case_id=case_id)
+
+    async def handle_post_immediate_admission_flow(job: JobRecord) -> None:
+        case_id = _require_case_id(job)
+        await services.post_immediate_admission_flow_service.post(case_id=case_id)
 
     async def handle_post_room4_summary(job: JobRecord) -> None:
         window_start = _require_summary_window_datetime(job=job, field_name="window_start")
@@ -294,6 +312,7 @@ def build_runtime_job_handlers(*, services: WorkerRuntimeServices) -> dict[str, 
         process_pdf_case_handler=handle_process_pdf_case,
         post_room2_widget_handler=handle_post_room2_widget,
         post_room3_request_handler=handle_post_room3_request,
+        post_immediate_admission_flow_handler=handle_post_immediate_admission_flow,
         post_room4_summary_handler=handle_post_room4_summary,
         post_room1_final_handler=handle_post_room1_final,
         execute_cleanup_handler=handle_execute_cleanup,
