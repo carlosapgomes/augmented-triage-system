@@ -11,6 +11,14 @@ from triage_automation.application.ports.supervisor_summary_metrics_query_port i
     SupervisorSummaryMetrics,
     SupervisorSummaryMetricsQueryPort,
 )
+from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
+    MonitoringProjectionInput,
+    derive_monitoring_projection,
+)
 from triage_automation.infrastructure.db.metadata import cases
 
 case_report_transcripts = sa.table(
@@ -74,6 +82,13 @@ class SqlAlchemySupervisorSummaryMetricsQueries(SupervisorSummaryMetricsQueryPor
             cases.c.appointment_decided_at >= window_start,
             cases.c.appointment_decided_at < window_end,
         )
+        backlog_rows_statement = sa.select(
+            cases.c.status,
+            cases.c.doctor_decision,
+            cases.c.doctor_admission_flow,
+            cases.c.appointment_status,
+            cases.c.room1_final_reply_event_id,
+        )
 
         async with self._session_factory() as session:
             patients_received = int((await session.execute(patients_statement)).scalar_one())
@@ -89,6 +104,37 @@ class SqlAlchemySupervisorSummaryMetricsQueries(SupervisorSummaryMetricsQueryPor
             scheduler_denied = int(
                 (await session.execute(scheduler_denied_statement)).scalar_one()
             )
+            backlog_rows = (await session.execute(backlog_rows_statement)).mappings().all()
+
+        in_progress = 0
+        pending_room2 = 0
+        pending_room3 = 0
+        pending_room1 = 0
+        pending_immediate_branch = 0
+
+        for row in backlog_rows:
+            projection = derive_monitoring_projection(
+                MonitoringProjectionInput(
+                    status=CaseStatus(str(row["status"])),
+                    doctor_decision=row["doctor_decision"],
+                    doctor_admission_flow=row["doctor_admission_flow"],
+                    appointment_status=row["appointment_status"],
+                    room1_final_reply_event_id=row["room1_final_reply_event_id"],
+                )
+            )
+            if projection.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO:
+                in_progress += 1
+            if projection.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_2:
+                pending_room2 += 1
+            if projection.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_3:
+                pending_room3 += 1
+            if projection.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_1:
+                pending_room1 += 1
+            if (
+                projection.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO
+                and projection.ramo_operacional is MonitoringOperationalBranch.VINDA_IMEDIATA
+            ):
+                pending_immediate_branch += 1
 
         return SupervisorSummaryMetrics(
             patients_received=patients_received,
@@ -97,4 +143,9 @@ class SqlAlchemySupervisorSummaryMetricsQueries(SupervisorSummaryMetricsQueryPor
             accepted_scheduled=accepted_scheduled,
             immediate_admission=immediate_admission,
             refused=doctor_denied + scheduler_denied,
+            in_progress=in_progress,
+            pending_room2=pending_room2,
+            pending_room3=pending_room3,
+            pending_room1=pending_room1,
+            pending_immediate_branch=pending_immediate_branch,
         )

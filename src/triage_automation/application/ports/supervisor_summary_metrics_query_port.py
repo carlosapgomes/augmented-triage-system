@@ -17,6 +17,11 @@ class SupervisorSummaryMetrics:
     accepted_scheduled: int
     immediate_admission: int
     refused: int
+    in_progress: int
+    pending_room2: int
+    pending_room3: int
+    pending_room1: int
+    pending_immediate_branch: int
 
 
 class SupervisorSummaryMetricsQueryPort(Protocol):

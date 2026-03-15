@@ -103,6 +103,11 @@ async def test_post_room4_summary_service_renders_metrics_and_posts_to_room4() -
             accepted_scheduled=4,
             immediate_admission=2,
             refused=3,
+            in_progress=5,
+            pending_room2=2,
+            pending_room3=1,
+            pending_room1=2,
+            pending_immediate_branch=1,
         )
     )
     service = PostRoom4SummaryService(
@@ -135,6 +140,11 @@ async def test_post_room4_summary_service_renders_metrics_and_posts_to_room4() -
     assert "Aceitos por agendamento: 4" in body
     assert "Vinda imediata: 2" in body
     assert "Recusados: 3" in body
+    assert "Casos em andamento: 5" in body
+    assert "Aguardando Sala 2: 2" in body
+    assert "Aguardando Sala 3: 1" in body
+    assert "Aguardando Sala 1: 2" in body
+    assert "Pendentes no ramo vinda imediata: 1" in body
 
 
 @pytest.mark.asyncio
@@ -166,6 +176,11 @@ async def test_post_room4_summary_service_skips_publish_when_window_already_sent
                 accepted_scheduled=4,
                 immediate_admission=2,
                 refused=3,
+                in_progress=5,
+                pending_room2=2,
+                pending_room3=1,
+                pending_room1=2,
+                pending_immediate_branch=1,
             )
         ),
         dispatch_repository=dispatch,
