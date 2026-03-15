@@ -29,7 +29,8 @@
 
 ## 4. Room-1 finalization, state progression, and recovery
 
-- [ ] 4.1 Extend `PostRoom1FinalService` and Matrix templates with the final Room-1 message variant for `aceito com vinda imediata autorizada`, reusing the existing cleanup checkpoint path.
+- [x] 4.1 Extend `PostRoom1FinalService` and Matrix templates with the final Room-1 message variant for `aceito com vinda imediata autorizada`, reusing the existing cleanup checkpoint path.
+  - 2026-03-14 verification (Task 4.1 slice): `uv run pytest tests/unit/test_room1_room3_message_templates.py tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py -q`, `uv run ruff check apps/worker/main.py src/triage_automation/application/services/post_room1_final_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room1_room3_message_templates.py tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py`, and `uv run mypy --explicit-package-bases apps/worker/main.py src/triage_automation/application/services/post_room1_final_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room1_room3_message_templates.py tests/integration/test_room1_final_reply_jobs.py tests/unit/test_worker_main.py` passed.
 - [ ] 4.2 Update recovery logic, job resolution, and any state-transition guards needed so accepted immediate-admission cases resume the correct branch after restart and do not enqueue Room-3 scheduling jobs.
 - [ ] 4.3 Add integration coverage for the immediate-admission branch, including Room-3 notification success, Room-3 failure tolerance, Room-1 closure gating, and retry/idempotency behavior.
 

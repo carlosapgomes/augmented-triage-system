@@ -36,6 +36,7 @@ INFORMATIONAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
     "build_room3_immediate_admission_message",
     "build_room3_immediate_admission_ack_message",
     "build_room1_final_accepted_message",
+    "build_room1_final_immediate_message",
     "build_room1_final_denied_triage_message",
     "build_room1_final_denied_appointment_message",
     "build_room1_final_failure_message",
@@ -1859,6 +1860,40 @@ def build_room1_final_accepted_message(
         f"agendamento: {appointment_at.strftime('%d-%m-%Y %H:%M')} BRT\n"
         f"local: {location}\n"
         f"instrucoes: {instructions}\n\n"
+        "Reaja com +1 para confirmar ciência do encerramento."
+    )
+
+
+def build_room1_final_immediate_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+    requested_exam: str | None,
+    doctor_display_name: str | None = None,
+    support_flag: str | None = None,
+    supported_eda_subtype: str | None = None,
+    pediatric_flag: bool | None = None,
+) -> str:
+    """Build Room-1 immediate-admission final reply template."""
+
+    context_block = _build_case_context_block(
+        case_id=case_id,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+        patient_age=patient_age,
+        requested_exam=requested_exam,
+        doctor_display_name=doctor_display_name,
+        support_flag=support_flag,
+        supported_eda_subtype=supported_eda_subtype,
+        pediatric_flag=pediatric_flag,
+        include_doctor_line=doctor_display_name is not None,
+        include_support_line=support_flag is not None,
+    )
+    return (
+        "✅ aceito com vinda imediata autorizada\n"
+        f"{context_block}\n\n"
         "Reaja com +1 para confirmar ciência do encerramento."
     )
 

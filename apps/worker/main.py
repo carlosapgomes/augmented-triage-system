@@ -164,6 +164,7 @@ def build_worker_handlers(
         "post_immediate_admission_flow": post_immediate_admission_flow_handler,
         "post_room4_summary": post_room4_summary_handler,
         "post_room1_final_denial_triage": post_room1_final_handler,
+        "post_room1_final_immediate": post_room1_final_handler,
         "post_room1_final_appt": post_room1_final_handler,
         "post_room1_final_appt_denied": post_room1_final_handler,
         "post_room1_final_failure": post_room1_final_handler,

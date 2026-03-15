@@ -7,6 +7,7 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_accepted_message,
     build_room1_final_denied_triage_message,
     build_room1_final_failure_message,
+    build_room1_final_immediate_message,
     build_room3_ack_message,
     build_room3_immediate_admission_message,
     build_room3_invalid_format_reprompt,
@@ -156,6 +157,32 @@ def test_build_room1_final_accepted_message_includes_shared_immediate_context() 
     assert "paciente pediátrico: sim" in body
     assert "aceito por: Dra. Beatriz Silva" in body
     assert "suporte: anestesista_uti" in body
+
+
+def test_build_room1_final_immediate_message_uses_context_without_scheduling_lines() -> None:
+    case_id = UUID("88888888-8888-8888-8888-888888888888")
+
+    body = build_room1_final_immediate_message(
+        case_id=case_id,
+        agency_record_number="777006",
+        patient_name="PACIENTE IMEDIATO",
+        patient_age="12",
+        requested_exam="EDA para retirada de corpo estranho",
+        doctor_display_name="Dra. Beatriz Silva",
+        support_flag="anesthesist_icu",
+        supported_eda_subtype="foreign_body",
+        pediatric_flag=True,
+    )
+
+    assert "✅ aceito com vinda imediata autorizada" in body
+    assert "subtipo EDA: retirada de corpo estranho" in body
+    assert "paciente pediátrico: sim" in body
+    assert "aceito por: Dra. Beatriz Silva" in body
+    assert "suporte: anestesista_uti" in body
+    assert "agendamento:" not in body
+    assert "local:" not in body
+    assert "instrucoes:" not in body
+    assert f"caso: {case_id}" not in body
 
 
 def test_build_room1_final_denied_triage_message_does_not_include_doctor_line() -> None:

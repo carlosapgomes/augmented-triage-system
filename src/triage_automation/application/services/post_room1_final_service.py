@@ -36,6 +36,7 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_denied_appointment_message,
     build_room1_final_denied_triage_message,
     build_room1_final_failure_message,
+    build_room1_final_immediate_message,
     build_room1_final_scope_manual_review_message,
 )
 
@@ -216,6 +217,25 @@ def _render_final_message(
             patient_age=patient_age,
             requested_exam=requested_exam,
             reason=reason,
+        )
+
+    if job_type == "post_room1_final_immediate":
+        _require_status(case=case, expected=CaseStatus.DOCTOR_ACCEPTED, job_type=job_type)
+        if case.doctor_admission_flow != "immediate":
+            raise PostRoom1FinalRetriableError(
+                cause="room1_final",
+                details="Immediate final reply requires immediate admission flow",
+            )
+        return build_room1_final_immediate_message(
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
+            requested_exam=requested_exam,
+            doctor_display_name=case.doctor_display_name,
+            support_flag=case.doctor_support_flag,
+            supported_eda_subtype=supported_eda_subtype,
+            pediatric_flag=pediatric_flag,
         )
 
     if job_type == "post_room1_final_appt":

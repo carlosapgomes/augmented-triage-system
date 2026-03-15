@@ -144,6 +144,11 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         status=CaseStatus.FAILED,
         event_id="$origin-final-failed",
     )
+    immediate_id = await _create_case(
+        case_repo,
+        status=CaseStatus.DOCTOR_ACCEPTED,
+        event_id="$origin-final-immediate",
+    )
     manual_review_scope_id = await _create_case(
         case_repo,
         status=CaseStatus.LLM_SUGGEST,
@@ -185,6 +190,16 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
     )
     await _store_case_context(
         case_repo,
+        case_id=immediate_id,
+        record_number="777006",
+        patient_name="PACIENTE IMEDIATO",
+        patient_age=12,
+        requested_exam="EDA para retirada de corpo estranho",
+        supported_eda_subtype="foreign_body",
+        pediatric_flag=True,
+    )
+    await _store_case_context(
+        case_repo,
         case_id=manual_review_scope_id,
         record_number="777005",
         patient_name="PACIENTE MANUAL",
@@ -201,6 +216,18 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             message_type="room2_doctor_reply",
             message_text="decisao: aceitar",
             reply_to_event_id="$room2-template-final-appt",
+        )
+    )
+    await message_repo.append_case_matrix_message_transcript(
+        CaseMatrixMessageTranscriptCreateInput(
+            case_id=immediate_id,
+            room_id="!room2:example.org",
+            event_id="$doctor-reply-final-immediate",
+            sender="@doctor:example.org",
+            sender_display_name="Dra. Beatriz Silva",
+            message_type="room2_doctor_reply",
+            message_text="decisao: aceitar",
+            reply_to_event_id="$room2-template-final-immediate",
         )
     )
 
@@ -234,8 +261,21 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             ),
             {"reason": "sem agenda", "case_id": appt_denied_id.hex},
         )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET doctor_support_flag = :doctor_support_flag, "
+                "doctor_admission_flow = :doctor_admission_flow "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "doctor_support_flag": "anesthesist_icu",
+                "doctor_admission_flow": "immediate",
+                "case_id": immediate_id.hex,
+            },
+        )
 
     await service.post(case_id=denied_triage_id, job_type="post_room1_final_denial_triage")
+    await service.post(case_id=immediate_id, job_type="post_room1_final_immediate")
     await service.post(case_id=appt_confirmed_id, job_type="post_room1_final_appt")
     await service.post(case_id=appt_denied_id, job_type="post_room1_final_appt_denied")
     await service.post(
@@ -252,7 +292,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         },
     )
 
-    assert len(matrix_poster.calls) == 5
+    assert len(matrix_poster.calls) == 6
 
     assert matrix_poster.calls[0] == (
         "!room1:example.org",
@@ -268,6 +308,22 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         ),
     )
     assert matrix_poster.calls[1] == (
+        "!room1:example.org",
+        "$origin-final-immediate",
+        (
+            "✅ aceito com vinda imediata autorizada\n"
+            "no. ocorrência: 777006\n"
+            "paciente: PACIENTE IMEDIATO\n"
+            "idade: 12\n"
+            "exame solicitado: EDA para retirada de corpo estranho\n"
+            "subtipo EDA: retirada de corpo estranho\n"
+            "paciente pediátrico: sim\n"
+            "aceito por: Dra. Beatriz Silva\n"
+            "suporte: anestesista_uti\n\n"
+            "Reaja com +1 para confirmar ciência do encerramento."
+        ),
+    )
+    assert matrix_poster.calls[2] == (
         "!room1:example.org",
         "$origin-final-appt-ok",
         (
@@ -286,7 +342,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
-    assert matrix_poster.calls[2] == (
+    assert matrix_poster.calls[3] == (
         "!room1:example.org",
         "$origin-final-appt-deny",
         (
@@ -299,7 +355,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
-    assert matrix_poster.calls[3] == (
+    assert matrix_poster.calls[4] == (
         "!room1:example.org",
         "$origin-final-failed",
         (
@@ -313,7 +369,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "Reaja com +1 para confirmar ciência do encerramento."
         ),
     )
-    assert matrix_poster.calls[4] == (
+    assert matrix_poster.calls[5] == (
         "!room1:example.org",
         "$origin-final-manual-review-scope",
         (
@@ -351,9 +407,9 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             )
         ).scalar_one()
 
-    assert len(rows) == 5
+    assert len(rows) == 6
     assert all(row["status"] == "WAIT_R1_CLEANUP_THUMBS" for row in rows)
     assert all(row["room1_final_reply_event_id"] is not None for row in rows)
-    assert int(room1_final_message_count) == 5
-    assert int(room1_final_transcript_count) == 5
-    assert int(room1_reaction_checkpoint_count) == 5
+    assert int(room1_final_message_count) == 6
+    assert int(room1_final_transcript_count) == 6
+    assert int(room1_reaction_checkpoint_count) == 6

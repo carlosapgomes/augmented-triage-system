@@ -233,6 +233,7 @@ def test_build_worker_handlers_contains_required_runtime_job_types() -> None:
         "post_immediate_admission_flow",
         "post_room4_summary",
         "post_room1_final_denial_triage",
+        "post_room1_final_immediate",
         "post_room1_final_appt",
         "post_room1_final_appt_denied",
         "post_room1_final_failure",
