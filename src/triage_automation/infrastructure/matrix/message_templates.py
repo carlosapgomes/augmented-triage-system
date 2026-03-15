@@ -33,8 +33,6 @@ INFORMATIONAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
     "build_room2_decision_ack_message",
     "build_room3_request_message",
     "build_room3_ack_message",
-    "build_room3_immediate_admission_message",
-    "build_room3_immediate_admission_ack_message",
     "build_room1_final_accepted_message",
     "build_room1_final_immediate_message",
     "build_room1_final_denied_triage_message",

@@ -389,7 +389,7 @@ def _build_thread_node(
 
 
 def _extract_room2_decision(content_text: str | None) -> str:
-    """Extract compact decision label from Room-2 doctor reply text."""
+    """Extract compact Room-2 decision label, tolerating legacy/non-canonical transcripts."""
 
     if content_text is None:
         return "INDEFINIDA"
@@ -397,13 +397,36 @@ def _extract_room2_decision(content_text: str | None) -> str:
     try:
         parsed = parse_doctor_decision_reply(body=content_text)
     except DoctorDecisionParseError:
-        return "INDEFINIDA"
+        return _extract_room2_decision_fallback(content_text)
 
     if parsed.decision == "accept":
         return "ACEITAR"
     if parsed.decision == "deny":
         return "NEGAR"
     return "INDEFINIDA"
+
+
+def _extract_room2_decision_fallback(content_text: str) -> str:
+    """Extract the last recognizable decision line from raw Room-2 reply text."""
+
+    decision: str | None = None
+    for raw_line in content_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(">"):
+            continue
+        normalized_line = line.replace("：", ":")
+        if ":" not in normalized_line:
+            continue
+        key_raw, value_raw = normalized_line.split(":", 1)
+        key = key_raw.strip().lower()
+        if key not in {"decisao", "decisão", "decision"}:
+            continue
+        value = value_raw.strip().lower()
+        if value in {"aceitar", "aceito", "aceita", "accept"}:
+            decision = "ACEITAR"
+        elif value in {"negar", "negado", "deny"}:
+            decision = "NEGAR"
+    return decision or "INDEFINIDA"
 
 
 def _build_room3_reply_title(content_text: str | None) -> str:
