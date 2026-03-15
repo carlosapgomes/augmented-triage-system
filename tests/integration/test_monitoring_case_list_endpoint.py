@@ -334,6 +334,97 @@ async def test_monitoring_case_list_applies_status_and_period_filters(tmp_path: 
 
 
 @pytest.mark.asyncio
+async def test_monitoring_case_list_exposes_observability_projection_fields(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_list_projection_fields.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-monitor-projection-token"
+    immediate_case_id = uuid4()
+    scheduled_case_id = uuid4()
+    filter_date = "2026-02-18"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=immediate_case_id,
+            status="WAIT_R1_CLEANUP_THUMBS",
+            updated_at=now - timedelta(minutes=5),
+        )
+        _insert_case(
+            connection,
+            case_id=scheduled_case_id,
+            status="CLEANED",
+            updated_at=now - timedelta(minutes=10),
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET doctor_decision = 'accept', doctor_admission_flow = 'immediate', "
+                "room1_final_reply_event_id = '$room1-final-immediate' WHERE case_id = :case_id"
+            ),
+            {"case_id": immediate_case_id.hex},
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET doctor_decision = 'accept', doctor_admission_flow = 'scheduled', "
+                "appointment_status = 'confirmed', "
+                "room1_final_reply_event_id = '$room1-final-scheduled' "
+                "WHERE case_id = :case_id"
+            ),
+            {"case_id": scheduled_case_id.hex},
+        )
+        _insert_case_matrix_transcript(
+            connection,
+            case_id=immediate_case_id,
+            event_id="$evt-immediate-projection",
+            captured_at=now - timedelta(minutes=1),
+        )
+        _insert_case_matrix_transcript(
+            connection,
+            case_id=scheduled_case_id,
+            event_id="$evt-scheduled-projection",
+            captured_at=now - timedelta(minutes=2),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/monitoring/cases"
+            f"?page=1&page_size=10&from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    items_by_case_id = {entry["case_id"]: entry for entry in payload["items"]}
+
+    immediate_item = items_by_case_id[str(immediate_case_id)]
+    assert (
+        immediate_item["compact_operational_summary"]
+        == "EM_ANDAMENTO · AGUARDANDO_SALA_1 · VINDA_IMEDIATA"
+    )
+    assert immediate_item["status_atual"] == "EM_ANDAMENTO"
+    assert immediate_item["etapa_pendente"] == "AGUARDANDO_SALA_1"
+    assert immediate_item["ramo_operacional"] == "VINDA_IMEDIATA"
+    assert immediate_item["desfecho_final"] is None
+
+    scheduled_item = items_by_case_id[str(scheduled_case_id)]
+    assert scheduled_item["compact_operational_summary"] == "ACEITO · AGENDAMENTO"
+    assert scheduled_item["status_atual"] == "CONCLUIDO"
+    assert scheduled_item["etapa_pendente"] == "CONCLUIDO"
+    assert scheduled_item["ramo_operacional"] == "AGENDAMENTO"
+    assert scheduled_item["desfecho_final"] == "ACEITO"
+
+
 async def test_monitoring_case_list_defaults_to_today_filter_and_default_page_size(
     tmp_path: Path,
 ) -> None:

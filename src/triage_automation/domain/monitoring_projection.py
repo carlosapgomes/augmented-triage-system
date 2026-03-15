@@ -104,6 +104,29 @@ class MonitoringProjection:
     desfecho_final: MonitoringFinalOutcome | None
 
 
+def build_compact_operational_summary(projection: MonitoringProjection) -> str:
+    """Compose a deterministic compact summary for case-list rendering."""
+
+    if projection.desfecho_final is not None:
+        if (
+            projection.desfecho_final is MonitoringFinalOutcome.ACEITO
+            and projection.ramo_operacional is MonitoringOperationalBranch.AGENDAMENTO
+        ):
+            return (
+                f"{projection.desfecho_final.value}"
+                f" · {projection.ramo_operacional.value}"
+            )
+        return projection.desfecho_final.value
+
+    return " · ".join(
+        (
+            projection.status_atual.value,
+            projection.etapa_pendente.value,
+            projection.ramo_operacional.value,
+        )
+    )
+
+
 def derive_monitoring_projection(source: MonitoringProjectionInput) -> MonitoringProjection:
     """Derive monitoring semantics from persisted case state only.
 

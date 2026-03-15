@@ -9,6 +9,12 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringFinalOutcome,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
+)
 
 
 class StrictModel(BaseModel):
@@ -23,6 +29,11 @@ class MonitoringCaseListItem(StrictModel):
     case_id: UUID
     status: CaseStatus
     latest_activity_at: datetime
+    compact_operational_summary: str
+    status_atual: MonitoringCurrentStatus
+    etapa_pendente: MonitoringPendingStage
+    ramo_operacional: MonitoringOperationalBranch
+    desfecho_final: MonitoringFinalOutcome | None
 
 
 class MonitoringCaseListResponse(StrictModel):

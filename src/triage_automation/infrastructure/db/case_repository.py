@@ -35,6 +35,11 @@ from triage_automation.application.ports.case_repository_port import (
     SchedulerDecisionUpdateInput,
 )
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.monitoring_projection import (
+    MonitoringProjectionInput,
+    build_compact_operational_summary,
+    derive_monitoring_projection,
+)
 from triage_automation.infrastructure.db.metadata import cases
 
 logger = logging.getLogger(__name__)
@@ -738,7 +743,9 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 cases.c.agency_record_number,
                 cases.c.structured_data_json,
                 cases.c.doctor_decision,
+                cases.c.doctor_admission_flow,
                 cases.c.appointment_status,
+                cases.c.room1_final_reply_event_id,
             )
             .select_from(from_clause)
             .order_by(
@@ -766,17 +773,33 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         items: list[CaseMonitoringListItem] = []
         for row in result.mappings().all():
             structured_data_json = cast(dict[str, Any] | None, row["structured_data_json"])
+            status = CaseStatus(cast(str, row["status"]))
             doctor_decision = cast(str | None, row["doctor_decision"])
+            doctor_admission_flow = cast(str | None, row["doctor_admission_flow"])
             appointment_status = cast(str | None, row["appointment_status"])
+            projection = derive_monitoring_projection(
+                MonitoringProjectionInput(
+                    status=status,
+                    doctor_decision=cast("Any", doctor_decision),
+                    doctor_admission_flow=cast("Any", doctor_admission_flow),
+                    appointment_status=cast("Any", appointment_status),
+                    room1_final_reply_event_id=cast(str | None, row["room1_final_reply_event_id"]),
+                )
+            )
             items.append(
                 CaseMonitoringListItem(
                     case_id=cast("Any", row["case_id"]),
-                    status=CaseStatus(cast(str, row["status"])),
+                    status=status,
                     latest_activity_at=cast(datetime, row["latest_activity_at"]),
                     case_outcome=_derive_case_outcome(
                         doctor_decision=doctor_decision,
                         appointment_status=appointment_status,
                     ),
+                    compact_operational_summary=build_compact_operational_summary(projection),
+                    status_atual=projection.status_atual,
+                    etapa_pendente=projection.etapa_pendente,
+                    ramo_operacional=projection.ramo_operacional,
+                    desfecho_final=projection.desfecho_final,
                     patient_name=_extract_patient_name_from_structured_data(structured_data_json),
                     agency_record_number=cast(str | None, row["agency_record_number"]),
                 )

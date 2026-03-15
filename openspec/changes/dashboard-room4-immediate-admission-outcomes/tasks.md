@@ -7,7 +7,7 @@
 
 ## 2. Dashboard list, filters, and totals
 
-- [ ] 2.1 Update dashboard monitoring queries/adapters so case list responses expose the compact operational summary and the derived observability fields needed by filters and totals.
+- [x] 2.1 Update dashboard monitoring queries/adapters so case list responses expose the compact operational summary and the derived observability fields needed by filters and totals.
 - [ ] 2.2 Implement dashboard filters and totals that distinguish backlog state from concluded outcomes, including subtotal by pending stage and subtotal of pending cases already in the `vinda_imediata` branch.
 - [ ] 2.3 Add dashboard list coverage proving that a pending immediate-admission case remains `EM_ANDAMENTO`, a concluded immediate-admission case renders `VINDA_IMEDIATA`, and legacy cases are not retroactively inferred as immediate-admission.
 
@@ -44,3 +44,12 @@
 - `uv run pytest tests/unit/test_monitoring_projection.py tests/integration/test_monitoring_projection_persisted_state.py -q` ✅ passed (`11 passed`)
 - `uv run ruff check src/triage_automation/domain/monitoring_projection.py tests/unit/test_monitoring_projection.py tests/integration/test_monitoring_projection_persisted_state.py` ✅ passed
 - `uv run mypy src/triage_automation/domain/monitoring_projection.py` ✅ passed
+
+### Task 2.1
+
+- Extended monitoring list projections and API adapters to expose `compact_operational_summary`, `status_atual`, `etapa_pendente`, `ramo_operacional`, and `desfecho_final`
+- Reused the shared domain projection in the SQLAlchemy monitoring repository instead of duplicating list-specific semantics
+- Preserved the legacy `case_outcome` field for current dashboard rendering while exposing the richer observability fields needed by upcoming filters and totals
+- `uv run pytest tests/integration/test_monitoring_case_list_endpoint.py tests/integration/test_case_repositories.py::test_case_monitoring_list_derives_operational_outcome_from_decision_fields -q` ✅ passed (`5 passed`)
+- `uv run ruff check src/triage_automation/domain/monitoring_projection.py src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/dto/monitoring_models.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/monitoring_router.py tests/integration/test_case_repositories.py tests/integration/test_monitoring_case_list_endpoint.py` ✅ passed
+- `uv run mypy src/triage_automation/domain/monitoring_projection.py src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/dto/monitoring_models.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/monitoring_router.py` ✅ passed

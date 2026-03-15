@@ -21,6 +21,12 @@ from triage_automation.application.ports.message_repository_port import (
     DuplicateCaseMessageError,
 )
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringFinalOutcome,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
+)
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
@@ -411,7 +417,9 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
     with engine.begin() as connection:
         connection.execute(
             sa.text(
-                "UPDATE cases SET appointment_status = 'confirmed', updated_at = :updated_at "
+                "UPDATE cases SET status = 'CLEANED', doctor_decision = 'accept', "
+                "doctor_admission_flow = 'scheduled', appointment_status = 'confirmed', "
+                "room1_final_reply_event_id = '$room1-final-accepted', updated_at = :updated_at "
                 "WHERE case_id = :case_id"
             ),
             {
@@ -421,7 +429,9 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
         )
         connection.execute(
             sa.text(
-                "UPDATE cases SET appointment_status = 'denied', updated_at = :updated_at "
+                "UPDATE cases SET status = 'CLEANUP_RUNNING', doctor_decision = 'accept', "
+                "doctor_admission_flow = 'scheduled', appointment_status = 'denied', "
+                "room1_final_reply_event_id = '$room1-final-appt-denied', updated_at = :updated_at "
                 "WHERE case_id = :case_id"
             ),
             {
@@ -431,7 +441,8 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
         )
         connection.execute(
             sa.text(
-                "UPDATE cases SET doctor_decision = 'deny', updated_at = :updated_at "
+                "UPDATE cases SET status = 'WAIT_R1_CLEANUP_THUMBS', doctor_decision = 'deny', "
+                "room1_final_reply_event_id = '$room1-final-denied', updated_at = :updated_at "
                 "WHERE case_id = :case_id"
             ),
             {
@@ -440,7 +451,12 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
             },
         )
         connection.execute(
-            sa.text("UPDATE cases SET updated_at = :updated_at WHERE case_id = :case_id"),
+            sa.text(
+                "UPDATE cases SET status = 'WAIT_R1_CLEANUP_THUMBS', doctor_decision = 'accept', "
+                "doctor_admission_flow = 'immediate', "
+                "room1_final_reply_event_id = '$room1-final-immediate', "
+                "updated_at = :updated_at WHERE case_id = :case_id"
+            ),
             {
                 "case_id": in_progress_case_id.hex,
                 "updated_at": now - timedelta(minutes=1),
@@ -458,11 +474,47 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
     )
 
     outcomes_by_case_id = {item.case_id: item.case_outcome for item in result.items}
+    items_by_case_id = {item.case_id: item for item in result.items}
 
     assert outcomes_by_case_id[accepted_case_id] == "ACEITO"
     assert outcomes_by_case_id[denied_by_appt_case_id] == "NEGADO"
     assert outcomes_by_case_id[denied_by_doctor_case_id] == "NEGADO"
     assert outcomes_by_case_id[in_progress_case_id] == "EM_ANDAMENTO"
+
+    accepted_item = items_by_case_id[accepted_case_id]
+    denied_appt_item = items_by_case_id[denied_by_appt_case_id]
+    denied_doctor_item = items_by_case_id[denied_by_doctor_case_id]
+    immediate_item = items_by_case_id[in_progress_case_id]
+
+    assert accepted_item.compact_operational_summary == "ACEITO · AGENDAMENTO"
+    assert accepted_item.status_atual is MonitoringCurrentStatus.CONCLUIDO
+    assert accepted_item.etapa_pendente is MonitoringPendingStage.CONCLUIDO
+    assert accepted_item.ramo_operacional is MonitoringOperationalBranch.AGENDAMENTO
+    assert accepted_item.desfecho_final is MonitoringFinalOutcome.ACEITO
+
+    assert denied_appt_item.compact_operational_summary == "NEGADO"
+    assert denied_appt_item.status_atual is MonitoringCurrentStatus.CONCLUIDO
+    assert denied_appt_item.etapa_pendente is MonitoringPendingStage.CONCLUIDO
+    assert denied_appt_item.ramo_operacional is MonitoringOperationalBranch.AGENDAMENTO
+    assert denied_appt_item.desfecho_final is MonitoringFinalOutcome.NEGADO
+
+    assert (
+        denied_doctor_item.compact_operational_summary
+        == "EM_ANDAMENTO · AGUARDANDO_SALA_1 · NAO_APLICAVEL"
+    )
+    assert denied_doctor_item.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO
+    assert denied_doctor_item.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_1
+    assert denied_doctor_item.ramo_operacional is MonitoringOperationalBranch.NAO_APLICAVEL
+    assert denied_doctor_item.desfecho_final is None
+
+    assert (
+        immediate_item.compact_operational_summary
+        == "EM_ANDAMENTO · AGUARDANDO_SALA_1 · VINDA_IMEDIATA"
+    )
+    assert immediate_item.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO
+    assert immediate_item.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_1
+    assert immediate_item.ramo_operacional is MonitoringOperationalBranch.VINDA_IMEDIATA
+    assert immediate_item.desfecho_final is None
 
     assert result.totals.total == 4
     assert result.totals.accepted == 1

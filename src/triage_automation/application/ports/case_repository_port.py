@@ -8,6 +8,12 @@ from typing import Any, Literal, Protocol
 from uuid import UUID
 
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringFinalOutcome,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
+)
 
 CaseOutcome = Literal["ACEITO", "NEGADO", "EM_ANDAMENTO"]
 DoctorAdmissionFlow = Literal["scheduled", "immediate"]
@@ -166,14 +172,20 @@ class CaseMonitoringListFilter:
 class CaseMonitoringListItem:
     """Case row projection returned by monitoring list queries.
 
-    The `case_outcome` field is a user-facing operational summary for dashboard
-    list rendering and is independent from the technical workflow status.
+    The row preserves the legacy `case_outcome` field for current dashboard
+    rendering while also exposing the shared observability projection used by
+    upcoming list filters, totals, and compact summaries.
     """
 
     case_id: UUID
     status: CaseStatus
     latest_activity_at: datetime
     case_outcome: CaseOutcome = "EM_ANDAMENTO"
+    compact_operational_summary: str = "EM_ANDAMENTO"
+    status_atual: MonitoringCurrentStatus = MonitoringCurrentStatus.EM_ANDAMENTO
+    etapa_pendente: MonitoringPendingStage = MonitoringPendingStage.AGUARDANDO_SALA_2
+    ramo_operacional: MonitoringOperationalBranch = MonitoringOperationalBranch.INDISPONIVEL
+    desfecho_final: MonitoringFinalOutcome | None = None
     patient_name: str | None = None
     agency_record_number: str | None = None
 

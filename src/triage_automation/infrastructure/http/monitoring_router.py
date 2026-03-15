@@ -90,6 +90,11 @@ def build_monitoring_router(
                     case_id=item.case_id,
                     status=item.status,
                     latest_activity_at=item.latest_activity_at,
+                    compact_operational_summary=item.compact_operational_summary,
+                    status_atual=item.status_atual,
+                    etapa_pendente=item.etapa_pendente,
+                    ramo_operacional=item.ramo_operacional,
+                    desfecho_final=item.desfecho_final,
                 )
                 for item in result.items
             ],
