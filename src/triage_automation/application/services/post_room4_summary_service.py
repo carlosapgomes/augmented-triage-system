@@ -159,7 +159,8 @@ def render_room4_summary_message(
             f"- Pacientes recebidos: {metrics.patients_received}",
             f"- Relatórios processados: {metrics.reports_processed}",
             f"- Casos avaliados: {metrics.cases_evaluated}",
-            f"- Aceitos: {metrics.accepted}",
+            f"- Aceitos por agendamento: {metrics.accepted_scheduled}",
+            f"- Vinda imediata: {metrics.immediate_admission}",
             f"- Recusados: {metrics.refused}",
         ]
     )

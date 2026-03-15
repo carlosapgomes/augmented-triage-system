@@ -132,7 +132,7 @@ async def test_metrics_query_counts_patients_reports_and_evaluated_in_window(
 
 
 @pytest.mark.asyncio
-async def test_metrics_query_counts_final_outcomes_for_accepted_and_refused(
+async def test_metrics_query_splits_scheduled_immediate_and_refused_final_outcomes(
     tmp_path: Path,
 ) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "supervisor_summary_metrics_outcomes.db")
@@ -141,17 +141,21 @@ async def test_metrics_query_counts_final_outcomes_for_accepted_and_refused(
     queries = SqlAlchemySupervisorSummaryMetricsQueries(session_factory)
 
     accepted_case_id = uuid4()
+    immediate_case_id = uuid4()
     doctor_denied_case_id = uuid4()
     appt_denied_case_id = uuid4()
     accepted_outside_case_id = uuid4()
+    immediate_outside_case_id = uuid4()
     denied_outside_case_id = uuid4()
     doctor_accepted_in_window_case_id = uuid4()
 
     for case_id in (
         accepted_case_id,
+        immediate_case_id,
         doctor_denied_case_id,
         appt_denied_case_id,
         accepted_outside_case_id,
+        immediate_outside_case_id,
         denied_outside_case_id,
         doctor_accepted_in_window_case_id,
     ):
@@ -180,6 +184,22 @@ async def test_metrics_query_counts_final_outcomes_for_accepted_and_refused(
                 "appointment_status": "confirmed",
                 "appointment_decided_at": datetime(2026, 2, 16, 11, 0, tzinfo=UTC),
                 "case_id": accepted_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
+                "doctor_admission_flow = :doctor_admission_flow, "
+                "room1_final_reply_event_id = :room1_final_reply_event_id, "
+                "cleanup_triggered_at = :cleanup_triggered_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.CLEANUP_RUNNING.value,
+                "doctor_decision": "accept",
+                "doctor_admission_flow": "immediate",
+                "room1_final_reply_event_id": "$room1-final-immediate-in-window",
+                "cleanup_triggered_at": datetime(2026, 2, 16, 11, 30, tzinfo=UTC),
+                "case_id": immediate_case_id.hex,
             },
         )
         connection.execute(
@@ -221,6 +241,22 @@ async def test_metrics_query_counts_final_outcomes_for_accepted_and_refused(
         connection.execute(
             sa.text(
                 "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
+                "doctor_admission_flow = :doctor_admission_flow, "
+                "room1_final_reply_event_id = :room1_final_reply_event_id, "
+                "cleanup_triggered_at = :cleanup_triggered_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.CLEANED.value,
+                "doctor_decision": "accept",
+                "doctor_admission_flow": "immediate",
+                "room1_final_reply_event_id": "$room1-final-immediate-outside-window",
+                "cleanup_triggered_at": datetime(2026, 2, 16, 22, 1, tzinfo=UTC),
+                "case_id": immediate_outside_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
                 "doctor_decided_at = :doctor_decided_at WHERE case_id = :case_id"
             ),
             {
@@ -248,5 +284,6 @@ async def test_metrics_query_counts_final_outcomes_for_accepted_and_refused(
         window_end=window_end,
     )
 
-    assert metrics.accepted == 1
+    assert metrics.accepted_scheduled == 1
+    assert metrics.immediate_admission == 1
     assert metrics.refused == 2

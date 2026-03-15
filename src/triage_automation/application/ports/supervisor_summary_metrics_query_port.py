@@ -14,7 +14,8 @@ class SupervisorSummaryMetrics:
     patients_received: int
     reports_processed: int
     cases_evaluated: int
-    accepted: int
+    accepted_scheduled: int
+    immediate_admission: int
     refused: int
 
 

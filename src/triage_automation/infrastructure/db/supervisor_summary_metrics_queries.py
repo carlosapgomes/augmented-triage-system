@@ -47,11 +47,19 @@ class SqlAlchemySupervisorSummaryMetricsQueries(SupervisorSummaryMetricsQueryPor
             cases.c.doctor_decided_at >= window_start,
             cases.c.doctor_decided_at < window_end,
         )
-        accepted_statement = sa.select(sa.func.count()).select_from(cases).where(
+        accepted_scheduled_statement = sa.select(sa.func.count()).select_from(cases).where(
             cases.c.appointment_status == "confirmed",
             cases.c.appointment_decided_at.is_not(None),
             cases.c.appointment_decided_at >= window_start,
             cases.c.appointment_decided_at < window_end,
+        )
+        immediate_admission_statement = sa.select(sa.func.count()).select_from(cases).where(
+            cases.c.doctor_decision == "accept",
+            cases.c.doctor_admission_flow == "immediate",
+            cases.c.room1_final_reply_event_id.is_not(None),
+            cases.c.cleanup_triggered_at.is_not(None),
+            cases.c.cleanup_triggered_at >= window_start,
+            cases.c.cleanup_triggered_at < window_end,
         )
 
         doctor_denied_statement = sa.select(sa.func.count()).select_from(cases).where(
@@ -71,7 +79,12 @@ class SqlAlchemySupervisorSummaryMetricsQueries(SupervisorSummaryMetricsQueryPor
             patients_received = int((await session.execute(patients_statement)).scalar_one())
             reports_processed = int((await session.execute(reports_statement)).scalar_one())
             cases_evaluated = int((await session.execute(evaluated_statement)).scalar_one())
-            accepted = int((await session.execute(accepted_statement)).scalar_one())
+            accepted_scheduled = int(
+                (await session.execute(accepted_scheduled_statement)).scalar_one()
+            )
+            immediate_admission = int(
+                (await session.execute(immediate_admission_statement)).scalar_one()
+            )
             doctor_denied = int((await session.execute(doctor_denied_statement)).scalar_one())
             scheduler_denied = int(
                 (await session.execute(scheduler_denied_statement)).scalar_one()
@@ -81,6 +94,7 @@ class SqlAlchemySupervisorSummaryMetricsQueries(SupervisorSummaryMetricsQueryPor
             patients_received=patients_received,
             reports_processed=reports_processed,
             cases_evaluated=cases_evaluated,
-            accepted=accepted,
+            accepted_scheduled=accepted_scheduled,
+            immediate_admission=immediate_admission,
             refused=doctor_denied + scheduler_denied,
         )

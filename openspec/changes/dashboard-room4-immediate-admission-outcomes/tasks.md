@@ -19,7 +19,7 @@
 
 ## 4. Room-4 supervisory periodic summary
 
-- [ ] 4.1 Extend Room-4 summary aggregation to report concluded outcomes as `aceitos por agendamento`, `vinda imediata`, and `recusados`, while preserving current period/window semantics.
+- [x] 4.1 Extend Room-4 summary aggregation to report concluded outcomes as `aceitos por agendamento`, `vinda imediata`, and `recusados`, while preserving current period/window semantics.
 - [ ] 4.2 Extend Room-4 summary aggregation to report current backlog totals by pending stage, including `aguardando Sala 2`, `aguardando Sala 3`, `aguardando Sala 1`, and `pendentes no ramo vinda imediata`.
 - [ ] 4.3 Add targeted summary tests proving that pending `vinda_imediata` cases are counted in backlog but not as concluded `vinda imediata`, and that legacy cases only contribute to branch-specific totals when persisted evidence exists.
 
@@ -96,3 +96,12 @@
 - `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`38 passed`)
 - `uv run ruff check tests/integration/test_dashboard_pages.py` ✅ passed
 - `uv run mypy tests/integration/test_dashboard_pages.py` ✅ passed
+
+### Task 4.1
+
+- Split Room-4 concluded outcome metrics into `aceitos por agendamento`, `vinda imediata`, and `recusados` without changing the existing reporting window contract
+- Counted concluded immediate-admission outcomes only when the Room-1 acknowledgment has already triggered cleanup, preserving the end-of-flow semantics for the immediate branch
+- Updated Room-4 summary message rendering and query coverage to reflect the new scheduled-vs-immediate acceptance breakdown
+- `uv run pytest tests/integration/test_supervisor_summary_metrics_queries.py tests/unit/test_post_room4_summary_service.py -q` ✅ passed (`4 passed`)
+- `uv run ruff check src/triage_automation/application/ports/supervisor_summary_metrics_query_port.py src/triage_automation/application/services/post_room4_summary_service.py src/triage_automation/infrastructure/db/supervisor_summary_metrics_queries.py tests/integration/test_supervisor_summary_metrics_queries.py tests/unit/test_post_room4_summary_service.py` ✅ passed
+- `uv run mypy src/triage_automation/application/ports/supervisor_summary_metrics_query_port.py src/triage_automation/application/services/post_room4_summary_service.py src/triage_automation/infrastructure/db/supervisor_summary_metrics_queries.py` ✅ passed

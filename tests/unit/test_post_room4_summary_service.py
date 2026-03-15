@@ -100,7 +100,8 @@ async def test_post_room4_summary_service_renders_metrics_and_posts_to_room4() -
             patients_received=12,
             reports_processed=10,
             cases_evaluated=9,
-            accepted=6,
+            accepted_scheduled=4,
+            immediate_admission=2,
             refused=3,
         )
     )
@@ -131,7 +132,8 @@ async def test_post_room4_summary_service_renders_metrics_and_posts_to_room4() -
     assert "Pacientes recebidos: 12" in body
     assert "Relatórios processados: 10" in body
     assert "Casos avaliados: 9" in body
-    assert "Aceitos: 6" in body
+    assert "Aceitos por agendamento: 4" in body
+    assert "Vinda imediata: 2" in body
     assert "Recusados: 3" in body
 
 
@@ -161,7 +163,8 @@ async def test_post_room4_summary_service_skips_publish_when_window_already_sent
                 patients_received=12,
                 reports_processed=10,
                 cases_evaluated=9,
-                accepted=6,
+                accepted_scheduled=4,
+                immediate_admission=2,
                 refused=3,
             )
         ),
