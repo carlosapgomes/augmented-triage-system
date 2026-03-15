@@ -159,6 +159,9 @@ def _suggested_action(case_id: UUID, agency_record_number: str) -> dict[str, Any
         "case_id": str(case_id),
         "agency_record_number": agency_record_number,
         "suggestion": "deny",
+        "decision": "deny",
+        "reason_code": "missing_minimum_exam_creatinine",
+        "reason_text": "Exame mínimo obrigatório ausente ou insuficiente para EDA: creatinina.",
         "support_recommendation": "anesthesist",
         "asa": {
             "bucket": "III ou mais",
@@ -176,6 +179,12 @@ def _suggested_action(case_id: UUID, agency_record_number: str) -> dict[str, Any
             "ecg_ok": "unknown",
             "pediatric_flag": False,
             "notes": None,
+        },
+        "preop_gate": {
+            "decision": "deny",
+            "reason_code": "missing_minimum_exam_creatinine",
+            "reason_text": "Exame mínimo obrigatório ausente ou insuficiente para EDA: creatinina.",
+            "evidence_spans": [],
         },
         "confidence": "media",
     }
@@ -393,7 +402,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "- III ou mais" in summary_body
     assert "- Decisão negar com suporte anestesista." not in summary_body
     assert "- Informacoes insuficientes" not in summary_body
-    assert "- Negado por: critérios mínimos de segurança não atendidos" in summary_body
+    assert "- Negado por: exame mínimo obrigatório ausente: creatinina." in summary_body
     assert "```json" not in summary_body
     assert summary_formatted_body is not None
     assert "<h1>Resumo técnico da triagem</h1>" in summary_formatted_body
@@ -416,7 +425,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "<li>Decisão negar com suporte anestesista.</li>" not in summary_formatted_body
     assert "<li>Informacoes insuficientes</li>" not in summary_formatted_body
     assert (
-        "<li>Negado por: critérios mínimos de segurança não atendidos"
+        "<li>Negado por: exame mínimo obrigatório ausente: creatinina.</li>"
         in summary_formatted_body
     )
 

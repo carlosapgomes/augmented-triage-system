@@ -797,16 +797,18 @@ def _build_room2_objective_deny_causes(
 ) -> list[str]:
     """Return ordered deny causes derived from deterministic precheck signals."""
 
-    causes: list[str] = []
-
-    preop_gate_reason_code = _extract_room2_preop_gate_reason_code(
-        suggested_action=suggested_action,
-    )
     preop_gate_cause = _map_room2_preop_reason_code_to_deny_cause(
-        reason_code=preop_gate_reason_code,
+        reason_code=_extract_room2_preop_gate_reason_code(
+            suggested_action=suggested_action,
+        ),
+        reason_text=_extract_room2_preop_gate_reason_text(
+            suggested_action=suggested_action,
+        ),
     )
     if preop_gate_cause is not None:
-        causes.append(preop_gate_cause)
+        return [preop_gate_cause]
+
+    causes: list[str] = []
 
     excluded_from_flow = _extract_room2_nested_value(
         structured_data,
@@ -882,14 +884,75 @@ def _extract_room2_preop_gate_reason_code(*, suggested_action: dict[str, object]
     return None
 
 
-def _map_room2_preop_reason_code_to_deny_cause(*, reason_code: str | None) -> str | None:
-    """Map deterministic preop reason-code to concise Room-2 deny explanation."""
+
+def _extract_room2_preop_gate_reason_text(*, suggested_action: dict[str, object]) -> str | None:
+    """Extract deterministic preop gate reason-text from suggested action payload."""
+
+    preop_gate = suggested_action.get("preop_gate")
+    if isinstance(preop_gate, dict):
+        preop_reason_text = preop_gate.get("reason_text")
+        if isinstance(preop_reason_text, str):
+            normalized = " ".join(preop_reason_text.split())
+            if normalized:
+                return normalized
+
+    reason_text = suggested_action.get("reason_text")
+    if isinstance(reason_text, str):
+        normalized = " ".join(reason_text.split())
+        if normalized:
+            return normalized
+
+    return None
+
+
+
+def _map_room2_preop_reason_code_to_deny_cause(
+    *,
+    reason_code: str | None,
+    reason_text: str | None,
+) -> str | None:
+    """Map deterministic preop reason metadata to concise Room-2 deny explanation."""
+
+    minimum_exam_labels = {
+        "missing_minimum_exam_hb_or_ht": "Hb/Ht",
+        "missing_minimum_exam_platelets": "plaquetas",
+        "missing_minimum_exam_tp_inr_rni": "TP/INR/RNI",
+        "missing_minimum_exam_ttpa": "TTPa",
+        "missing_minimum_exam_urea": "ureia",
+        "missing_minimum_exam_creatinine": "creatinina",
+    }
+    if reason_code in minimum_exam_labels:
+        return f"exame mínimo obrigatório ausente: {minimum_exam_labels[reason_code]}"
 
     if reason_code == "missing_ecg_with_cardiovascular_disease":
-        return "doença cardiovascular relatada sem laudo de ECG"
+        return "critério cardiovascular sem laudo mínimo de ECG"
     if reason_code == "missing_chest_xray_with_respiratory_risk":
-        return "risco respiratório relatado sem laudo de RX de tórax"
+        return "critério respiratório sem laudo mínimo de RX de tórax"
+    if reason_code == "missing_echocardiogram_with_structural_heart_risk":
+        return "critério cardíaco estrutural sem laudo mínimo de ecocardiograma"
+
+    if reason_code in {"hb_below_threshold", "platelets_below_threshold", "inr_above_threshold"}:
+        summarized_threshold = _summarize_room2_threshold_reason(reason_text)
+        if summarized_threshold is not None:
+            return f"contraindicação: {summarized_threshold}"
+        return "contraindicação por limiar clínico excedido"
     return None
+
+
+
+def _summarize_room2_threshold_reason(reason_text: str | None) -> str | None:
+    """Collapse deterministic threshold reason text into concise Room-2 wording."""
+
+    if reason_text is None:
+        return None
+
+    normalized = reason_text.split(" Sinalização pediátrica:", 1)[0].strip()
+    normalized = normalized.removesuffix(".")
+    normalized = normalized.replace(" do rulebook EDA", "")
+    normalized = " ".join(normalized.split())
+    if not normalized:
+        return None
+    return normalized
 
 
 def _is_room2_yes_precheck_value(value: object) -> bool:

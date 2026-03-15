@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from html import unescape
 from uuid import UUID
 
 import pytest
@@ -1216,20 +1217,47 @@ def test_room2_summary_objective_reason_deny_uses_ecg_cause_when_isolated() -> N
 
 
 @pytest.mark.parametrize(
-    ("reason_code", "expected_snippet"),
+    ("reason_code", "reason_text", "expected_snippet"),
     [
         (
+            "missing_minimum_exam_creatinine",
+            "Exame mínimo obrigatório ausente ou insuficiente para EDA: creatinina.",
+            "exame mínimo obrigatório ausente: creatinina",
+        ),
+        (
             "missing_ecg_with_cardiovascular_disease",
-            "doença cardiovascular relatada sem laudo de ecg",
+            (
+                "Critério cardiovascular exige laudo mínimo de ECG no relatório; "
+                "mera menção do exame não satisfaz a completude."
+            ),
+            "critério cardiovascular sem laudo mínimo de ecg",
         ),
         (
             "missing_chest_xray_with_respiratory_risk",
-            "risco respiratório relatado sem laudo de rx de tórax",
+            (
+                "Critério respiratório exige laudo mínimo de RX de tórax no relatório; "
+                "mera menção do exame não satisfaz a completude."
+            ),
+            "critério respiratório sem laudo mínimo de rx de tórax",
+        ),
+        (
+            "missing_echocardiogram_with_structural_heart_risk",
+            (
+                "Critério cardíaco estrutural exige laudo mínimo de ecocardiograma no "
+                "relatório; mera menção do exame não satisfaz a completude."
+            ),
+            "critério cardíaco estrutural sem laudo mínimo de ecocardiograma",
+        ),
+        (
+            "hb_below_threshold",
+            "HB < 8 para perfil cardiopatia do rulebook EDA.",
+            "contraindicação: hb < 8 para perfil cardiopatia",
         ),
     ],
 )
-def test_room2_summary_objective_reason_deny_includes_missing_exam_context_from_preop_gate(
+def test_room2_summary_objective_reason_deny_includes_rewritten_rulebook_causes_from_preop_gate(
     reason_code: str,
+    reason_text: str,
     expected_snippet: str,
 ) -> None:
     case_id = UUID("65656565-6565-6565-6565-656565656565")
@@ -1239,7 +1267,7 @@ def test_room2_summary_objective_reason_deny_includes_missing_exam_context_from_
         "preop_gate": {
             "decision": "deny",
             "reason_code": reason_code,
-            "reason_text": "negação determinística por exame ausente",
+            "reason_text": reason_text,
             "evidence_spans": [],
         },
     }
@@ -1261,7 +1289,7 @@ def test_room2_summary_objective_reason_deny_includes_missing_exam_context_from_
         suggested_action=suggested_action,
     )
 
-    reason_text = " ".join(
+    reason_text_markdown = " ".join(
         _extract_markdown_section_lines(
             body=body,
             section="## Motivo objetivo:\n\n",
@@ -1269,8 +1297,8 @@ def test_room2_summary_objective_reason_deny_includes_missing_exam_context_from_
         )
     ).lower()
 
-    assert expected_snippet in reason_text
-    assert "critérios mínimos de segurança não atendidos" not in reason_text
+    assert expected_snippet in reason_text_markdown
+    assert "critérios mínimos de segurança não atendidos" not in reason_text_markdown
 
     formatted_body = build_room2_case_summary_formatted_html(
         case_id=case_id,
@@ -1290,10 +1318,12 @@ def test_room2_summary_objective_reason_deny_includes_missing_exam_context_from_
         suggested_action=suggested_action,
     )
 
-    reason_chunk = _extract_html_section_chunk(
-        body=formatted_body,
-        section="<h2>Motivo objetivo:</h2>",
-        next_section=None,
+    reason_chunk = unescape(
+        _extract_html_section_chunk(
+            body=formatted_body,
+            section="<h2>Motivo objetivo:</h2>",
+            next_section=None,
+        )
     ).lower()
     assert expected_snippet in reason_chunk
 
