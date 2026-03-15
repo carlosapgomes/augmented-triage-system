@@ -508,6 +508,7 @@ async def test_happy_path_reaches_cleaned_with_cleanup_redactions(tmp_path: Path
             doctor_user_id="@doctor:example.org",
             decision="accept",
             support_flag="none",
+            admission_flow="scheduled",
             reason=None,
         )
     )

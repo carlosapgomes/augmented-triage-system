@@ -7,7 +7,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Protocol
 
-from triage_automation.application.dto.webhook_models import TriageDecisionWebhookPayload
+from triage_automation.application.dto.webhook_models import (
+    AdmissionFlow,
+    Decision,
+    TriageDecisionWebhookPayload,
+)
 from triage_automation.application.ports.audit_repository_port import (
     AuditEventCreateInput,
     AuditRepositoryPort,
@@ -92,12 +96,13 @@ class HandleDoctorDecisionService:
         logger.info(
             (
                 "doctor_decision_received case_id=%s doctor_user_id=%s "
-                "decision=%s support_flag=%s"
+                "decision=%s support_flag=%s admission_flow=%s"
             ),
             payload.case_id,
             payload.doctor_user_id,
             payload.decision,
             payload.support_flag,
+            payload.admission_flow,
         )
         snapshot = await self._case_repository.get_case_doctor_decision_snapshot(
             case_id=payload.case_id
@@ -131,6 +136,7 @@ class HandleDoctorDecisionService:
                 doctor_user_id=payload.doctor_user_id,
                 decision=payload.decision,
                 support_flag=payload.support_flag,
+                admission_flow=payload.admission_flow,
                 reason=payload.reason,
             )
         )
@@ -156,6 +162,7 @@ class HandleDoctorDecisionService:
                     "doctor_user_id": payload.doctor_user_id,
                     "decision": payload.decision,
                     "support_flag": payload.support_flag,
+                    "admission_flow": payload.admission_flow,
                     "reason": payload.reason,
                     "submitted_at": (
                         payload.submitted_at.isoformat()
@@ -167,7 +174,10 @@ class HandleDoctorDecisionService:
             )
         )
 
-        job_type = _next_job_type(payload.decision)
+        job_type = _next_job_type(
+            decision=payload.decision,
+            admission_flow=payload.admission_flow,
+        )
         await self._job_queue.enqueue(
             JobEnqueueInput(case_id=payload.case_id, job_type=job_type, payload={})
         )
@@ -182,7 +192,11 @@ class HandleDoctorDecisionService:
                 case_id=payload.case_id,
                 actor_type="system",
                 event_type="JOB_ENQUEUED_NEXT_STEP",
-                payload={"job_type": job_type, "decision": payload.decision},
+                payload={
+                    "job_type": job_type,
+                    "decision": payload.decision,
+                    "admission_flow": payload.admission_flow,
+                },
             )
         )
 
@@ -289,7 +303,9 @@ class HandleDoctorDecisionService:
             )
 
 
-def _next_job_type(decision: str) -> str:
+def _next_job_type(*, decision: Decision, admission_flow: AdmissionFlow | None) -> str:
     if decision == "deny":
         return "post_room1_final_denial_triage"
+    if admission_flow == "immediate":
+        return "post_immediate_admission_flow"
     return "post_room3_request"

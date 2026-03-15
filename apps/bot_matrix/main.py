@@ -11,7 +11,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from triage_automation.application.dto.webhook_models import Decision, SupportFlag
 from triage_automation.application.ports.message_repository_port import (
     CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
@@ -804,8 +803,9 @@ async def _route_room2_replies_from_sync(
                 sender_user_id=parsed.sender_user_id,
                 reply_to_event_id=parsed.reply_to_event_id,
                 case_id=parsed.case_id,
-                decision=cast(Decision, parsed.decision),
-                support_flag=cast(SupportFlag, parsed.support_flag),
+                decision=parsed.decision,
+                support_flag=parsed.support_flag,
+                admission_flow=parsed.admission_flow,
                 reason=parsed.reason,
             )
         )
