@@ -26,7 +26,7 @@
 ## 5. Verification and operational documentation
 
 - [x] 5.1 Update any monitoring/dashboard/Room-4 operational documentation affected by the new observability semantics, keeping Portuguese and English mirrors synchronized when docs change.
-- [ ] 5.2 Run targeted verification for changed paths (`pytest`, `ruff`, `mypy`, and `markdownlint-cli2` when markdown changes) and record results in this task file during implementation.
+- [x] 5.2 Run targeted verification for changed paths (`pytest`, `ruff`, `mypy`, and `markdownlint-cli2` when markdown changes) and record results in this task file during implementation.
 
 ## Verification log
 
@@ -130,3 +130,11 @@
 - Kept Portuguese and English mirrors synchronized in `docs/manual_e2e_runbook.md` ↔ `docs/en/manual_e2e_runbook.md` and `docs/runtime-smoke.md` ↔ `docs/en/runtime-smoke.md`
 - `markdownlint-cli2 "docs/manual_e2e_runbook.md" "docs/en/manual_e2e_runbook.md" "docs/runtime-smoke.md" "docs/en/runtime-smoke.md"` ✅ passed
 - `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` ✅ passed (`5 passed`)
+
+### Task 5.2
+
+- Ran the targeted verification suite across the changed monitoring/dashboard/Room-4 source files, integration tests, unit tests, and synchronized markdown docs for this change
+- `uv run pytest tests/unit/test_monitoring_projection.py tests/integration/test_monitoring_projection_persisted_state.py tests/integration/test_monitoring_case_list_endpoint.py tests/integration/test_case_repositories.py tests/unit/test_case_monitoring_service.py tests/integration/test_dashboard_pages.py tests/unit/test_post_room4_summary_service.py tests/integration/test_supervisor_summary_metrics_queries.py tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` ✅ passed (`73 passed`)
+- `uv run ruff check src/triage_automation/domain/monitoring_projection.py src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/dto/monitoring_models.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/application/ports/supervisor_summary_metrics_query_port.py src/triage_automation/application/services/post_room4_summary_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/db/supervisor_summary_metrics_queries.py src/triage_automation/infrastructure/http/dashboard_router.py src/triage_automation/infrastructure/http/monitoring_router.py tests/unit/test_monitoring_projection.py tests/integration/test_monitoring_projection_persisted_state.py tests/integration/test_monitoring_case_list_endpoint.py tests/integration/test_case_repositories.py tests/unit/test_case_monitoring_service.py tests/integration/test_dashboard_pages.py tests/unit/test_post_room4_summary_service.py tests/integration/test_supervisor_summary_metrics_queries.py` ✅ passed
+- `uv run mypy src/triage_automation/domain/monitoring_projection.py src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/dto/monitoring_models.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/application/ports/supervisor_summary_metrics_query_port.py src/triage_automation/application/services/post_room4_summary_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/db/supervisor_summary_metrics_queries.py src/triage_automation/infrastructure/http/dashboard_router.py src/triage_automation/infrastructure/http/monitoring_router.py` ✅ passed
+- `markdownlint-cli2 "docs/manual_e2e_runbook.md" "docs/en/manual_e2e_runbook.md" "docs/runtime-smoke.md" "docs/en/runtime-smoke.md" "openspec/changes/dashboard-room4-immediate-admission-outcomes/tasks.md"` ✅ passed
