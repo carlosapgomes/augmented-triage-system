@@ -113,6 +113,9 @@ Comportamento esperado para baseline `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19` (
 - em 19:00: agenda janela `[13:00 dia atual, 19:00 dia atual)`
 - sem catch-up automático: se um corte falhar, a próxima execução processa apenas a janela imediatamente anterior
 - reexecução da mesma janela não duplica postagem na Room-4 (idempotência por janela)
+- a mensagem publicada na Room-4 combina desfechos concluídos da janela com backlog operacional corrente
+- validar no texto do resumo pelo menos: `aceitos por agendamento`, `vinda imediata`, `recusados`, `casos em andamento`, `aguardando Sala 2`, `aguardando Sala 3`, `aguardando Sala 1` e `pendentes no ramo vinda imediata`
+- caso exista `vinda imediata` pendente de ciência final da Sala 1, ela deve aparecer apenas no backlog (`aguardando Sala 1`/`pendentes no ramo vinda imediata`) e não no total concluído de `vinda imediata`
 
 Exemplo de cron Linux (produção):
 

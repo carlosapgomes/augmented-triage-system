@@ -25,7 +25,7 @@
 
 ## 5. Verification and operational documentation
 
-- [ ] 5.1 Update any monitoring/dashboard/Room-4 operational documentation affected by the new observability semantics, keeping Portuguese and English mirrors synchronized when docs change.
+- [x] 5.1 Update any monitoring/dashboard/Room-4 operational documentation affected by the new observability semantics, keeping Portuguese and English mirrors synchronized when docs change.
 - [ ] 5.2 Run targeted verification for changed paths (`pytest`, `ruff`, `mypy`, and `markdownlint-cli2` when markdown changes) and record results in this task file during implementation.
 
 ## Verification log
@@ -123,3 +123,10 @@
 - `uv run pytest tests/integration/test_supervisor_summary_metrics_queries.py -q` ✅ passed (`5 passed`)
 - `uv run ruff check tests/integration/test_supervisor_summary_metrics_queries.py` ✅ passed
 - `uv run mypy tests/integration/test_supervisor_summary_metrics_queries.py` ✅ passed
+
+### Task 5.1
+
+- Updated the operational runbooks for dashboard/monitoring validation and Room-4 summary smoke checks to document the new observability semantics
+- Kept Portuguese and English mirrors synchronized in `docs/manual_e2e_runbook.md` ↔ `docs/en/manual_e2e_runbook.md` and `docs/runtime-smoke.md` ↔ `docs/en/runtime-smoke.md`
+- `markdownlint-cli2 "docs/manual_e2e_runbook.md" "docs/en/manual_e2e_runbook.md" "docs/runtime-smoke.md" "docs/en/runtime-smoke.md"` ✅ passed
+- `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` ✅ passed (`5 passed`)

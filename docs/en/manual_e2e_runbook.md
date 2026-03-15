@@ -387,6 +387,9 @@ Recommended example:
 
 - `GET /dashboard/cases` with a valid bearer token
 - expected: HTML list renders cases and filters
+- validate the per-case compact operational summary (`current status · pending stage · operational branch`) whenever it differs from the legacy outcome shown in the row
+- validate the operational search totals with at least: `casos em andamento`, `aguardando Sala 2`, `aguardando Sala 3`, `aguardando Sala 1`, and `pendentes no ramo vinda imediata`
+- validate the operational filters for `status atual`, `etapa pendente`, `ramo operacional`, and `desfecho final`
 
 1. Validate the monitoring listing API:
 
@@ -405,6 +408,9 @@ Recommended example:
 - open `GET /dashboard/cases/{case_id}`
 - verify the chronological timeline visible in the UI matches the monitoring API
   for the same case
+- validate the `Resumo Operacional` block above the timeline with `status atual`, `etapa pendente`, `ramo operacional`, and `desfecho final`
+- for a pending `vinda imediata` case, validate that the detail still shows `EM_ANDAMENTO`/`AGUARDANDO_SALA_1` until the final Room-1 acknowledgment is received
+- switch between `view=thread` and `view=pure` and confirm the operational summary remains visible in both
 
 ## Prompt Management Authorization Flow
 

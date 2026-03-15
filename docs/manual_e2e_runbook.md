@@ -385,6 +385,9 @@ Exemplo recomendado:
 
 - `GET /dashboard/cases` com bearer token válido
 - esperado: lista HTML renderiza casos e filtros
+- validar presença do resumo operacional compacto por caso (`status atual · etapa pendente · ramo operacional`) quando diferente do desfecho legado exibido na linha
+- validar totais operacionais da busca com pelo menos: `casos em andamento`, `aguardando Sala 2`, `aguardando Sala 3`, `aguardando Sala 1` e `pendentes no ramo vinda imediata`
+- validar filtros operacionais para `status atual`, `etapa pendente`, `ramo operacional` e `desfecho final`
 
 1. Validar API de listagem de monitoramento:
 
@@ -403,6 +406,9 @@ Exemplo recomendado:
 - abrir `GET /dashboard/cases/{case_id}`
 - verificar timeline cronológica visível na UI igual à API de monitoramento para
   o mesmo caso
+- validar bloco `Resumo Operacional` acima da timeline com `status atual`, `etapa pendente`, `ramo operacional` e `desfecho final`
+- em caso pendente com `vinda imediata`, validar que o detalhe continua `EM_ANDAMENTO`/`AGUARDANDO_SALA_1` até a ciência final da Sala 1
+- alternar entre `view=thread` e `view=pure` e confirmar que o resumo operacional permanece visível em ambos
 
 ## Fluxo de autorização de gerenciamento de prompts
 

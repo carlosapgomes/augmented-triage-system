@@ -113,6 +113,9 @@ Expected behavior for baseline `SUPERVISOR_SUMMARY_CUTOFF_HOURS=7,13,19` (`Ameri
 - at 19:00: schedules window `[13:00 current day, 19:00 current day)`
 - no automatic catch-up: if a cutoff run fails, the next execution processes only the immediately previous window
 - re-running the same window does not duplicate Room-4 posting (window idempotency)
+- the Room-4 message combines concluded outcomes from the window with the current operational backlog
+- validate that the summary text includes at least: `aceitos por agendamento`, `vinda imediata`, `recusados`, `casos em andamento`, `aguardando Sala 2`, `aguardando Sala 3`, `aguardando Sala 1`, and `pendentes no ramo vinda imediata`
+- if there is a `vinda imediata` case still pending final Room-1 acknowledgment, it must appear only in backlog (`aguardando Sala 1`/`pendentes no ramo vinda imediata`) and not in the concluded `vinda imediata` total
 
 Linux cron example (production):
 
