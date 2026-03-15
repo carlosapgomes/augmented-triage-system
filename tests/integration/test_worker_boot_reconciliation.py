@@ -97,24 +97,51 @@ async def test_worker_startup_reconciles_running_jobs_before_recovery_scan(
             room1_sender_user_id="@human:example.org",
         )
     )
+    immediate_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.DOCTOR_ACCEPTED,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-startup-recover-immediate",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET doctor_admission_flow = :doctor_admission_flow "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "doctor_admission_flow": "immediate",
+                "case_id": immediate_case.case_id.hex,
+            },
+        )
 
     startup_result = await run_worker_startup(session_factory=session_factory)
 
     assert startup_result.reconciled_jobs == 1
-    assert startup_result.recovery.enqueued_jobs == 1
+    assert startup_result.recovery.enqueued_jobs == 2
 
     with engine.begin() as connection:
         running_row = connection.execute(
             sa.text("SELECT status, attempts FROM jobs WHERE job_id = :job_id"),
             {"job_id": running_job_id},
         ).mappings().one()
-        recovery_jobs = connection.execute(
+        scheduled_recovery_jobs = connection.execute(
             sa.text(
                 "SELECT job_type FROM jobs WHERE case_id = :case_id ORDER BY job_id"
             ),
             {"case_id": doctor_accepted_case.case_id.hex},
         ).scalars().all()
+        immediate_recovery_jobs = connection.execute(
+            sa.text(
+                "SELECT job_type FROM jobs WHERE case_id = :case_id ORDER BY job_id"
+            ),
+            {"case_id": immediate_case.case_id.hex},
+        ).scalars().all()
 
     assert running_row["status"] == "queued"
     assert int(running_row["attempts"]) == 2
-    assert list(recovery_jobs) == ["post_room3_request"]
+    assert list(scheduled_recovery_jobs) == ["post_room3_request"]
+    assert list(immediate_recovery_jobs) == ["post_immediate_admission_flow"]

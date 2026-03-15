@@ -86,11 +86,17 @@ class RecoveryService:
 
 
 def _resolve_recovery_job(snapshot: CaseRecoverySnapshot) -> str | None:
+    """Resolve the next deterministic recovery job for a non-terminal case."""
+
     status = snapshot.status
 
     if status in {CaseStatus.R2_POST_WIDGET, CaseStatus.LLM_SUGGEST}:
         return "post_room2_widget"
-    if status in {CaseStatus.DOCTOR_ACCEPTED, CaseStatus.R3_POST_REQUEST}:
+    if status == CaseStatus.DOCTOR_ACCEPTED:
+        if snapshot.doctor_admission_flow == "immediate":
+            return "post_immediate_admission_flow"
+        return "post_room3_request"
+    if status == CaseStatus.R3_POST_REQUEST:
         return "post_room3_request"
     if status == CaseStatus.DOCTOR_DENIED:
         return "post_room1_final_denial_triage"

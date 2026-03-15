@@ -173,6 +173,11 @@ async def test_recovery_scan_enqueues_missing_jobs_once_without_duplicates(tmp_p
         status=CaseStatus.DOCTOR_ACCEPTED,
         origin_event_id="$origin-recovery-1",
     )
+    immediate_case = await _create_case(
+        case_repo,
+        status=CaseStatus.DOCTOR_ACCEPTED,
+        origin_event_id="$origin-recovery-immediate",
+    )
     failed_case = await _create_case(
         case_repo,
         status=CaseStatus.FAILED,
@@ -183,6 +188,19 @@ async def test_recovery_scan_enqueues_missing_jobs_once_without_duplicates(tmp_p
         status=CaseStatus.CLEANUP_RUNNING,
         origin_event_id="$origin-recovery-3",
     )
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET doctor_admission_flow = :doctor_admission_flow "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "doctor_admission_flow": "immediate",
+                "case_id": immediate_case.hex,
+            },
+        )
 
     await queue_repo.enqueue(
         JobEnqueueInput(
@@ -200,19 +218,20 @@ async def test_recovery_scan_enqueues_missing_jobs_once_without_duplicates(tmp_p
     first_run = await service.recover()
     second_run = await service.recover()
 
-    assert first_run.enqueued_jobs == 2
+    assert first_run.enqueued_jobs == 3
     assert second_run.enqueued_jobs == 0
 
-    engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
         jobs = connection.execute(
             sa.text(
                 "SELECT case_id, job_type FROM jobs "
-                "WHERE case_id IN (:doctor_accepted_case, :failed_case, :cleanup_running_case) "
-                "ORDER BY job_id"
+                "WHERE case_id IN ("
+                ":doctor_accepted_case, :immediate_case, :failed_case, :cleanup_running_case"
+                ") ORDER BY job_id"
             ),
             {
                 "doctor_accepted_case": doctor_accepted_case.hex,
+                "immediate_case": immediate_case.hex,
                 "failed_case": failed_case.hex,
                 "cleanup_running_case": cleanup_running_case.hex,
             },
@@ -224,6 +243,7 @@ async def test_recovery_scan_enqueues_missing_jobs_once_without_duplicates(tmp_p
         by_case.setdefault(case_key, []).append(str(row["job_type"]))
 
     assert by_case[doctor_accepted_case.hex] == ["post_room3_request"]
+    assert by_case[immediate_case.hex] == ["post_immediate_admission_flow"]
     assert by_case[failed_case.hex] == ["post_room1_final_failure"]
     assert by_case[cleanup_running_case.hex] == ["execute_cleanup"]
 

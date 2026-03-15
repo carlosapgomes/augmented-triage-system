@@ -215,3 +215,51 @@ async def test_duplicate_job_execution_is_idempotent(tmp_path: Path) -> None:
         ).scalar_one()
 
     assert int(message_count) == 2
+
+
+@pytest.mark.asyncio
+async def test_room3_request_rejects_immediate_admission_cases(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_request_immediate_guard.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.DOCTOR_ACCEPTED,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room3-immediate-guard",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET doctor_admission_flow = :doctor_admission_flow "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "doctor_admission_flow": "immediate",
+                "case_id": case.case_id.hex,
+            },
+        )
+
+    service = PostRoom3RequestService(
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_poster=matrix_poster,
+    )
+
+    with pytest.raises(Exception, match="immediate admission"):
+        await service.post_request(case_id=case.case_id)
+
+    assert matrix_poster.send_calls == []
+    assert matrix_poster.reply_calls == []

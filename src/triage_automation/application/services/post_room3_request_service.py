@@ -104,6 +104,14 @@ class PostRoom3RequestService:
                     f"Case status {snapshot.status.value} is not ready for Room-3 request post"
                 ),
             )
+        if snapshot.doctor_admission_flow == "immediate":
+            raise PostRoom3RequestRetriableError(
+                cause="room3",
+                details=(
+                    "Case is marked for immediate admission and must not open "
+                    "Room-3 scheduling"
+                ),
+            )
 
         existing_request = await self._message_repository.has_message_kind(
             case_id=case_id,
