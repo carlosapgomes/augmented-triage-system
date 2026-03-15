@@ -126,6 +126,43 @@ def test_parse_accepts_key_with_accented_admission_flow_alias() -> None:
     assert parsed.admission_flow == "immediate"
 
 
+def test_parse_ignores_copy_pasted_identification_context_lines() -> None:
+    body = (
+        "no. ocorrência: 4805990\n"
+        "paciente: ANTONIO BARBOSA GOMES FERREIRA\n"
+        "decisao: aceitar\n"
+        "fluxo de admissao: vinda imediata\n"
+        "suporte: anestesista_uti\n"
+        "motivo:\n"
+        f"caso: {CASE_ID}\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.admission_flow == "immediate"
+    assert parsed.support_flag == "anesthesist_icu"
+    assert parsed.reason is None
+
+
+def test_parse_ignores_copy_pasted_validation_heading() -> None:
+    body = (
+        "Modelo obrigatório:\n"
+        "decisao: aceitar\n"
+        "fluxo de admissao: vinda_imediata\n"
+        "suporte: anestesista_uti\n"
+        "motivo:\n"
+        f"caso: {CASE_ID}\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.admission_flow == "immediate"
+    assert parsed.support_flag == "anesthesist_icu"
+    assert parsed.reason is None
+
+
 def test_parse_rejects_unknown_labeled_field() -> None:
     body = (
         "decisao: aceitar\n"

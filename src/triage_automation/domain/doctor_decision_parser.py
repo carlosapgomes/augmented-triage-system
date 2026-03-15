@@ -27,6 +27,11 @@ _FORBIDDEN_TYPED_IDENTITY_KEYS = {
     "medico_user_id",
     "usuario_medico",
 }
+_IGNORED_CONTEXT_KEYS = {
+    "modelo_obrigatorio",
+    "no._ocorrencia",
+    "paciente",
+}
 _DECISION_ALIASES: dict[str, str] = {
     "accept": "accept",
     "deny": "deny",
@@ -108,6 +113,8 @@ def parse_doctor_decision_reply(
 
         key_raw, value = normalized_line.split(":", 1)
         normalized_key = _normalize_key(key_raw.strip())
+        if normalized_key in _IGNORED_CONTEXT_KEYS:
+            continue
         if normalized_key in _FORBIDDEN_TYPED_IDENTITY_KEYS:
             raise DoctorDecisionParseError("unknown_field")
         parsed_key = _resolve_key(normalized_key)
