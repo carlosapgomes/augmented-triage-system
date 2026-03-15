@@ -226,6 +226,7 @@ def build_runtime_services(
         audit_repository=audit_repository,
         message_repository=message_repository,
         matrix_poster=matrix_client,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
     post_room4_summary_service = PostRoom4SummaryService(
         room4_id=settings.room4_id,
@@ -284,6 +285,11 @@ def build_runtime_job_handlers(*, services: WorkerRuntimeServices) -> dict[str, 
     async def handle_post_immediate_admission_flow(job: JobRecord) -> None:
         case_id = _require_case_id(job)
         await services.post_immediate_admission_flow_service.post(case_id=case_id)
+        await services.post_room1_final_service.post(
+            case_id=case_id,
+            job_type="post_room1_final_immediate",
+            payload=job.payload,
+        )
 
     async def handle_post_room4_summary(job: JobRecord) -> None:
         window_start = _require_summary_window_datetime(job=job, field_name="window_start")

@@ -17,6 +17,10 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
+from triage_automation.application.ports.reaction_checkpoint_repository_port import (
+    ReactionCheckpointCreateInput,
+    ReactionCheckpointRepositoryPort,
+)
 from triage_automation.application.services.patient_context import (
     extract_patient_name_age,
     extract_pediatric_flag,
@@ -72,12 +76,14 @@ class PostImmediateAdmissionFlowService:
         audit_repository: AuditRepositoryPort,
         message_repository: MessageRepositoryPort,
         matrix_poster: MatrixRoomPosterPort,
+        reaction_checkpoint_repository: ReactionCheckpointRepositoryPort | None = None,
     ) -> None:
         self._room3_id = room3_id
         self._case_repository = case_repository
         self._audit_repository = audit_repository
         self._message_repository = message_repository
         self._matrix_poster = matrix_poster
+        self._reaction_checkpoint_repository = reaction_checkpoint_repository
 
     async def post(self, *, case_id: UUID) -> PostImmediateAdmissionFlowResult:
         """Post Room-3 immediate-admission info plus audit-only acknowledgment target."""
@@ -90,7 +96,10 @@ class PostImmediateAdmissionFlowService:
                 details="Case not found",
             )
 
-        if snapshot.status != CaseStatus.DOCTOR_ACCEPTED:
+        if snapshot.status not in {
+            CaseStatus.DOCTOR_ACCEPTED,
+            CaseStatus.WAIT_R1_CLEANUP_THUMBS,
+        }:
             raise PostImmediateAdmissionFlowRetriableError(
                 cause="room3_immediate",
                 details=(
@@ -114,6 +123,15 @@ class PostImmediateAdmissionFlowService:
             kind="room3_immediate_ack",
         )
         if existing_ack_event_id is not None:
+            if self._reaction_checkpoint_repository is not None:
+                await self._reaction_checkpoint_repository.ensure_expected_checkpoint(
+                    ReactionCheckpointCreateInput(
+                        case_id=case_id,
+                        stage="ROOM3_ACK",
+                        room_id=self._room3_id,
+                        target_event_id=existing_ack_event_id,
+                    )
+                )
             await self._audit_repository.append_event(
                 AuditEventCreateInput(
                     case_id=case_id,
@@ -278,6 +296,15 @@ class PostImmediateAdmissionFlowService:
                 payload={"reply_to_event_id": info_event_id},
             )
         )
+        if self._reaction_checkpoint_repository is not None:
+            await self._reaction_checkpoint_repository.ensure_expected_checkpoint(
+                ReactionCheckpointCreateInput(
+                    case_id=case_id,
+                    stage="ROOM3_ACK",
+                    room_id=self._room3_id,
+                    target_event_id=ack_event_id,
+                )
+            )
 
         logger.info(
             (

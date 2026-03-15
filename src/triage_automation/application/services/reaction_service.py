@@ -190,14 +190,14 @@ class ReactionService:
         if mapping is None:
             return ReactionResult(processed=False, reason="not_ack_target")
 
-        required_kind = "room2_decision_ack"
+        required_kinds = {"room2_decision_ack"}
         event_type = "ROOM2_ACK_POSITIVE_RECEIVED"
         stage: ReactionCheckpointStage = "ROOM2_ACK"
         if event.room_id == self._room3_id:
-            required_kind = "bot_ack"
+            required_kinds = {"bot_ack", "room3_immediate_ack"}
             event_type = "ROOM3_ACK_THUMBS_UP_RECEIVED"
             stage = "ROOM3_ACK"
-        if mapping.kind != required_kind:
+        if mapping.kind not in required_kinds:
             return ReactionResult(processed=False, reason="not_ack_target")
 
         await self._audit_repository.append_event(
