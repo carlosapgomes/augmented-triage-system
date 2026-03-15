@@ -260,6 +260,13 @@ def build_dashboard_router(
                 ),
                 "case_id": str(case_id),
                 "status": detail.status.value,
+                "status_atual": detail.status_atual.value,
+                "etapa_pendente": detail.etapa_pendente.value,
+                "ramo_operacional": detail.ramo_operacional.value,
+                "desfecho_final": (
+                    detail.desfecho_final.value if detail.desfecho_final is not None else None
+                ),
+                "compact_operational_summary": detail.compact_operational_summary,
                 "view_mode": view_mode,
                 "timeline_rows": timeline_rows,
                 "thread_sections": thread_sections,

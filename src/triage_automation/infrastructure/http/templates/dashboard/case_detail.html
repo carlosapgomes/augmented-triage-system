@@ -118,6 +118,43 @@
     </div>
   </section>
 
+  <section id="case-operational-summary" class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h3 class="h6 mb-1">Resumo Operacional</h3>
+          <p class="text-secondary small mb-0">{{ compact_operational_summary }}</p>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+            <div class="small text-secondary mb-1">Status atual</div>
+            <div class="fw-semibold">{{ status_atual }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+            <div class="small text-secondary mb-1">Etapa pendente</div>
+            <div class="fw-semibold">{{ etapa_pendente }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+            <div class="small text-secondary mb-1">Ramo operacional</div>
+            <div class="fw-semibold">{{ ramo_operacional }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+            <div class="small text-secondary mb-1">Desfecho final</div>
+            <div class="fw-semibold">{{ desfecho_final or "Nao concluido" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   {% if view_mode == "thread" %}
     <section id="case-thread-view" class="card shadow-sm">
       <div class="card-body">

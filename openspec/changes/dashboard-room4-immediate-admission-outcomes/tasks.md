@@ -13,7 +13,7 @@
 
 ## 3. Dashboard detail and mobile usability
 
-- [ ] 3.1 Add the operational summary block to the case detail view so operators can see current status, pending stage, branch, and final outcome without inferring them only from the timeline.
+- [x] 3.1 Add the operational summary block to the case detail view so operators can see current status, pending stage, branch, and final outcome without inferring them only from the timeline.
 - [ ] 3.2 Adapt dashboard mobile rendering so the compact list summary, operational filters, totals, and detail summary remain readable and usable on small viewports.
 - [ ] 3.3 Add UI/integration coverage for desktop and mobile dashboard behavior, including compact summary composition and visibility/accessibility of the detail operational summary in both thread and pure views.
 
@@ -70,3 +70,12 @@
 - `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`32 passed`)
 - `uv run ruff check tests/integration/test_dashboard_pages.py` ✅ passed
 - `uv run mypy tests/integration/test_dashboard_pages.py` ✅ passed
+
+### Task 3.1
+
+- Extended monitoring detail projections so the dashboard detail view reuses the same derived `status_atual`, `etapa_pendente`, `ramo_operacional`, and `desfecho_final` semantics as the list
+- Added an operational summary block above both thread and pure detail views, including a deterministic fallback of `Nao concluido` when the case is still open
+- Added detail-page coverage for pending and concluded `vinda_imediata` cases, proving operators no longer need to infer stop-point semantics only from the timeline
+- `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`34 passed`)
+- `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py tests/integration/test_dashboard_pages.py` ✅ passed
+- `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py` ✅ passed

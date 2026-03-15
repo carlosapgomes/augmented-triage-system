@@ -856,6 +856,10 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             cases.c.status,
             cases.c.structured_data_json,
             cases.c.agency_record_number,
+            cases.c.doctor_decision,
+            cases.c.doctor_admission_flow,
+            cases.c.appointment_status,
+            cases.c.room1_final_reply_event_id,
         ).where(cases.c.case_id == case_id)
         report_statement = (
             sa.select(
@@ -1067,10 +1071,25 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         sortable_events.sort(key=lambda item: (item[0], item[1], item[2]))
         timeline = [item[3] for item in sortable_events]
         structured_data_json = cast(dict[str, Any] | None, case_row["structured_data_json"])
+        status = CaseStatus(cast(str, case_row["status"]))
+        projection = derive_monitoring_projection(
+            MonitoringProjectionInput(
+                status=status,
+                doctor_decision=cast("Any", case_row["doctor_decision"]),
+                doctor_admission_flow=cast("Any", case_row["doctor_admission_flow"]),
+                appointment_status=cast("Any", case_row["appointment_status"]),
+                room1_final_reply_event_id=cast(str | None, case_row["room1_final_reply_event_id"]),
+            )
+        )
         return CaseMonitoringDetail(
             case_id=cast("Any", case_row["case_id"]),
-            status=CaseStatus(cast(str, case_row["status"])),
+            status=status,
             timeline=timeline,
+            status_atual=projection.status_atual,
+            etapa_pendente=projection.etapa_pendente,
+            ramo_operacional=projection.ramo_operacional,
+            desfecho_final=projection.desfecho_final,
+            compact_operational_summary=build_compact_operational_summary(projection),
             patient_name=_extract_patient_name_from_structured_data(structured_data_json),
             agency_record_number=cast(str | None, case_row["agency_record_number"]),
         )

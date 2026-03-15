@@ -236,11 +236,16 @@ class CaseMonitoringTimelineItem:
 
 @dataclass(frozen=True)
 class CaseMonitoringDetail:
-    """Per-case monitoring detail including unified chronological timeline."""
+    """Per-case monitoring detail including timeline and operational summary."""
 
     case_id: UUID
     status: CaseStatus
     timeline: list[CaseMonitoringTimelineItem]
+    status_atual: MonitoringCurrentStatus = MonitoringCurrentStatus.EM_ANDAMENTO
+    etapa_pendente: MonitoringPendingStage = MonitoringPendingStage.AGUARDANDO_SALA_2
+    ramo_operacional: MonitoringOperationalBranch = MonitoringOperationalBranch.INDISPONIVEL
+    desfecho_final: MonitoringFinalOutcome | None = None
+    compact_operational_summary: str = "EM_ANDAMENTO"
     patient_name: str | None = None
     agency_record_number: str | None = None
 

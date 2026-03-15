@@ -1447,6 +1447,125 @@ async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Pat
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_detail_renders_operational_summary_for_pending_immediate_case(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "dashboard_page_detail_operational_summary_pending.db",
+    )
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-detail-operational-summary-pending"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_R1_CLEANUP_THUMBS",
+            updated_at=base - timedelta(minutes=10),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-pending",
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="relatorio para resumo operacional",
+            captured_at=base,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}?view=thread",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert 'id="case-operational-summary"' in response.text
+    assert "Resumo Operacional" in response.text
+    assert "Status atual" in response.text
+    assert "Etapa pendente" in response.text
+    assert "Ramo operacional" in response.text
+    assert "Desfecho final" in response.text
+    assert "EM_ANDAMENTO" in response.text
+    assert "AGUARDANDO_SALA_1" in response.text
+    assert "VINDA_IMEDIATA" in response.text
+    assert "Nao concluido" in response.text
+    assert response.text.index('id="case-operational-summary"') < response.text.index(
+        'id="case-thread-view"'
+    )
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_renders_operational_summary_for_concluded_immediate_case(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "dashboard_page_detail_operational_summary_concluded.db",
+    )
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-detail-operational-summary-concluded"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 13, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="CLEANED",
+            updated_at=base - timedelta(minutes=10),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-concluded",
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room1:example.org",
+            event_id="$evt-detail-concluded-immediate",
+            sender="bot",
+            message_type="room1_final",
+            message_text="vinda imediata concluida",
+            captured_at=base,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}?view=pure",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert 'id="case-operational-summary"' in response.text
+    assert "Resumo Operacional" in response.text
+    assert "CONCLUIDO" in response.text
+    assert "VINDA_IMEDIATA" in response.text
+    assert response.text.count("VINDA_IMEDIATA") >= 2
+    assert response.text.index("Resumo Operacional") < response.text.index("Histórico de Eventos")
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_detail_mobile_context_supports_thread_and_pure_modes(
     tmp_path: Path,
 ) -> None:
