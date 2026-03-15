@@ -14,7 +14,7 @@
 ## 3. Dashboard detail and mobile usability
 
 - [x] 3.1 Add the operational summary block to the case detail view so operators can see current status, pending stage, branch, and final outcome without inferring them only from the timeline.
-- [ ] 3.2 Adapt dashboard mobile rendering so the compact list summary, operational filters, totals, and detail summary remain readable and usable on small viewports.
+- [x] 3.2 Adapt dashboard mobile rendering so the compact list summary, operational filters, totals, and detail summary remain readable and usable on small viewports.
 - [ ] 3.3 Add UI/integration coverage for desktop and mobile dashboard behavior, including compact summary composition and visibility/accessibility of the detail operational summary in both thread and pure views.
 
 ## 4. Room-4 supervisory periodic summary
@@ -79,3 +79,11 @@
 - `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`34 passed`)
 - `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py tests/integration/test_dashboard_pages.py` ✅ passed
 - `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py` ✅ passed
+
+### Task 3.2
+
+- Added mobile-specific list rendering hooks for the compact operational summary, operational filter controls, and operational totals cards so the richer semantics remain readable on small viewports
+- Added mobile-specific detail rendering hooks for the operational summary grid/cards in both thread and pure modes
+- `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`36 passed`)
+- `uv run ruff check tests/integration/test_dashboard_pages.py` ✅ passed
+- `uv run mypy tests/integration/test_dashboard_pages.py` ✅ passed

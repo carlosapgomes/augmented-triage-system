@@ -50,6 +50,16 @@
         margin-bottom: 0.25rem;
       }
 
+      #cases-filter-form .cases-operational-filter-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #cases-filter-form .cases-operational-filter-group .form-label {
+        font-size: 0.8rem;
+        margin-bottom: 0.35rem;
+      }
+
       #cases-filter-form .cases-touch-control {
         min-height: 44px;
         font-size: 1rem;
@@ -63,6 +73,23 @@
 
       #cases-list-fragment .cases-search-totals-list .list-inline-item {
         padding: 0.1rem 0;
+      }
+
+      #cases-list-fragment .cases-mobile-summary {
+        display: block;
+        line-height: 1.35;
+      }
+
+      #cases-list-fragment .cases-operational-totals-grid {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      #cases-list-fragment .cases-operational-total-card {
+        padding: 0.45rem 0.6rem;
+        border: 1px solid var(--hospital-border);
+        border-radius: 0.65rem;
+        background: var(--hospital-surface);
       }
 
       #cases-list-fragment .cases-pagination {
@@ -91,7 +118,7 @@
         up-target="#cases-list-fragment"
         up-push-url="true"
       >
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-3 cases-operational-filter-group">
           <label class="form-label" for="status">Status técnico</label>
           <select class="form-select cases-touch-control" id="status" name="status">
             <option value="">Todos</option>
@@ -102,7 +129,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-3 cases-operational-filter-group">
           <label class="form-label" for="status_atual">Status atual</label>
           <select class="form-select cases-touch-control" id="status_atual" name="status_atual">
             <option value="">Todos</option>
@@ -113,7 +140,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-3 cases-operational-filter-group">
           <label class="form-label" for="etapa_pendente">Etapa pendente</label>
           <select class="form-select cases-touch-control" id="etapa_pendente" name="etapa_pendente">
             <option value="">Todas</option>
@@ -124,7 +151,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-3 cases-operational-filter-group">
           <label class="form-label" for="ramo_operacional">Ramo operacional</label>
           <select class="form-select cases-touch-control" id="ramo_operacional" name="ramo_operacional">
             <option value="">Todos</option>
@@ -135,7 +162,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-3 cases-operational-filter-group">
           <label class="form-label" for="desfecho_final">Desfecho final</label>
           <select class="form-select cases-touch-control" id="desfecho_final" name="desfecho_final">
             <option value="">Todos</option>

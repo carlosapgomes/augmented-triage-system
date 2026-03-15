@@ -38,6 +38,21 @@
         row-gap: 0.65rem;
       }
 
+      .case-detail-mobile-shell .case-operational-summary-grid {
+        row-gap: 0.65rem;
+      }
+
+      .case-detail-mobile-shell .case-operational-summary-card {
+        padding: 0.85rem;
+        border-radius: 0.8rem;
+      }
+
+      .case-detail-mobile-shell .case-operational-summary-value {
+        font-size: 0.95rem;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+
       .case-detail-mobile-shell .case-thread-stage-card {
         padding: 0.85rem;
         border-radius: 0.8rem;
@@ -126,29 +141,29 @@
           <p class="text-secondary small mb-0">{{ compact_operational_summary }}</p>
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row g-3 case-operational-summary-grid">
         <div class="col-12 col-md-6 col-xl-3">
-          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle case-operational-summary-card">
             <div class="small text-secondary mb-1">Status atual</div>
-            <div class="fw-semibold">{{ status_atual }}</div>
+            <div class="fw-semibold case-operational-summary-value">{{ status_atual }}</div>
           </div>
         </div>
         <div class="col-12 col-md-6 col-xl-3">
-          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle case-operational-summary-card">
             <div class="small text-secondary mb-1">Etapa pendente</div>
-            <div class="fw-semibold">{{ etapa_pendente }}</div>
+            <div class="fw-semibold case-operational-summary-value">{{ etapa_pendente }}</div>
           </div>
         </div>
         <div class="col-12 col-md-6 col-xl-3">
-          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle case-operational-summary-card">
             <div class="small text-secondary mb-1">Ramo operacional</div>
-            <div class="fw-semibold">{{ ramo_operacional }}</div>
+            <div class="fw-semibold case-operational-summary-value">{{ ramo_operacional }}</div>
           </div>
         </div>
         <div class="col-12 col-md-6 col-xl-3">
-          <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+          <div class="border rounded-3 p-3 h-100 bg-light-subtle case-operational-summary-card">
             <div class="small text-secondary mb-1">Desfecho final</div>
-            <div class="fw-semibold">{{ desfecho_final or "Nao concluido" }}</div>
+            <div class="fw-semibold case-operational-summary-value">{{ desfecho_final or "Nao concluido" }}</div>
           </div>
         </div>
       </div>

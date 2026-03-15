@@ -450,6 +450,66 @@ async def test_dashboard_case_list_mobile_markup_preserves_required_fields(
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_list_mobile_exposes_operational_summary_filters_and_totals(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_mobile_operational_semantics.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-mobile-operational-semantics"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+    case_id = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_R1_CLEANUP_THUMBS",
+            updated_at=now - timedelta(minutes=15),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-mobile-immediate",
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id="$evt-mobile-operational-summary",
+            captured_at=now - timedelta(minutes=5),
+        )
+
+    mobile_headers = {
+        "Authorization": f"Bearer {reader_token}",
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1"
+        ),
+    }
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}",
+            headers=mobile_headers,
+        )
+
+    assert response.status_code == 200
+    assert "cases-mobile-summary" in response.text
+    assert "EM_ANDAMENTO · AGUARDANDO_SALA_1 · VINDA_IMEDIATA" in response.text
+    assert "cases-operational-filter-group" in response.text
+    assert "cases-operational-totals-grid" in response.text
+    assert "cases-operational-total-card" in response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_list_mobile_touch_targets_cover_filters_totals_and_pagination(
     tmp_path: Path,
 ) -> None:
@@ -1647,6 +1707,79 @@ async def test_dashboard_case_detail_mobile_context_supports_thread_and_pure_mod
     assert "bot processando" in pure_response.text
     html = pure_response.text
     assert html.index("relatório pdf extraído") < html.index("bot processando")
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_mobile_operational_summary_remains_readable_in_both_views(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "dashboard_page_detail_mobile_operational_summary.db",
+    )
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-detail-mobile-operational-summary"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 13, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_R1_CLEANUP_THUMBS",
+            updated_at=base - timedelta(minutes=10),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-mobile-summary",
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room1:example.org",
+            event_id="$evt-mobile-operational-summary",
+            sender="bot",
+            message_type="room1_final",
+            message_text="vinda imediata pendente de ciencia",
+            captured_at=base,
+        )
+
+    mobile_headers = {
+        "Authorization": f"Bearer {reader_token}",
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1"
+        ),
+    }
+
+    with _build_client(async_url, token_service=token_service) as client:
+        thread_response = client.get(
+            f"/dashboard/cases/{case_id}?view=thread",
+            headers=mobile_headers,
+        )
+        pure_response = client.get(
+            f"/dashboard/cases/{case_id}?view=pure",
+            headers=mobile_headers,
+        )
+
+    assert thread_response.status_code == 200
+    assert pure_response.status_code == 200
+    assert "case-operational-summary-grid" in thread_response.text
+    assert "case-operational-summary-grid" in pure_response.text
+    assert "case-operational-summary-card" in thread_response.text
+    assert "case-operational-summary-card" in pure_response.text
+    assert "case-operational-summary-value" in thread_response.text
+    assert "case-operational-summary-value" in pure_response.text
+    assert "EM_ANDAMENTO" in thread_response.text
+    assert "AGUARDANDO_SALA_1" in pure_response.text
 
 
 @pytest.mark.asyncio
