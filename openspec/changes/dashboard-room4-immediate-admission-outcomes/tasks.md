@@ -8,7 +8,7 @@
 ## 2. Dashboard list, filters, and totals
 
 - [x] 2.1 Update dashboard monitoring queries/adapters so case list responses expose the compact operational summary and the derived observability fields needed by filters and totals.
-- [ ] 2.2 Implement dashboard filters and totals that distinguish backlog state from concluded outcomes, including subtotal by pending stage and subtotal of pending cases already in the `vinda_imediata` branch.
+- [x] 2.2 Implement dashboard filters and totals that distinguish backlog state from concluded outcomes, including subtotal by pending stage and subtotal of pending cases already in the `vinda_imediata` branch.
 - [ ] 2.3 Add dashboard list coverage proving that a pending immediate-admission case remains `EM_ANDAMENTO`, a concluded immediate-admission case renders `VINDA_IMEDIATA`, and legacy cases are not retroactively inferred as immediate-admission.
 
 ## 3. Dashboard detail and mobile usability
@@ -53,3 +53,12 @@
 - `uv run pytest tests/integration/test_monitoring_case_list_endpoint.py tests/integration/test_case_repositories.py::test_case_monitoring_list_derives_operational_outcome_from_decision_fields -q` ✅ passed (`5 passed`)
 - `uv run ruff check src/triage_automation/domain/monitoring_projection.py src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/dto/monitoring_models.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/monitoring_router.py tests/integration/test_case_repositories.py tests/integration/test_monitoring_case_list_endpoint.py` ✅ passed
 - `uv run mypy src/triage_automation/domain/monitoring_projection.py src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/dto/monitoring_models.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/monitoring_router.py` ✅ passed
+
+### Task 2.2
+
+- Added operational dashboard filters for `status_atual`, `etapa_pendente`, `ramo_operacional`, and `desfecho_final`, while preserving the existing technical-status filter
+- Refactored monitoring totals to distinguish backlog from concluded outcomes, including subtotals for `aguardando Sala 2`, `aguardando Sala 3`, `aguardando Sala 1`, and `pendentes no ramo vinda imediata`
+- Updated dashboard rendering so totals reflect the end-of-flow semantics where cases only conclude after Room-1 acknowledgment/science
+- `uv run pytest tests/unit/test_case_monitoring_service.py tests/integration/test_dashboard_pages.py tests/integration/test_case_repositories.py::test_case_monitoring_list_derives_operational_outcome_from_decision_fields -q` ✅ passed (`33 passed`)
+- `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py tests/unit/test_case_monitoring_service.py tests/integration/test_dashboard_pages.py tests/integration/test_case_repositories.py` ✅ passed
+- `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py` ✅ passed

@@ -17,6 +17,12 @@ from triage_automation.application.services.case_monitoring_service import (
     CaseMonitoringService,
 )
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringFinalOutcome,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
+)
 
 
 @dataclass
@@ -61,6 +67,10 @@ async def test_case_monitoring_service_propagates_repository_totals_and_filters(
             page=1,
             page_size=10,
             status=CaseStatus.WAIT_DOCTOR,
+            status_atual=MonitoringCurrentStatus.EM_ANDAMENTO,
+            etapa_pendente=MonitoringPendingStage.AGUARDANDO_SALA_1,
+            ramo_operacional=MonitoringOperationalBranch.VINDA_IMEDIATA,
+            desfecho_final=MonitoringFinalOutcome.VINDA_IMEDIATA,
             from_date=date(2026, 2, 18),
             to_date=date(2026, 2, 18),
             tz_offset_minutes=-180,
@@ -75,6 +85,13 @@ async def test_case_monitoring_service_propagates_repository_totals_and_filters(
 
     assert repository.captured_filters is not None
     assert repository.captured_filters.status is CaseStatus.WAIT_DOCTOR
+    assert repository.captured_filters.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO
+    assert repository.captured_filters.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_1
+    assert (
+        repository.captured_filters.ramo_operacional
+        is MonitoringOperationalBranch.VINDA_IMEDIATA
+    )
+    assert repository.captured_filters.desfecho_final is MonitoringFinalOutcome.VINDA_IMEDIATA
     assert repository.captured_filters.page == 1
     assert repository.captured_filters.page_size == 10
     assert repository.captured_filters.activity_from == datetime(2026, 2, 18, 3, 0, tzinfo=UTC)

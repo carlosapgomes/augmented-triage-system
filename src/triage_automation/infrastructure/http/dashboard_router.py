@@ -32,6 +32,12 @@ from triage_automation.domain.doctor_decision_parser import (
     DoctorDecisionParseError,
     parse_doctor_decision_reply,
 )
+from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringFinalOutcome,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
+)
 from triage_automation.infrastructure.http.auth_guard import (
     SESSION_COOKIE_NAME,
     InvalidAuthTokenError,
@@ -65,6 +71,10 @@ def build_dashboard_router(
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=10, ge=1, le=15),
         status: str | None = None,
+        status_atual: str | None = None,
+        etapa_pendente: str | None = None,
+        ramo_operacional: str | None = None,
+        desfecho_final: str | None = None,
         from_date: date | None = None,
         to_date: date | None = None,
         tz_offset: int = Query(default=0, ge=-1440, le=1440),
@@ -75,12 +85,20 @@ def build_dashboard_router(
         if isinstance(authenticated_user, RedirectResponse):
             return authenticated_user
         status_filter = _parse_case_status_filter(status)
+        status_atual_filter = _parse_monitoring_current_status_filter(status_atual)
+        etapa_pendente_filter = _parse_monitoring_pending_stage_filter(etapa_pendente)
+        ramo_operacional_filter = _parse_monitoring_operational_branch_filter(ramo_operacional)
+        desfecho_final_filter = _parse_monitoring_final_outcome_filter(desfecho_final)
         try:
             result = await monitoring_service.list_cases(
                 CaseMonitoringListQuery(
                     page=page,
                     page_size=page_size,
                     status=status_filter,
+                    status_atual=status_atual_filter,
+                    etapa_pendente=etapa_pendente_filter,
+                    ramo_operacional=ramo_operacional_filter,
+                    desfecho_final=desfecho_final_filter,
                     from_date=from_date,
                     to_date=to_date,
                     tz_offset_minutes=tz_offset,
@@ -95,6 +113,18 @@ def build_dashboard_router(
 
         shared_filters = {
             "status": status_filter.value if status_filter is not None else "",
+            "status_atual": (
+                status_atual_filter.value if status_atual_filter is not None else ""
+            ),
+            "etapa_pendente": (
+                etapa_pendente_filter.value if etapa_pendente_filter is not None else ""
+            ),
+            "ramo_operacional": (
+                ramo_operacional_filter.value if ramo_operacional_filter is not None else ""
+            ),
+            "desfecho_final": (
+                desfecho_final_filter.value if desfecho_final_filter is not None else ""
+            ),
             "from_date": from_date.isoformat() if from_date is not None else "",
             "to_date": to_date.isoformat() if to_date is not None else "",
             "page_size": result.page_size,
@@ -108,6 +138,10 @@ def build_dashboard_router(
             ),
             "cases": result.items,
             "status_options": [value.value for value in CaseStatus],
+            "status_atual_options": [value.value for value in MonitoringCurrentStatus],
+            "etapa_pendente_options": [value.value for value in MonitoringPendingStage],
+            "ramo_operacional_options": [value.value for value in MonitoringOperationalBranch],
+            "desfecho_final_options": [value.value for value in MonitoringFinalOutcome],
             "filters": shared_filters,
             "pagination": {
                 "page": result.page,
@@ -119,6 +153,10 @@ def build_dashboard_router(
                         page=prev_page,
                         page_size=result.page_size,
                         status=status_filter,
+                        status_atual=status_atual_filter,
+                        etapa_pendente=etapa_pendente_filter,
+                        ramo_operacional=ramo_operacional_filter,
+                        desfecho_final=desfecho_final_filter,
                         from_date=from_date,
                         to_date=to_date,
                         tz_offset=tz_offset,
@@ -131,6 +169,10 @@ def build_dashboard_router(
                         page=next_page,
                         page_size=result.page_size,
                         status=status_filter,
+                        status_atual=status_atual_filter,
+                        etapa_pendente=etapa_pendente_filter,
+                        ramo_operacional=ramo_operacional_filter,
+                        desfecho_final=desfecho_final_filter,
                         from_date=from_date,
                         to_date=to_date,
                         tz_offset=tz_offset,
@@ -142,8 +184,13 @@ def build_dashboard_router(
             "totals": {
                 "total": result.totals.total,
                 "accepted": result.totals.accepted,
+                "immediate_admission": result.totals.immediate_admission,
                 "denied": result.totals.denied,
                 "in_progress": result.totals.in_progress,
+                "pending_room2": result.totals.pending_room2,
+                "pending_room3": result.totals.pending_room3,
+                "pending_room1": result.totals.pending_room1,
+                "pending_immediate_branch": result.totals.pending_immediate_branch,
             },
         }
 
@@ -512,6 +559,10 @@ def _build_cases_url(
     page: int | None,
     page_size: int,
     status: CaseStatus | None,
+    status_atual: MonitoringCurrentStatus | None,
+    etapa_pendente: MonitoringPendingStage | None,
+    ramo_operacional: MonitoringOperationalBranch | None,
+    desfecho_final: MonitoringFinalOutcome | None,
     from_date: date | None,
     to_date: date | None,
     tz_offset: int = 0,
@@ -526,6 +577,14 @@ def _build_cases_url(
     }
     if status is not None:
         params["status"] = status.value
+    if status_atual is not None:
+        params["status_atual"] = status_atual.value
+    if etapa_pendente is not None:
+        params["etapa_pendente"] = etapa_pendente.value
+    if ramo_operacional is not None:
+        params["ramo_operacional"] = ramo_operacional.value
+    if desfecho_final is not None:
+        params["desfecho_final"] = desfecho_final.value
     if from_date is not None:
         params["from_date"] = from_date.isoformat()
     if to_date is not None:
@@ -545,6 +604,82 @@ def _parse_case_status_filter(raw_status: str | None) -> CaseStatus | None:
         return CaseStatus(normalized)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"invalid status filter: {normalized}") from exc
+
+
+def _parse_monitoring_current_status_filter(
+    raw_value: str | None,
+) -> MonitoringCurrentStatus | None:
+    """Parse optional monitoring current-status filter."""
+
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip()
+    if not normalized:
+        return None
+    try:
+        return MonitoringCurrentStatus(normalized)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"invalid status_atual filter: {normalized}",
+        ) from exc
+
+
+def _parse_monitoring_pending_stage_filter(
+    raw_value: str | None,
+) -> MonitoringPendingStage | None:
+    """Parse optional monitoring pending-stage filter."""
+
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip()
+    if not normalized:
+        return None
+    try:
+        return MonitoringPendingStage(normalized)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"invalid etapa_pendente filter: {normalized}",
+        ) from exc
+
+
+def _parse_monitoring_operational_branch_filter(
+    raw_value: str | None,
+) -> MonitoringOperationalBranch | None:
+    """Parse optional monitoring operational-branch filter."""
+
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip()
+    if not normalized:
+        return None
+    try:
+        return MonitoringOperationalBranch(normalized)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"invalid ramo_operacional filter: {normalized}",
+        ) from exc
+
+
+def _parse_monitoring_final_outcome_filter(
+    raw_value: str | None,
+) -> MonitoringFinalOutcome | None:
+    """Parse optional monitoring final-outcome filter."""
+
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip()
+    if not normalized:
+        return None
+    try:
+        return MonitoringFinalOutcome(normalized)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"invalid desfecho_final filter: {normalized}",
+        ) from exc
 
 
 def _translate_event_type(event_type: str) -> str:

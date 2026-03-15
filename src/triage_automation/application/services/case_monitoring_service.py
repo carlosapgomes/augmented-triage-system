@@ -13,6 +13,12 @@ from triage_automation.application.ports.case_repository_port import (
     CaseRepositoryPort,
 )
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringFinalOutcome,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
+)
 
 
 class InvalidMonitoringPeriodError(ValueError):
@@ -26,6 +32,10 @@ class CaseMonitoringListQuery:
     page: int
     page_size: int
     status: CaseStatus | None = None
+    status_atual: MonitoringCurrentStatus | None = None
+    etapa_pendente: MonitoringPendingStage | None = None
+    ramo_operacional: MonitoringOperationalBranch | None = None
+    desfecho_final: MonitoringFinalOutcome | None = None
     from_date: date | None = None
     to_date: date | None = None
     tz_offset_minutes: int = 0
@@ -63,6 +73,10 @@ class CaseMonitoringService:
         return await self._case_repository.list_cases_for_monitoring(
             filters=CaseMonitoringListFilter(
                 status=query.status,
+                status_atual=query.status_atual,
+                etapa_pendente=query.etapa_pendente,
+                ramo_operacional=query.ramo_operacional,
+                desfecho_final=query.desfecho_final,
                 activity_from=activity_from,
                 activity_to=activity_to,
                 page=query.page,

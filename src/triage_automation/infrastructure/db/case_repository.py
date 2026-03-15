@@ -36,6 +36,10 @@ from triage_automation.application.ports.case_repository_port import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.monitoring_projection import (
+    MonitoringCurrentStatus,
+    MonitoringFinalOutcome,
+    MonitoringOperationalBranch,
+    MonitoringPendingStage,
     MonitoringProjectionInput,
     build_compact_operational_summary,
     derive_monitoring_projection,
@@ -151,14 +155,68 @@ def _derive_case_outcome(
     return "EM_ANDAMENTO"
 
 
-def _case_outcome_sql_expression() -> sa.ColumnElement[str]:
-    """Return SQL expression mirroring dashboard operational outcome precedence."""
+def _matches_monitoring_filters(
+    *,
+    item: CaseMonitoringListItem,
+    filters: CaseMonitoringListFilter,
+) -> bool:
+    """Return whether the monitoring item matches operational filter dimensions."""
 
-    return sa.case(
-        (cases.c.appointment_status == "confirmed", "ACEITO"),
-        (cases.c.appointment_status == "denied", "NEGADO"),
-        (cases.c.doctor_decision == "deny", "NEGADO"),
-        else_="EM_ANDAMENTO",
+    if filters.status_atual is not None and item.status_atual is not filters.status_atual:
+        return False
+    if filters.etapa_pendente is not None and item.etapa_pendente is not filters.etapa_pendente:
+        return False
+    if (
+        filters.ramo_operacional is not None
+        and item.ramo_operacional is not filters.ramo_operacional
+    ):
+        return False
+    if filters.desfecho_final is not None and item.desfecho_final is not filters.desfecho_final:
+        return False
+    return True
+
+
+def _build_monitoring_totals(items: list[CaseMonitoringListItem]) -> CaseMonitoringOutcomeTotals:
+    """Aggregate dashboard totals from filtered monitoring items."""
+
+    total = len(items)
+    accepted = sum(
+        1 for item in items if item.desfecho_final is MonitoringFinalOutcome.ACEITO
+    )
+    immediate_admission = sum(
+        1 for item in items if item.desfecho_final is MonitoringFinalOutcome.VINDA_IMEDIATA
+    )
+    denied = sum(
+        1 for item in items if item.desfecho_final is MonitoringFinalOutcome.NEGADO
+    )
+    in_progress = sum(
+        1 for item in items if item.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO
+    )
+    pending_room2 = sum(
+        1 for item in items if item.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_2
+    )
+    pending_room3 = sum(
+        1 for item in items if item.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_3
+    )
+    pending_room1 = sum(
+        1 for item in items if item.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_1
+    )
+    pending_immediate_branch = sum(
+        1
+        for item in items
+        if item.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO
+        and item.ramo_operacional is MonitoringOperationalBranch.VINDA_IMEDIATA
+    )
+    return CaseMonitoringOutcomeTotals(
+        total=total,
+        accepted=accepted,
+        immediate_admission=immediate_admission,
+        denied=denied,
+        in_progress=in_progress,
+        pending_room2=pending_room2,
+        pending_room3=pending_room3,
+        pending_room1=pending_room1,
+        pending_immediate_branch=pending_immediate_branch,
     )
 
 
@@ -715,26 +773,6 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         if filters.activity_to is not None:
             where_clauses.append(latest_activity.c.latest_activity_at < filters.activity_to)
 
-        outcome_expression = _case_outcome_sql_expression()
-        aggregate_statement = sa.select(
-            sa.func.count().label("total"),
-            sa.func.coalesce(
-                sa.func.sum(sa.case((outcome_expression == "ACEITO", 1), else_=0)),
-                0,
-            ).label("accepted"),
-            sa.func.coalesce(
-                sa.func.sum(sa.case((outcome_expression == "NEGADO", 1), else_=0)),
-                0,
-            ).label("denied"),
-            sa.func.coalesce(
-                sa.func.sum(sa.case((outcome_expression == "EM_ANDAMENTO", 1), else_=0)),
-                0,
-            ).label("in_progress"),
-        ).select_from(from_clause)
-        if where_clauses:
-            aggregate_statement = aggregate_statement.where(*where_clauses)
-
-        offset = (filters.page - 1) * filters.page_size
         statement = (
             sa.select(
                 cases.c.case_id,
@@ -752,25 +790,14 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 latest_activity.c.latest_activity_at.desc(),
                 cases.c.case_id.desc(),
             )
-            .offset(offset)
-            .limit(filters.page_size)
         )
         if where_clauses:
             statement = statement.where(*where_clauses)
 
         async with self._session_factory() as session:
-            aggregate_result = await session.execute(aggregate_statement)
             result = await session.execute(statement)
 
-        aggregate_row = aggregate_result.mappings().one()
-        total = int(aggregate_row["total"])
-        totals = CaseMonitoringOutcomeTotals(
-            total=total,
-            accepted=int(aggregate_row["accepted"]),
-            denied=int(aggregate_row["denied"]),
-            in_progress=int(aggregate_row["in_progress"]),
-        )
-        items: list[CaseMonitoringListItem] = []
+        all_items: list[CaseMonitoringListItem] = []
         for row in result.mappings().all():
             structured_data_json = cast(dict[str, Any] | None, row["structured_data_json"])
             status = CaseStatus(cast(str, row["status"]))
@@ -786,24 +813,29 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                     room1_final_reply_event_id=cast(str | None, row["room1_final_reply_event_id"]),
                 )
             )
-            items.append(
-                CaseMonitoringListItem(
-                    case_id=cast("Any", row["case_id"]),
-                    status=status,
-                    latest_activity_at=cast(datetime, row["latest_activity_at"]),
-                    case_outcome=_derive_case_outcome(
-                        doctor_decision=doctor_decision,
-                        appointment_status=appointment_status,
-                    ),
-                    compact_operational_summary=build_compact_operational_summary(projection),
-                    status_atual=projection.status_atual,
-                    etapa_pendente=projection.etapa_pendente,
-                    ramo_operacional=projection.ramo_operacional,
-                    desfecho_final=projection.desfecho_final,
-                    patient_name=_extract_patient_name_from_structured_data(structured_data_json),
-                    agency_record_number=cast(str | None, row["agency_record_number"]),
-                )
+            item = CaseMonitoringListItem(
+                case_id=cast("Any", row["case_id"]),
+                status=status,
+                latest_activity_at=cast(datetime, row["latest_activity_at"]),
+                case_outcome=_derive_case_outcome(
+                    doctor_decision=doctor_decision,
+                    appointment_status=appointment_status,
+                ),
+                compact_operational_summary=build_compact_operational_summary(projection),
+                status_atual=projection.status_atual,
+                etapa_pendente=projection.etapa_pendente,
+                ramo_operacional=projection.ramo_operacional,
+                desfecho_final=projection.desfecho_final,
+                patient_name=_extract_patient_name_from_structured_data(structured_data_json),
+                agency_record_number=cast(str | None, row["agency_record_number"]),
             )
+            if _matches_monitoring_filters(item=item, filters=filters):
+                all_items.append(item)
+
+        total = len(all_items)
+        totals = _build_monitoring_totals(all_items)
+        offset = (filters.page - 1) * filters.page_size
+        items = all_items[offset : offset + filters.page_size]
         return CaseMonitoringListPage(
             items=items,
             page=filters.page,

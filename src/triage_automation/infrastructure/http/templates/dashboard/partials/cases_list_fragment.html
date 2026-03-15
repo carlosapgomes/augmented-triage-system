@@ -56,9 +56,14 @@
       <h4 class="h6 mb-2">Totalizacao da busca</h4>
       <ul class="list-inline mb-0 small cases-search-totals-list">
         <li class="list-inline-item me-3"><strong>Total de casos:</strong> {{ totals.total }}</li>
+        <li class="list-inline-item me-3"><strong>Em processamento:</strong> {{ totals.in_progress }}</li>
+        <li class="list-inline-item me-3"><strong>Aguardando Sala 2:</strong> {{ totals.pending_room2 }}</li>
+        <li class="list-inline-item me-3"><strong>Aguardando Sala 3:</strong> {{ totals.pending_room3 }}</li>
+        <li class="list-inline-item me-3"><strong>Aguardando Sala 1:</strong> {{ totals.pending_room1 }}</li>
+        <li class="list-inline-item me-3"><strong>Pendentes no ramo vinda imediata:</strong> {{ totals.pending_immediate_branch }}</li>
         <li class="list-inline-item me-3"><strong>Aceitos:</strong> {{ totals.accepted }}</li>
-        <li class="list-inline-item me-3"><strong>Negados:</strong> {{ totals.denied }}</li>
-        <li class="list-inline-item"><strong>Em processamento:</strong> {{ totals.in_progress }}</li>
+        <li class="list-inline-item me-3"><strong>Vinda imediata:</strong> {{ totals.immediate_admission }}</li>
+        <li class="list-inline-item"><strong>Negados:</strong> {{ totals.denied }}</li>
       </ul>
     </div>
 

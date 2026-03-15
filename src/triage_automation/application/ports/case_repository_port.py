@@ -162,10 +162,14 @@ class CaseMonitoringListFilter:
     """Filter/pagination options for dashboard case listing queries."""
 
     status: CaseStatus | None
-    activity_from: datetime | None
-    activity_to: datetime | None
-    page: int
-    page_size: int
+    status_atual: MonitoringCurrentStatus | None = None
+    etapa_pendente: MonitoringPendingStage | None = None
+    ramo_operacional: MonitoringOperationalBranch | None = None
+    desfecho_final: MonitoringFinalOutcome | None = None
+    activity_from: datetime | None = None
+    activity_to: datetime | None = None
+    page: int = 1
+    page_size: int = 10
 
 
 @dataclass(frozen=True)
@@ -192,12 +196,17 @@ class CaseMonitoringListItem:
 
 @dataclass(frozen=True)
 class CaseMonitoringOutcomeTotals:
-    """Aggregated dashboard outcome totals for one filtered case search."""
+    """Aggregated dashboard totals split by backlog and concluded outcomes."""
 
     total: int
     accepted: int
-    denied: int
-    in_progress: int
+    immediate_admission: int = 0
+    denied: int = 0
+    in_progress: int = 0
+    pending_room2: int = 0
+    pending_room3: int = 0
+    pending_room1: int = 0
+    pending_immediate_branch: int = 0
 
 
 @dataclass(frozen=True)

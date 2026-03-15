@@ -103,18 +103,22 @@ def _insert_case(
     agency_record_number: str | None = None,
     structured_data_json: dict[str, object] | None = None,
     doctor_decision: str | None = None,
+    doctor_admission_flow: str | None = None,
     appointment_status: str | None = None,
+    room1_final_reply_event_id: str | None = None,
 ) -> None:
     connection.execute(
         sa.text(
             "INSERT INTO cases ("
             "case_id, status, room1_origin_room_id, room1_origin_event_id, room1_sender_user_id, "
             "agency_record_number, structured_data_json, doctor_decision, "
-            "appointment_status, created_at, updated_at"
+            "doctor_admission_flow, appointment_status, room1_final_reply_event_id, "
+            "created_at, updated_at"
             ") VALUES ("
             ":case_id, :status, '!room1:example.org', :origin_event_id, '@reader:example.org', "
             ":agency_record_number, :structured_data_json, :doctor_decision, "
-            ":appointment_status, :created_at, :updated_at"
+            ":doctor_admission_flow, :appointment_status, :room1_final_reply_event_id, "
+            ":created_at, :updated_at"
             ")"
         ),
         {
@@ -128,7 +132,9 @@ def _insert_case(
                 else None
             ),
             "doctor_decision": doctor_decision,
+            "doctor_admission_flow": doctor_admission_flow,
             "appointment_status": appointment_status,
+            "room1_final_reply_event_id": room1_final_reply_event_id,
             "created_at": updated_at,
             "updated_at": updated_at,
         },
@@ -575,17 +581,17 @@ async def test_dashboard_case_list_renders_operational_outcome_labels_from_decis
 
 
 @pytest.mark.asyncio
-async def test_dashboard_case_list_renders_search_totals_summary_below_table(
+async def test_dashboard_case_list_filters_by_pending_stage_and_immediate_branch(
     tmp_path: Path,
 ) -> None:
-    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_search_totals_summary.db")
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_operational_filters.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
-    reader_token = "reader-dashboard-search-totals-summary"
+    reader_token = "reader-dashboard-operational-filters"
     now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
-    accepted_case = uuid4()
-    denied_case = uuid4()
-    in_progress_case = uuid4()
+    pending_immediate_case = uuid4()
+    pending_scheduled_case = uuid4()
+    concluded_immediate_case = uuid4()
     filter_date = now.date().isoformat()
 
     engine = sa.create_engine(sync_url)
@@ -599,42 +605,168 @@ async def test_dashboard_case_list_renders_search_totals_summary_below_table(
         )
         _insert_case(
             connection,
-            case_id=accepted_case,
-            status="APPT_CONFIRMED",
+            case_id=pending_immediate_case,
+            status="WAIT_R1_CLEANUP_THUMBS",
+            updated_at=now - timedelta(minutes=15),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-pending-immediate",
+        )
+        _insert_case(
+            connection,
+            case_id=pending_scheduled_case,
+            status="WAIT_APPT",
+            updated_at=now - timedelta(minutes=12),
+            doctor_decision="accept",
+            doctor_admission_flow="scheduled",
+        )
+        _insert_case(
+            connection,
+            case_id=concluded_immediate_case,
+            status="CLEANED",
+            updated_at=now - timedelta(minutes=10),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-concluded-immediate",
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=pending_immediate_case,
+            event_id="$evt-filter-immediate-pending",
+            captured_at=now - timedelta(minutes=3),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=pending_scheduled_case,
+            event_id="$evt-filter-scheduled-pending",
+            captured_at=now - timedelta(minutes=2),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=concluded_immediate_case,
+            event_id="$evt-filter-immediate-concluded",
+            captured_at=now - timedelta(minutes=1),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}"
+            "&status_atual=EM_ANDAMENTO"
+            "&etapa_pendente=AGUARDANDO_SALA_1"
+            "&ramo_operacional=VINDA_IMEDIATA",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert str(pending_immediate_case) in response.text
+    assert str(pending_scheduled_case) not in response.text
+    assert str(concluded_immediate_case) not in response.text
+    assert 'name="status_atual"' in response.text
+    assert 'name="etapa_pendente"' in response.text
+    assert 'name="ramo_operacional"' in response.text
+    assert 'name="desfecho_final"' in response.text
+    assert 'value="EM_ANDAMENTO" selected' in response.text
+    assert 'value="AGUARDANDO_SALA_1" selected' in response.text
+    assert 'value="VINDA_IMEDIATA" selected' in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_list_renders_operational_totals_by_backlog_and_outcome(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_search_totals_summary.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-search-totals-summary"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+    scheduled_case = uuid4()
+    immediate_final_case = uuid4()
+    pending_immediate_case = uuid4()
+    pending_room2_case = uuid4()
+    denied_case = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=scheduled_case,
+            status="CLEANED",
             updated_at=now - timedelta(minutes=25),
+            doctor_decision="accept",
+            doctor_admission_flow="scheduled",
             appointment_status="confirmed",
+            room1_final_reply_event_id="$room1-final-scheduled",
+        )
+        _insert_case(
+            connection,
+            case_id=immediate_final_case,
+            status="CLEANED",
+            updated_at=now - timedelta(minutes=22),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-immediate-done",
+        )
+        _insert_case(
+            connection,
+            case_id=pending_immediate_case,
+            status="WAIT_R1_CLEANUP_THUMBS",
+            updated_at=now - timedelta(minutes=18),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-immediate-pending",
+        )
+        _insert_case(
+            connection,
+            case_id=pending_room2_case,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(minutes=15),
         )
         _insert_case(
             connection,
             case_id=denied_case,
-            status="APPT_DENIED",
-            updated_at=now - timedelta(minutes=20),
-            appointment_status="denied",
+            status="CLEANUP_RUNNING",
+            updated_at=now - timedelta(minutes=12),
             doctor_decision="deny",
-        )
-        _insert_case(
-            connection,
-            case_id=in_progress_case,
-            status="WAIT_DOCTOR",
-            updated_at=now - timedelta(minutes=15),
+            room1_final_reply_event_id="$room1-final-denied",
         )
         _insert_matrix_transcript(
             connection,
-            case_id=accepted_case,
+            case_id=scheduled_case,
             event_id="$evt-totals-accepted",
             captured_at=now - timedelta(minutes=5),
         )
         _insert_matrix_transcript(
             connection,
-            case_id=denied_case,
-            event_id="$evt-totals-denied",
+            case_id=immediate_final_case,
+            event_id="$evt-totals-immediate-final",
             captured_at=now - timedelta(minutes=4),
         )
         _insert_matrix_transcript(
             connection,
-            case_id=in_progress_case,
-            event_id="$evt-totals-progress",
+            case_id=pending_immediate_case,
+            event_id="$evt-totals-immediate-pending",
             captured_at=now - timedelta(minutes=3),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=pending_room2_case,
+            event_id="$evt-totals-room2-pending",
+            captured_at=now - timedelta(minutes=2),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=denied_case,
+            event_id="$evt-totals-denied",
+            captured_at=now - timedelta(minutes=1),
         )
 
     with _build_client(async_url, token_service=token_service) as client:
@@ -646,10 +778,15 @@ async def test_dashboard_case_list_renders_search_totals_summary_below_table(
 
     assert response.status_code == 200
     assert "Totalizacao da busca" in response.text
-    assert "Total de casos:</strong> 3" in response.text
+    assert "Total de casos:</strong> 5" in response.text
+    assert "Em processamento:</strong> 2" in response.text
+    assert "Aguardando Sala 2:</strong> 1" in response.text
+    assert "Aguardando Sala 3:</strong> 0" in response.text
+    assert "Aguardando Sala 1:</strong> 1" in response.text
+    assert "Pendentes no ramo vinda imediata:</strong> 1" in response.text
     assert "Aceitos:</strong> 1" in response.text
+    assert "Vinda imediata:</strong> 1" in response.text
     assert "Negados:</strong> 1" in response.text
-    assert "Em processamento:</strong> 1" in response.text
     assert response.text.index("<table") < response.text.index("Totalizacao da busca")
 
 
@@ -731,9 +868,9 @@ async def test_dashboard_case_list_totals_reflect_full_filtered_result_not_curre
     assert str(denied_case) not in response.text
     assert str(in_progress_case) not in response.text
     assert "Total de casos:</strong> 3" in response.text
-    assert "Aceitos:</strong> 1" in response.text
-    assert "Negados:</strong> 1" in response.text
-    assert "Em processamento:</strong> 1" in response.text
+    assert "Aceitos:</strong> 0" in response.text
+    assert "Negados:</strong> 0" in response.text
+    assert "Em processamento:</strong> 3" in response.text
 
 
 @pytest.mark.asyncio
@@ -790,9 +927,9 @@ async def test_dashboard_case_list_initial_load_renders_totals_for_default_curre
     assert str(today_case) in response.text
     assert str(yesterday_case) not in response.text
     assert "Total de casos:</strong> 1" in response.text
-    assert "Aceitos:</strong> 1" in response.text
+    assert "Aceitos:</strong> 0" in response.text
     assert "Negados:</strong> 0" in response.text
-    assert "Em processamento:</strong> 0" in response.text
+    assert "Em processamento:</strong> 1" in response.text
 
 
 @pytest.mark.asyncio

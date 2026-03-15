@@ -518,8 +518,13 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
 
     assert result.totals.total == 4
     assert result.totals.accepted == 1
-    assert result.totals.denied == 2
-    assert result.totals.in_progress == 1
+    assert result.totals.immediate_admission == 0
+    assert result.totals.denied == 1
+    assert result.totals.in_progress == 2
+    assert result.totals.pending_room2 == 0
+    assert result.totals.pending_room3 == 0
+    assert result.totals.pending_room1 == 2
+    assert result.totals.pending_immediate_branch == 1
 
     paged_result = await case_repo.list_cases_for_monitoring(
         filters=CaseMonitoringListFilter(
@@ -534,5 +539,10 @@ async def test_case_monitoring_list_derives_operational_outcome_from_decision_fi
     assert len(paged_result.items) == 1
     assert paged_result.totals.total == 4
     assert paged_result.totals.accepted == 1
-    assert paged_result.totals.denied == 2
-    assert paged_result.totals.in_progress == 1
+    assert paged_result.totals.immediate_admission == 0
+    assert paged_result.totals.denied == 1
+    assert paged_result.totals.in_progress == 2
+    assert paged_result.totals.pending_room2 == 0
+    assert paged_result.totals.pending_room3 == 0
+    assert paged_result.totals.pending_room1 == 2
+    assert paged_result.totals.pending_immediate_branch == 1
