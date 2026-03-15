@@ -10,6 +10,7 @@ from uuid import UUID
 from triage_automation.domain.case_status import CaseStatus
 
 CaseOutcome = Literal["ACEITO", "NEGADO", "EM_ANDAMENTO"]
+DoctorAdmissionFlow = Literal["scheduled", "immediate"]
 
 
 class DuplicateCaseOriginEventError(ValueError):
@@ -64,6 +65,7 @@ class CaseDoctorDecisionSnapshot:
     agency_record_number: str | None = None
     structured_data_json: dict[str, Any] | None = None
     doctor_display_name: str | None = None
+    doctor_admission_flow: DoctorAdmissionFlow | None = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,7 @@ class DoctorDecisionUpdateInput:
     decision: str
     support_flag: str
     reason: str | None
+    admission_flow: DoctorAdmissionFlow | None = None
 
 
 @dataclass(frozen=True)
@@ -102,10 +105,11 @@ class CaseFinalReplySnapshot:
     structured_data_json: dict[str, Any] | None
     room1_final_reply_event_id: str | None
     doctor_reason: str | None
-    appointment_at: datetime | None
-    appointment_location: str | None
-    appointment_instructions: str | None
-    appointment_reason: str | None
+    doctor_admission_flow: DoctorAdmissionFlow | None = None
+    appointment_at: datetime | None = None
+    appointment_location: str | None = None
+    appointment_instructions: str | None = None
+    appointment_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -141,6 +145,7 @@ class CaseRecoverySnapshot:
     room1_final_reply_event_id: str | None
     cleanup_triggered_at: datetime | None
     cleanup_completed_at: datetime | None
+    doctor_admission_flow: DoctorAdmissionFlow | None = None
 
 
 @dataclass(frozen=True)

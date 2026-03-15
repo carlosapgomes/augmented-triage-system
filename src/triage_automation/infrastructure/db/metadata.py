@@ -32,6 +32,7 @@ cases = sa.Table(
     sa.Column("doctor_user_id", sa.Text(), nullable=True),
     sa.Column("doctor_decision", sa.Text(), nullable=True),
     sa.Column("doctor_support_flag", sa.Text(), nullable=True),
+    sa.Column("doctor_admission_flow", sa.Text(), nullable=True),
     sa.Column("doctor_reason", sa.Text(), nullable=True),
     sa.Column("doctor_decided_at", sa.DateTime(timezone=True), nullable=True),
     sa.Column("scheduler_user_id", sa.Text(), nullable=True),
@@ -58,6 +59,10 @@ cases = sa.Table(
     sa.Column("structured_data_json", sa.JSON(), nullable=True),
     sa.Column("summary_text", sa.Text(), nullable=True),
     sa.Column("suggested_action_json", sa.JSON(), nullable=True),
+    sa.CheckConstraint(
+        "doctor_admission_flow IS NULL OR doctor_admission_flow IN ('scheduled', 'immediate')",
+        name="ck_cases_doctor_admission_flow",
+    ),
     sa.UniqueConstraint("room1_origin_event_id", name="uq_cases_room1_origin_event_id"),
 )
 

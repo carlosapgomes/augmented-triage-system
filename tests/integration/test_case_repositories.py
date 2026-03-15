@@ -13,6 +13,7 @@ from triage_automation.application.ports.audit_repository_port import AuditEvent
 from triage_automation.application.ports.case_repository_port import (
     CaseCreateInput,
     CaseMonitoringListFilter,
+    DoctorDecisionUpdateInput,
     DuplicateCaseOriginEventError,
 )
 from triage_automation.application.ports.message_repository_port import (
@@ -89,6 +90,62 @@ async def test_duplicate_room1_origin_event_is_handled_deterministically(tmp_pat
                 room1_sender_user_id=payload.room1_sender_user_id,
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_accept_doctor_decision_persists_admission_flow_in_snapshots_and_row(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "case_doctor_admission_flow.db")
+    session_factory = create_session_factory(async_url)
+    repo = SqlAlchemyCaseRepository(session_factory)
+
+    case_id = uuid4()
+    await repo.create_case(
+        CaseCreateInput(
+            case_id=case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$event-admission-flow",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    applied = await repo.apply_doctor_decision_if_waiting(
+        DoctorDecisionUpdateInput(
+            case_id=case_id,
+            doctor_user_id="@doctor:example.org",
+            decision="accept",
+            support_flag="anesthesist",
+            reason="precisa suporte",
+            admission_flow="immediate",
+        )
+    )
+    decision_snapshot = await repo.get_case_doctor_decision_snapshot(case_id=case_id)
+    recovery_snapshots = await repo.list_non_terminal_cases_for_recovery()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, doctor_decision, doctor_support_flag, doctor_admission_flow "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+
+    recovery_snapshot = next(
+        snapshot for snapshot in recovery_snapshots if snapshot.case_id == case_id
+    )
+
+    assert applied is True
+    assert decision_snapshot is not None
+    assert decision_snapshot.doctor_admission_flow == "immediate"
+    assert recovery_snapshot.doctor_admission_flow == "immediate"
+    assert case_row["status"] == "DOCTOR_ACCEPTED"
+    assert case_row["doctor_decision"] == "accept"
+    assert case_row["doctor_support_flag"] == "anesthesist"
+    assert case_row["doctor_admission_flow"] == "immediate"
 
 
 @pytest.mark.asyncio

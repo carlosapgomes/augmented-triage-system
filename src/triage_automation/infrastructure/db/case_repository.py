@@ -28,6 +28,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseRecoverySnapshot,
     CaseRepositoryPort,
     CaseRoom2WidgetSnapshot,
+    DoctorAdmissionFlow,
     DoctorDecisionUpdateInput,
     DuplicateCaseOriginEventError,
     Room1FinalReplyReactionSnapshot,
@@ -291,6 +292,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 cases.c.doctor_decided_at,
                 cases.c.agency_record_number,
                 cases.c.structured_data_json,
+                cases.c.doctor_admission_flow,
                 doctor_reply_subquery.c.sender_display_name,
             )
             .outerjoin(
@@ -314,6 +316,10 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             agency_record_number=cast(str | None, row["agency_record_number"]),
             structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
             doctor_display_name=cast(str | None, row["sender_display_name"]),
+            doctor_admission_flow=cast(
+                DoctorAdmissionFlow | None,
+                row["doctor_admission_flow"],
+            ),
         )
 
     async def apply_doctor_decision_if_waiting(
@@ -338,6 +344,9 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 doctor_user_id=payload.doctor_user_id,
                 doctor_decision=payload.decision,
                 doctor_support_flag=payload.support_flag,
+                doctor_admission_flow=(
+                    payload.admission_flow if payload.decision == "accept" else None
+                ),
                 doctor_reason=payload.reason,
                 doctor_decided_at=sa.func.current_timestamp(),
                 status=target_status.value,
@@ -353,7 +362,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         logger.info(
             (
                 "case_doctor_decision_applied=%s case_id=%s from_status=%s to_status=%s "
-                "decision=%s support_flag=%s doctor_user_id=%s"
+                "decision=%s support_flag=%s admission_flow=%s doctor_user_id=%s"
             ),
             applied,
             payload.case_id,
@@ -361,6 +370,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             target_status.value,
             payload.decision,
             payload.support_flag,
+            payload.admission_flow,
             payload.doctor_user_id,
         )
         return applied
@@ -430,6 +440,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             cases.c.structured_data_json,
             cases.c.room1_final_reply_event_id,
             cases.c.doctor_reason,
+            cases.c.doctor_admission_flow,
             cases.c.appointment_at,
             cases.c.appointment_location,
             cases.c.appointment_instructions,
@@ -452,6 +463,10 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
             room1_final_reply_event_id=cast(str | None, row["room1_final_reply_event_id"]),
             doctor_reason=cast(str | None, row["doctor_reason"]),
+            doctor_admission_flow=cast(
+                DoctorAdmissionFlow | None,
+                row["doctor_admission_flow"],
+            ),
             appointment_at=cast(datetime | None, row["appointment_at"]),
             appointment_location=cast(str | None, row["appointment_location"]),
             appointment_instructions=cast(str | None, row["appointment_instructions"]),
@@ -595,6 +610,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             cases.c.room1_final_reply_event_id,
             cases.c.cleanup_triggered_at,
             cases.c.cleanup_completed_at,
+            cases.c.doctor_admission_flow,
         ).where(cases.c.status != CaseStatus.CLEANED.value)
 
         async with self._session_factory() as session:
@@ -609,6 +625,10 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                     room1_final_reply_event_id=cast(str | None, row["room1_final_reply_event_id"]),
                     cleanup_triggered_at=cast(datetime | None, row["cleanup_triggered_at"]),
                     cleanup_completed_at=cast(datetime | None, row["cleanup_completed_at"]),
+                    doctor_admission_flow=cast(
+                        DoctorAdmissionFlow | None,
+                        row["doctor_admission_flow"],
+                    ),
                 )
             )
         return snapshots
