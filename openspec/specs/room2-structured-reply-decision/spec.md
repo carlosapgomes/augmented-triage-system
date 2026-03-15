@@ -49,7 +49,9 @@ infer decisions from free-form text. For accepted decisions, the structured
 contract SHALL include explicit admission-flow selection in addition to
 decision, support, and case identity. For denied decisions, the parser SHALL
 remain strict for unknown fields while treating `suporte` and
-`fluxo de admissão` as optional or semantically ignored.
+`fluxo de admissão` as optional or semantically ignored. The parser SHALL also
+ignore known bot-authored helper/context lines that are outside the decision
+contract and may appear in copy/pasted replies.
 
 #### Scenario: Doctor submits accepted decision with scheduled admission
 
@@ -79,6 +81,23 @@ remain strict for unknown fields while treating `suporte` and
   semantics remain equivalent to `none`
 - **AND** any provided admission-flow value MUST be ignored semantically for
   the denied decision path
+
+#### Scenario: Doctor copies the bot template with identification context
+
+- **WHEN** a doctor reply includes the bot-authored helper lines `no.
+  ocorrência` and `paciente` together with an otherwise valid structured
+  decision reply
+- **THEN** the system MUST ignore those helper lines during parsing
+- **AND** the decision MUST be validated only against the supported structured
+  decision fields
+
+#### Scenario: Doctor copies the validation prompt heading with the template
+
+- **WHEN** a doctor reply includes the helper heading `Modelo obrigatório`
+  together with an otherwise valid structured decision reply
+- **THEN** the system MUST ignore that helper heading during parsing
+- **AND** the reply MUST remain subject to strict validation for all other
+  labeled fields
 
 #### Scenario: Doctor submits unknown structured field
 
