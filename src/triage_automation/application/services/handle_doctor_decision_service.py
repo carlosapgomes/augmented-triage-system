@@ -229,6 +229,7 @@ class HandleDoctorDecisionService:
             case_id=payload.case_id,
             decision=payload.decision,
             support_flag=payload.support_flag,
+            admission_flow=payload.admission_flow,
             reason=payload.reason,
             agency_record_number=agency_record_number,
             patient_name=patient_name,

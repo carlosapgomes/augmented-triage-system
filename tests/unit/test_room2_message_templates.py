@@ -1593,13 +1593,14 @@ def test_room2_summary_deny_ignores_conflicting_short_reason_when_cause_availabl
     assert "aceitar sem suporte por estabilidade" not in reason_text
 
 
-def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
+def test_build_room2_decision_ack_message_echoes_admission_flow_for_accept() -> None:
     case_id = UUID("44444444-4444-4444-4444-444444444444")
 
     body = build_room2_decision_ack_message(
         case_id=case_id,
         decision="accept",
         support_flag="none",
+        admission_flow="scheduled",
         reason="criterios atendidos",
     )
 
@@ -1608,8 +1609,25 @@ def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> 
     assert "paciente: não detectado" in body
     assert f"caso: {case_id}" not in body
     assert "decisao: aceitar" in body
+    assert "fluxo de admissao: agendamento" in body
     assert "suporte: nenhum" in body
     assert "motivo: criterios atendidos" in body
+
+
+def test_build_room2_decision_ack_message_omits_admission_flow_for_deny() -> None:
+    case_id = UUID("45454545-4545-4545-4545-454545454545")
+
+    body = build_room2_decision_ack_message(
+        case_id=case_id,
+        decision="deny",
+        support_flag="none",
+        admission_flow=None,
+        reason="criterios negados",
+    )
+
+    assert "decisao: negar" in body
+    assert "fluxo de admissao" not in body
+    assert "suporte: nenhum" in body
 
 
 def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
@@ -1626,3 +1644,4 @@ def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
     assert "acao:" in body
     assert "Modelo obrigatório" in body
     assert "decisao: aceitar|negar" in body
+    assert "fluxo de admissao: agendamento|vinda_imediata" in body

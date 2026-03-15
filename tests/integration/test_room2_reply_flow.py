@@ -271,6 +271,7 @@ async def test_runtime_listener_routes_scheduled_room2_decision_reply_to_existin
     assert "paciente: não detectado" in ack_body
     assert f"caso: {case_id}" not in ack_body
     assert "decisao: aceitar" in ack_body
+    assert "fluxo de admissao: agendamento" in ack_body
     assert "suporte: nenhum" in ack_body
 
     engine = sa.create_engine(sync_url)
@@ -399,6 +400,12 @@ async def test_runtime_listener_routes_immediate_room2_decision_reply_to_immedia
 
     assert next_since == "s-room2-immediate"
     assert routed_count == 1
+    assert len(sync_client.reply_calls) == 1
+    ack_body = sync_client.reply_calls[0][2]
+    assert "resultado: sucesso" in ack_body
+    assert "decisao: aceitar" in ack_body
+    assert "fluxo de admissao: vinda_imediata" in ack_body
+    assert "suporte: anestesista" in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -874,6 +881,7 @@ async def test_runtime_listener_routes_room2_deny_reply_to_denial_job_path(
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
     assert "decisao: negar" in ack_body
+    assert "fluxo de admissao" not in ack_body
     assert "suporte: nenhum" in ack_body
 
     engine = sa.create_engine(sync_url)
@@ -963,6 +971,7 @@ async def test_runtime_listener_normalizes_deny_support_and_ignores_optional_den
     ack_body = sync_client.reply_calls[0][2]
     assert "resultado: sucesso" in ack_body
     assert "decisao: negar" in ack_body
+    assert "fluxo de admissao" not in ack_body
     assert "suporte: nenhum" in ack_body
 
     engine = sa.create_engine(sync_url)

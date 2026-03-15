@@ -1510,6 +1510,7 @@ def build_room2_decision_ack_message(
     case_id: UUID,
     decision: str,
     support_flag: str,
+    admission_flow: str | None,
     reason: str | None,
     agency_record_number: str | None = None,
     patient_name: str | None = None,
@@ -1519,6 +1520,11 @@ def build_room2_decision_ack_message(
     reason_value = reason or ""
     decision_label = _format_decision_value(decision)
     support_label = _format_support_value(support_flag)
+    admission_flow_line = ""
+    if decision == "accept" and admission_flow is not None:
+        admission_flow_line = (
+            f"fluxo de admissao: {_format_admission_flow_value(admission_flow)}\n"
+        )
     identification_block = build_human_identification_block(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
@@ -1527,6 +1533,7 @@ def build_room2_decision_ack_message(
         "resultado: sucesso\n"
         f"{identification_block}\n"
         f"decisao: {decision_label}\n"
+        f"{admission_flow_line}"
         f"suporte: {support_label}\n"
         f"motivo: {reason_value}\n"
         "Reaja com +1 para confirmar ciência do encerramento."
@@ -1544,6 +1551,7 @@ def build_room2_decision_error_message(*, case_id: UUID, error_code: str) -> str
         f"acao: {guidance}\n\n"
         "Modelo obrigatório:\n"
         "decisao: aceitar|negar\n"
+        "fluxo de admissao: agendamento|vinda_imediata\n"
         "suporte: nenhum|anestesista|anestesista_uti\n"
         "motivo: <texto livre ou vazio>\n"
         f"caso: {case_id}"
@@ -1575,6 +1583,14 @@ def _format_support_value(value: str) -> str:
         return "anestesista"
     if value == "anesthesist_icu":
         return "anestesista_uti"
+    return value
+
+
+def _format_admission_flow_value(value: str) -> str:
+    if value == "scheduled":
+        return "agendamento"
+    if value == "immediate":
+        return "vinda_imediata"
     return value
 
 
