@@ -84,11 +84,18 @@ async def test_immediate_admission_flow_posts_room3_info_and_ack_without_wait_ap
     await case_repo.store_llm1_artifacts(
         case_id=case.case_id,
         structured_data_json={
-            "eda": {"requested_procedure": {"name": "EDA para corpo estranho"}},
+            "eda": {
+                "is_pediatric": True,
+                "requested_procedure": {
+                    "name": "EDA para retirada de corpo estranho",
+                    "subtype": "foreign_body",
+                },
+            },
             "patient": {
                 "name": "EVALDO CARDOSO DOS SANTOS",
-                "age": 42,
+                "age": 12,
             },
+            "policy_precheck": {"pediatric_flag": True},
         },
         summary_text="Resumo",
     )
@@ -97,7 +104,7 @@ async def test_immediate_admission_flow_posts_room3_info_and_ack_without_wait_ap
             case_id=case.case_id,
             doctor_user_id="@doctor:example.org",
             decision="accept",
-            support_flag="none",
+            support_flag="anesthesist_icu",
             admission_flow="immediate",
             reason="vinda imediata autorizada",
         )
@@ -134,9 +141,12 @@ async def test_immediate_admission_flow_posts_room3_info_and_ack_without_wait_ap
     assert "Vinda imediata autorizada" in info_body
     assert "## no. ocorrência: 4777300" in info_body
     assert "## paciente: EVALDO CARDOSO DOS SANTOS" in info_body
-    assert "idade: 42" in info_body
-    assert "exame solicitado: EDA para corpo estranho" in info_body
+    assert "idade: 12" in info_body
+    assert "exame solicitado: EDA para retirada de corpo estranho" in info_body
+    assert "subtipo EDA: retirada de corpo estranho" in info_body
+    assert "paciente pediátrico: sim" in info_body
     assert "aceito por: Dra. Beatriz Silva" in info_body
+    assert "suporte: anestesista_uti" in info_body
     assert "copie a proxima mensagem" not in info_body.lower()
     assert str(case.case_id) not in info_body
 
@@ -144,6 +154,9 @@ async def test_immediate_admission_flow_posts_room3_info_and_ack_without_wait_ap
     assert ack_room_id == "!room3:example.org"
     assert ack_parent_event_id == "$room3-immediate-1"
     assert "Vinda imediata registrada" in ack_body
+    assert "subtipo EDA: retirada de corpo estranho" in ack_body
+    assert "paciente pediátrico: sim" in ack_body
+    assert "suporte: anestesista_uti" in ack_body
     assert "Reaja com +1" in ack_body
     assert str(case.case_id) not in ack_body
 

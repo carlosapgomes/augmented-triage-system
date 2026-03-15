@@ -26,7 +26,9 @@ from triage_automation.application.ports.reaction_checkpoint_repository_port imp
 )
 from triage_automation.application.services.patient_context import (
     extract_patient_name_age,
+    extract_pediatric_flag,
     extract_requested_exam,
+    extract_supported_eda_subtype,
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
@@ -201,6 +203,8 @@ def _render_final_message(
 ) -> str:
     patient_name, patient_age = extract_patient_name_age(case.structured_data_json)
     requested_exam = extract_requested_exam(case.structured_data_json)
+    supported_eda_subtype = extract_supported_eda_subtype(case.structured_data_json)
+    pediatric_flag = extract_pediatric_flag(case.structured_data_json)
 
     if job_type == "post_room1_final_denial_triage":
         _require_status(case=case, expected=CaseStatus.DOCTOR_DENIED, job_type=job_type)
@@ -234,6 +238,10 @@ def _render_final_message(
             appointment_at=case.appointment_at,
             location=case.appointment_location,
             instructions=case.appointment_instructions,
+            doctor_display_name=case.doctor_display_name,
+            support_flag=case.doctor_support_flag,
+            supported_eda_subtype=supported_eda_subtype,
+            pediatric_flag=pediatric_flag,
         )
 
     if job_type == "post_room1_final_appt_denied":

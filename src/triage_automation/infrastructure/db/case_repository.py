@@ -292,6 +292,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 cases.c.doctor_decided_at,
                 cases.c.agency_record_number,
                 cases.c.structured_data_json,
+                cases.c.doctor_support_flag,
                 cases.c.doctor_admission_flow,
                 doctor_reply_subquery.c.sender_display_name,
             )
@@ -316,6 +317,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             agency_record_number=cast(str | None, row["agency_record_number"]),
             structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
             doctor_display_name=cast(str | None, row["sender_display_name"]),
+            doctor_support_flag=cast(str | None, row["doctor_support_flag"]),
             doctor_admission_flow=cast(
                 DoctorAdmissionFlow | None,
                 row["doctor_admission_flow"],
@@ -431,21 +433,43 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
     ) -> CaseFinalReplySnapshot | None:
         """Return final-reply context fields used to compose Room-1 responses."""
 
-        statement = sa.select(
-            cases.c.case_id,
-            cases.c.status,
-            cases.c.room1_origin_room_id,
-            cases.c.room1_origin_event_id,
-            cases.c.agency_record_number,
-            cases.c.structured_data_json,
-            cases.c.room1_final_reply_event_id,
-            cases.c.doctor_reason,
-            cases.c.doctor_admission_flow,
-            cases.c.appointment_at,
-            cases.c.appointment_location,
-            cases.c.appointment_instructions,
-            cases.c.appointment_reason,
-        ).where(cases.c.case_id == case_id)
+        doctor_reply_subquery = (
+            sa.select(
+                case_matrix_message_transcripts.c.case_id,
+                case_matrix_message_transcripts.c.sender_display_name,
+            )
+            .where(
+                case_matrix_message_transcripts.c.case_id == case_id,
+                case_matrix_message_transcripts.c.message_type == "room2_doctor_reply",
+            )
+            .order_by(case_matrix_message_transcripts.c.captured_at.desc())
+            .limit(1)
+        ).subquery()
+
+        statement = (
+            sa.select(
+                cases.c.case_id,
+                cases.c.status,
+                cases.c.room1_origin_room_id,
+                cases.c.room1_origin_event_id,
+                cases.c.agency_record_number,
+                cases.c.structured_data_json,
+                cases.c.room1_final_reply_event_id,
+                cases.c.doctor_reason,
+                cases.c.doctor_support_flag,
+                cases.c.doctor_admission_flow,
+                cases.c.appointment_at,
+                cases.c.appointment_location,
+                cases.c.appointment_instructions,
+                cases.c.appointment_reason,
+                doctor_reply_subquery.c.sender_display_name,
+            )
+            .outerjoin(
+                doctor_reply_subquery,
+                cases.c.case_id == doctor_reply_subquery.c.case_id,
+            )
+            .where(cases.c.case_id == case_id)
+        )
 
         async with self._session_factory() as session:
             result = await session.execute(statement)
@@ -463,6 +487,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
             room1_final_reply_event_id=cast(str | None, row["room1_final_reply_event_id"]),
             doctor_reason=cast(str | None, row["doctor_reason"]),
+            doctor_display_name=cast(str | None, row["sender_display_name"]),
+            doctor_support_flag=cast(str | None, row["doctor_support_flag"]),
             doctor_admission_flow=cast(
                 DoctorAdmissionFlow | None,
                 row["doctor_admission_flow"],

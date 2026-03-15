@@ -8,6 +8,7 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_denied_triage_message,
     build_room1_final_failure_message,
     build_room3_ack_message,
+    build_room3_immediate_admission_message,
     build_room3_invalid_format_reprompt,
     build_room3_reply_template_message,
     build_room3_request_message,
@@ -66,6 +67,26 @@ def test_build_room3_ack_message_prioritizes_human_identification_without_uuid()
     assert f"caso: {case_id}" not in body
 
 
+def test_build_room3_immediate_admission_message_includes_immediate_context() -> None:
+    body = build_room3_immediate_admission_message(
+        agency_record_number="4777300",
+        patient_name="MARIA",
+        patient_age="12",
+        requested_exam="EDA para retirada de corpo estranho",
+        doctor_display_name="Dra. Beatriz Silva",
+        support_flag="anesthesist_icu",
+        supported_eda_subtype="foreign_body",
+        pediatric_flag=True,
+    )
+
+    assert "idade: 12" in body
+    assert "exame solicitado: EDA para retirada de corpo estranho" in body
+    assert "subtipo EDA: retirada de corpo estranho" in body
+    assert "paciente pediátrico: sim" in body
+    assert "aceito por: Dra. Beatriz Silva" in body
+    assert "suporte: anestesista_uti" in body
+
+
 def test_build_room3_reply_template_message_keeps_uuid_and_adds_human_identification() -> None:
     case_id = UUID("22222222-2222-2222-2222-222222222222")
 
@@ -111,6 +132,30 @@ def test_build_room1_final_accepted_message_prioritizes_human_identification_wit
     assert "no. ocorrência: 777002" in body
     assert "paciente: PACIENTE APTO" in body
     assert f"caso: {case_id}" not in body
+
+
+def test_build_room1_final_accepted_message_includes_shared_immediate_context() -> None:
+    case_id = UUID("77777777-7777-7777-7777-777777777777")
+
+    body = build_room1_final_accepted_message(
+        case_id=case_id,
+        agency_record_number="777002",
+        patient_name="PACIENTE APTO",
+        patient_age="12",
+        requested_exam="EDA para retirada de corpo estranho",
+        appointment_at=datetime(2026, 2, 16, 14, 30),
+        location="Sala 2",
+        instructions="Jejum 8h",
+        doctor_display_name="Dra. Beatriz Silva",
+        support_flag="anesthesist_icu",
+        supported_eda_subtype="foreign_body",
+        pediatric_flag=True,
+    )
+
+    assert "subtipo EDA: retirada de corpo estranho" in body
+    assert "paciente pediátrico: sim" in body
+    assert "aceito por: Dra. Beatriz Silva" in body
+    assert "suporte: anestesista_uti" in body
 
 
 def test_build_room1_final_denied_triage_message_does_not_include_doctor_line() -> None:

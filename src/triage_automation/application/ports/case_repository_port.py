@@ -65,6 +65,7 @@ class CaseDoctorDecisionSnapshot:
     agency_record_number: str | None = None
     structured_data_json: dict[str, Any] | None = None
     doctor_display_name: str | None = None
+    doctor_support_flag: str | None = None
     doctor_admission_flow: DoctorAdmissionFlow | None = None
 
 
@@ -105,6 +106,8 @@ class CaseFinalReplySnapshot:
     structured_data_json: dict[str, Any] | None
     room1_final_reply_event_id: str | None
     doctor_reason: str | None
+    doctor_display_name: str | None = None
+    doctor_support_flag: str | None = None
     doctor_admission_flow: DoctorAdmissionFlow | None = None
     appointment_at: datetime | None = None
     appointment_location: str | None = None

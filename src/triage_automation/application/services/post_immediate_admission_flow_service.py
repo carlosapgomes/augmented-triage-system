@@ -19,7 +19,9 @@ from triage_automation.application.ports.message_repository_port import (
 )
 from triage_automation.application.services.patient_context import (
     extract_patient_name_age,
+    extract_pediatric_flag,
     extract_requested_exam,
+    extract_supported_eda_subtype,
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
@@ -123,6 +125,8 @@ class PostImmediateAdmissionFlowService:
 
         patient_name, patient_age = extract_patient_name_age(snapshot.structured_data_json)
         requested_exam = extract_requested_exam(snapshot.structured_data_json)
+        supported_eda_subtype = extract_supported_eda_subtype(snapshot.structured_data_json)
+        pediatric_flag = extract_pediatric_flag(snapshot.structured_data_json)
 
         info_body = build_room3_immediate_admission_message(
             agency_record_number=snapshot.agency_record_number,
@@ -130,6 +134,9 @@ class PostImmediateAdmissionFlowService:
             patient_age=patient_age,
             requested_exam=requested_exam,
             doctor_display_name=snapshot.doctor_display_name,
+            support_flag=snapshot.doctor_support_flag,
+            supported_eda_subtype=supported_eda_subtype,
+            pediatric_flag=pediatric_flag,
         )
         info_event_id = await self._matrix_poster.send_text(
             room_id=self._room3_id,
@@ -171,6 +178,9 @@ class PostImmediateAdmissionFlowService:
             patient_age=patient_age,
             requested_exam=requested_exam,
             doctor_display_name=snapshot.doctor_display_name,
+            support_flag=snapshot.doctor_support_flag,
+            supported_eda_subtype=supported_eda_subtype,
+            pediatric_flag=pediatric_flag,
         )
         ack_event_id = await self._matrix_poster.reply_text(
             room_id=self._room3_id,

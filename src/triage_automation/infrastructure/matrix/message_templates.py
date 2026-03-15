@@ -1596,6 +1596,28 @@ def _format_admission_flow_value(value: str) -> str:
     return value
 
 
+def _format_supported_eda_subtype_value(value: str | None) -> str | None:
+    if value == "standard":
+        return "padrão"
+    if value == "gastrostomy":
+        return "gastrostomia"
+    if value == "esophageal_dilation":
+        return "dilatação esofágica"
+    if value == "foreign_body":
+        return "retirada de corpo estranho"
+    if value is None:
+        return None
+    return value
+
+
+def _format_pediatric_flag_value(value: bool | None) -> str | None:
+    if value is True:
+        return "sim"
+    if value is False:
+        return "não"
+    return None
+
+
 def _map_presentation_value(value: str) -> str:
     mapping = {
         "accept": "aceitar",
@@ -1713,6 +1735,9 @@ def build_room3_immediate_admission_message(
     patient_age: str | None,
     requested_exam: str | None,
     doctor_display_name: str | None = None,
+    support_flag: str | None = None,
+    supported_eda_subtype: str | None = None,
+    pediatric_flag: bool | None = None,
 ) -> str:
     """Build Room-3 informational message for doctor-approved immediate admission."""
 
@@ -1724,7 +1749,11 @@ def build_room3_immediate_admission_message(
         patient_age=patient_age,
         requested_exam=requested_exam,
         doctor_display_name=doctor_display_name,
+        support_flag=support_flag,
+        supported_eda_subtype=supported_eda_subtype,
+        pediatric_flag=pediatric_flag,
         include_doctor_line=True,
+        include_support_line=True,
     )
     return (
         "Vinda imediata autorizada\n\n"
@@ -1741,6 +1770,9 @@ def build_room3_immediate_admission_ack_message(
     patient_age: str | None,
     requested_exam: str | None,
     doctor_display_name: str | None = None,
+    support_flag: str | None = None,
+    supported_eda_subtype: str | None = None,
+    pediatric_flag: bool | None = None,
 ) -> str:
     """Build Room-3 audit-only acknowledgment target for immediate admission."""
 
@@ -1752,7 +1784,11 @@ def build_room3_immediate_admission_ack_message(
         patient_age=patient_age,
         requested_exam=requested_exam,
         doctor_display_name=doctor_display_name,
+        support_flag=support_flag,
+        supported_eda_subtype=supported_eda_subtype,
+        pediatric_flag=pediatric_flag,
         include_doctor_line=True,
+        include_support_line=True,
     )
     return (
         "Vinda imediata registrada\n"
@@ -1797,6 +1833,10 @@ def build_room1_final_accepted_message(
     appointment_at: datetime,
     location: str,
     instructions: str,
+    doctor_display_name: str | None = None,
+    support_flag: str | None = None,
+    supported_eda_subtype: str | None = None,
+    pediatric_flag: bool | None = None,
 ) -> str:
     """Build Room-1 accepted final reply template."""
 
@@ -1806,6 +1846,12 @@ def build_room1_final_accepted_message(
         patient_name=patient_name,
         patient_age=patient_age,
         requested_exam=requested_exam,
+        doctor_display_name=doctor_display_name,
+        support_flag=support_flag,
+        supported_eda_subtype=supported_eda_subtype,
+        pediatric_flag=pediatric_flag,
+        include_doctor_line=doctor_display_name is not None,
+        include_support_line=support_flag is not None,
     )
     return (
         "✅ aceito\n"
@@ -1930,6 +1976,12 @@ def _build_case_context_block(
     patient_name: str | None,
     patient_age: str | None,
     requested_exam: str | None,
+    doctor_display_name: str | None = None,
+    support_flag: str | None = None,
+    supported_eda_subtype: str | None = None,
+    pediatric_flag: bool | None = None,
+    include_doctor_line: bool = False,
+    include_support_line: bool = False,
 ) -> str:
     _ = case_id
     identification_block = build_human_identification_block(
@@ -1939,6 +1991,12 @@ def _build_case_context_block(
     details_block = _build_room3_details_block(
         patient_age=patient_age,
         requested_exam=requested_exam,
+        doctor_display_name=doctor_display_name,
+        support_flag=support_flag,
+        supported_eda_subtype=supported_eda_subtype,
+        pediatric_flag=pediatric_flag,
+        include_doctor_line=include_doctor_line,
+        include_support_line=include_support_line,
     )
     return (
         f"{identification_block}\n"
@@ -1951,21 +2009,42 @@ def _build_room3_details_block(
     patient_age: str | None,
     requested_exam: str | None,
     doctor_display_name: str | None = None,
+    support_flag: str | None = None,
+    supported_eda_subtype: str | None = None,
+    pediatric_flag: bool | None = None,
     include_doctor_line: bool = False,
+    include_support_line: bool = False,
 ) -> str:
-    details = (
-        f"idade: {_format_room3_context_value(patient_age)}\n"
-        f"exame solicitado: {_format_room3_context_value(requested_exam)}"
-    )
-    if not include_doctor_line:
-        return details
+    lines = [
+        f"idade: {_format_room3_context_value(patient_age)}",
+        f"exame solicitado: {_format_room3_context_value(requested_exam)}",
+    ]
 
-    doctor_line = (
-        f"aceito por: {_format_room3_context_value(doctor_display_name)}"
-        if doctor_display_name is not None
-        else "aceito por: não informado"
-    )
-    return f"{details}\n{doctor_line}"
+    subtype_label = _format_supported_eda_subtype_value(supported_eda_subtype)
+    if subtype_label is not None:
+        lines.append(f"subtipo EDA: {subtype_label}")
+
+    pediatric_label = _format_pediatric_flag_value(pediatric_flag)
+    if pediatric_label is not None:
+        lines.append(f"paciente pediátrico: {pediatric_label}")
+
+    if include_doctor_line:
+        doctor_line = (
+            f"aceito por: {_format_room3_context_value(doctor_display_name)}"
+            if doctor_display_name is not None
+            else "aceito por: não informado"
+        )
+        lines.append(doctor_line)
+
+    if include_support_line:
+        support_label = (
+            _format_support_value(support_flag)
+            if support_flag is not None
+            else "não informado"
+        )
+        lines.append(f"suporte: {support_label}")
+
+    return "\n".join(lines)
 
 
 def _normalize_record_number_for_filename(value: str | None) -> str:

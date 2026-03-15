@@ -10,6 +10,9 @@ from alembic.config import Config
 
 from alembic import command
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
+from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
+)
 from triage_automation.application.services.post_room1_final_service import (
     PostRoom1FinalService,
 )
@@ -72,6 +75,8 @@ async def _store_case_context(
     patient_name: str,
     patient_age: int,
     requested_exam: str,
+    supported_eda_subtype: str | None = None,
+    pediatric_flag: bool | None = None,
 ) -> None:
     await case_repo.store_pdf_extraction(
         case_id=case_id,
@@ -79,12 +84,24 @@ async def _store_case_context(
         extracted_text="texto extraido",
         agency_record_number=record_number,
     )
+    eda_payload: dict[str, object] = {"requested_procedure": {"name": requested_exam}}
+    if supported_eda_subtype is not None:
+        requested_procedure = eda_payload["requested_procedure"]
+        assert isinstance(requested_procedure, dict)
+        requested_procedure["subtype"] = supported_eda_subtype
+    if pediatric_flag is not None:
+        eda_payload["is_pediatric"] = pediatric_flag
+
+    structured_data_json: dict[str, object] = {
+        "patient": {"name": patient_name, "age": patient_age},
+        "eda": eda_payload,
+    }
+    if pediatric_flag is not None:
+        structured_data_json["policy_precheck"] = {"pediatric_flag": pediatric_flag}
+
     await case_repo.store_llm1_artifacts(
         case_id=case_id,
-        structured_data_json={
-            "patient": {"name": patient_name, "age": patient_age},
-            "eda": {"requested_procedure": {"name": requested_exam}},
-        },
+        structured_data_json=structured_data_json,
         summary_text="Resumo",
     )
 
@@ -145,8 +162,10 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         case_id=appt_confirmed_id,
         record_number="777002",
         patient_name="PACIENTE APTO",
-        patient_age=62,
-        requested_exam="EDA",
+        patient_age=12,
+        requested_exam="EDA para retirada de corpo estranho",
+        supported_eda_subtype="foreign_body",
+        pediatric_flag=True,
     )
     await _store_case_context(
         case_repo,
@@ -172,6 +191,18 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         patient_age=36,
         requested_exam="Colonoscopia",
     )
+    await message_repo.append_case_matrix_message_transcript(
+        CaseMatrixMessageTranscriptCreateInput(
+            case_id=appt_confirmed_id,
+            room_id="!room2:example.org",
+            event_id="$doctor-reply-final-appt",
+            sender="@doctor:example.org",
+            sender_display_name="Dra. Beatriz Silva",
+            message_type="room2_doctor_reply",
+            message_text="decisao: aceitar",
+            reply_to_event_id="$room2-template-final-appt",
+        )
+    )
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -185,13 +216,15 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             sa.text(
                 "UPDATE cases SET appointment_at = :appointment_at, "
                 "appointment_location = :location, "
-                "appointment_instructions = :instructions "
+                "appointment_instructions = :instructions, "
+                "doctor_support_flag = :doctor_support_flag "
                 "WHERE case_id = :case_id"
             ),
             {
                 "appointment_at": datetime(2026, 2, 16, 14, 30, tzinfo=UTC),
                 "location": "Sala 2",
                 "instructions": "Jejum 8h",
+                "doctor_support_flag": "anesthesist_icu",
                 "case_id": appt_confirmed_id.hex,
             },
         )
@@ -241,8 +274,12 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
             "✅ aceito\n"
             "no. ocorrência: 777002\n"
             "paciente: PACIENTE APTO\n"
-            "idade: 62\n"
-            "exame solicitado: EDA\n"
+            "idade: 12\n"
+            "exame solicitado: EDA para retirada de corpo estranho\n"
+            "subtipo EDA: retirada de corpo estranho\n"
+            "paciente pediátrico: sim\n"
+            "aceito por: Dra. Beatriz Silva\n"
+            "suporte: anestesista_uti\n"
             "agendamento: 16-02-2026 14:30 BRT\n"
             "local: Sala 2\n"
             "instrucoes: Jejum 8h\n\n"
