@@ -1,10 +1,6 @@
-# eda-preop-deterministic-criteria Specification
+# eda-preop-deterministic-criteria Delta Specification
 
-## Purpose
-
-TBD - created by archiving change eda-preop-criteria-and-eda-scope-gating. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: EDA Deterministic Policy SHALL Preserve CHD Local Criteria With Scenario Priority
 
@@ -133,6 +129,8 @@ The system SHALL explicitly flag pediatric cases within the rewritten EDA rulebo
 - **WHEN** patient age is below 16 years in a supported EDA request
 - **THEN** the system MUST mark the request as pediatric
 - **AND** the recommendation context MUST preserve that pediatric signal for downstream Room-2 rendering
+
+## ADDED Requirements
 
 ### Requirement: Supported EDA Recommendation SHALL Include Practical ASA Estimate And Support Recommendation
 

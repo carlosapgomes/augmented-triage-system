@@ -1,10 +1,6 @@
-# eda-request-scope-gating Specification
+# eda-request-scope-gating Delta Specification
 
-## Purpose
-
-TBD - created by archiving change eda-preop-criteria-and-eda-scope-gating. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: EDA Scope Classification SHALL Gate Automatic Recommendation
 

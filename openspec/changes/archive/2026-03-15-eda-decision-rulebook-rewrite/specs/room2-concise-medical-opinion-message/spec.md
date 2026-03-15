@@ -1,21 +1,6 @@
-# room2-concise-medical-opinion-message Specification
+# room2-concise-medical-opinion-message Delta Specification
 
-## Purpose
-
-TBD - created by archiving change room2-concise-medical-opinion-message. Update Purpose after archive.
-
-## Requirements
-
-### Requirement: Room-2 Clinical Opinion Message SHALL Be Concise And Decision-Oriented
-
-The system SHALL publish a concise medical-opinion summary in Room-2 focused on clinical context and decision support, without dumping full flattened structured payloads and without adding standalone conduct guidance.
-
-#### Scenario: Room-2 summary is generated for doctor review
-
-- **WHEN** message II (`room2_case_summary`) is rendered for a case awaiting doctor decision
-- **THEN** the message MUST prioritize concise, decision-oriented content
-- **AND** the message MUST NOT include full flattened listings equivalent to complete LLM1/LLM2 structured payloads
-- **AND** the message MUST NOT include a standalone `Conduta sugerida` section
+## MODIFIED Requirements
 
 ### Requirement: Room-2 Summary SHALL Include Mandatory Seven-Block Layout
 
@@ -33,16 +18,6 @@ The system SHALL render the Room-2 summary with a fixed seven-block layout to st
 - **AND** `ASA estimado`
 - **AND** `Motivo objetivo`
 
-### Requirement: Room-2 Summary SHALL Preserve Fast Clinical Context
-
-The summary SHALL preserve rapid context for doctors who did not read the full report by enforcing a short narrative clinical synopsis.
-
-#### Scenario: Doctor reads Room-2 summary without opening full PDF
-
-- **WHEN** a doctor relies on message II as first clinical contact with the case
-- **THEN** `Resumo clínico` MUST be present with 2 to 4 lines
-- **AND** the synopsis MUST capture the patient clinical situation and immediate triage context
-
 ### Requirement: Decision, Support, And Objective Reason SHALL Be Explicit And Coherent
 
 The message SHALL explicitly show the final recommendation fields and an objective reason aligned with the rewritten EDA rulebook.
@@ -59,22 +34,6 @@ The message SHALL explicitly show the final recommendation fields and an objecti
 - **AND** if final suggestion is `deny` and more than two objective causes exist, `Motivo objetivo` MUST list at most two causes and MUST include a compact continuation marker equivalent to `e outras pendências críticas`
 - **AND** if final suggestion is `accept`, `Motivo objetivo` MUST be a short acceptance phrase with support context only
 - **AND** if final suggestion is `accept`, `Motivo objetivo` MUST preserve explicit uncertainty notes only when the report contains evidence-insufficient but non-blocking context
-
-### Requirement: Emergent Instability Cases SHALL Include Priority Phrase
-
-The summary SHALL include explicit emergent-priority language for bleeding cases with documented hemodynamic instability only when the final displayed suggestion remains acceptance-oriented.
-
-#### Scenario: Bleeding plus hemodynamic instability with final accept suggestion
-
-- **WHEN** case context indicates active bleeding with documented hemodynamic instability and final displayed suggestion is `accept`
-- **THEN** `Motivo objetivo` MUST include explicit emergent-priority phrasing
-- **AND** this phrasing MUST indicate that stabilization and urgent pathway should not be delayed by non-critical missing fields
-
-#### Scenario: Bleeding plus hemodynamic instability with final deny suggestion
-
-- **WHEN** case context indicates active bleeding with documented hemodynamic instability and final displayed suggestion is `deny`
-- **THEN** `Motivo objetivo` MUST remain focused on objective denial causes
-- **AND** `Motivo objetivo` MUST NOT include emergent-priority acceptance phrasing
 
 ### Requirement: Room-2 Summary SHALL Explain Deterministic Preop Denial Causes
 
@@ -110,32 +69,7 @@ When the rewritten EDA rulebook recommends denial due to missing required exams 
 - **THEN** Room-2 summary MUST include concise text stating which threshold failed
 - **AND** the summary MUST keep decision-oriented wording suitable for physician review
 
-### Requirement: Out-Of-Scope Manual Review Cases SHALL Not Publish Room-2 Recommendation Summary
-
-The system SHALL avoid publishing Room-2 recommendation summary for requests routed to manual review by EDA scope gating.
-
-#### Scenario: Manual review required due to non-EDA or unknown exam type
-
-- **WHEN** scope gating resolves to `manual_review_required` for non-EDA or unknown exam type
-- **THEN** the system MUST NOT post Room-2 recommendation summary blocks for that case in the same processing cycle
-- **AND** closure communication MUST be handled through Room-1 manual-review notification
-
-### Requirement: Recent Denial Block SHALL Be Concise And Deterministic In Room-2 Summary
-
-When rendered, the recent-denial context in message II SHALL preserve concise physician reading by using a short, deterministic structure.
-
-#### Scenario: Recent denial block is rendered
-
-- **WHEN** recent denial context is available during Room-2 summary rendering
-- **THEN** the summary MUST render one concise block for recent denial context without full historical dumps
-- **AND** the block MUST include at least: denial date/time, denial class, and reason
-- **AND** the reason field MUST use deterministic fallback text when not available
-
-#### Scenario: Multiple denials exist but summary remains concise
-
-- **WHEN** more than one denial exists in the 7-day window
-- **THEN** the summary MUST display details only for the most recent denial
-- **AND** it MAY include only the total count of denials in the same window as additional context
+## ADDED Requirements
 
 ### Requirement: Room-2 Summary SHALL Include Procedure Context And Pediatric Marker
 
