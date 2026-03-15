@@ -36,7 +36,7 @@
 
 ## 6. Verification and change bookkeeping
 
-- [ ] 6.1 Run targeted pytest coverage for the rewritten EDA policy, scope gating, Room-2 summary rendering, and affected integration flows.
+- [x] 6.1 Run targeted pytest coverage for the rewritten EDA policy, scope gating, Room-2 summary rendering, and affected integration flows.
 - [ ] 6.2 Run `ruff` and `mypy` against all changed Python paths for this change.
 - [ ] 6.3 Update this `tasks.md` with completed checkboxes and verification notes as implementation slices land.
 
@@ -124,3 +124,5 @@
   - `markdownlint-cli2 "docs/decision-engine-and-rulebook.md" "docs/en/decision-engine-and-rulebook.md" "docs/manual_e2e_runbook.md" "docs/en/manual_e2e_runbook.md"`
   - `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q`
   - `markdownlint-cli2 "openspec/changes/eda-decision-rulebook-rewrite/tasks.md"`
+- Slice 6.1 verification executed successfully:
+  - `uv run pytest tests/unit/test_eda_preop_policy.py tests/unit/test_eda_policy_crosscheck.py tests/unit/test_eda_recommendation_synthesis.py tests/unit/test_room2_message_templates.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py -q`
