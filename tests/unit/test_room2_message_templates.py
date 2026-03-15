@@ -242,6 +242,33 @@ def test_room2_summary_html_includes_supported_procedure_context_and_pediatric_m
     assert "texto livre diferente" not in body
 
 
+def test_room2_summary_uses_esophageal_dilation_context_from_rulebook_signal() -> None:
+    case_id = UUID("26262626-2626-2626-2626-262626262626")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={
+            "eda": {
+                "requested_procedure": {
+                    "name": "pedido livre que nao deve aparecer",
+                    "urgency": "eletivo",
+                    "subtype": "",
+                },
+            },
+            "preop_screening": {
+                "rulebook_signals": {"eda_subtype": "esophageal_dilation"},
+            },
+        },
+        summary_text="Resumo LLM1",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "procedimento solicitado: EDA para dilatação esofágica" in body
+    assert "pedido livre que nao deve aparecer" not in body
+
+
 def test_build_room2_case_summary_formats_recent_denial_datetime_in_brt() -> None:
     case_id = UUID("22222222-2222-2222-2222-222222222222")
 
@@ -367,6 +394,37 @@ def test_room2_summary_renders_insufficient_asa_fallback_text() -> None:
     )
 
     assert asa_lines == ["- não foi possível estimar com os dados apresentados"]
+
+
+
+def test_room2_summary_html_renders_asa_fallback_from_structured_data() -> None:
+    case_id = UUID("27272727-2727-2727-2727-272727272727")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={
+            "eda": {
+                "asa": {
+                    "bucket": "insufficient_data",
+                },
+            },
+        },
+        summary_text="Resumo LLM1",
+        suggested_action={
+            "suggestion": "accept",
+            "support_recommendation": "none",
+        },
+    )
+
+    asa_chunk = _extract_html_section_chunk(
+        body=body,
+        section="<h2>ASA estimado:</h2>",
+        next_section="<h2>Motivo objetivo:</h2>",
+    )
+
+    assert "<li>não foi possível estimar com os dados apresentados</li>" in asa_chunk
 
 
 
@@ -1326,6 +1384,50 @@ def test_room2_summary_objective_reason_deny_includes_rewritten_rulebook_causes_
         )
     ).lower()
     assert expected_snippet in reason_chunk
+
+
+
+def test_room2_summary_objective_reason_preop_gate_takes_precedence_over_precheck_causes() -> None:
+    case_id = UUID("65656565-6565-6565-6565-757575757575")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "policy_precheck": {
+                "excluded_from_eda_flow": True,
+                "exclusion_reason": "fora do escopo",
+                "labs_required": True,
+                "labs_pass": "no",
+                "labs_failed_items": ["creatinina ausente"],
+                "ecg_required": True,
+                "ecg_present": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "deny",
+            "support_recommendation": "none",
+            "preop_gate": {
+                "decision": "deny",
+                "reason_code": "missing_minimum_exam_creatinine",
+                "reason_text": (
+                    "Exame mínimo obrigatório ausente ou insuficiente para EDA: "
+                    "creatinina."
+                ),
+                "evidence_spans": [],
+            },
+        },
+    )
+
+    reason_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Motivo objetivo:\n\n",
+        next_section=None,
+    )
+
+    assert reason_lines == ["- Negado por: exame mínimo obrigatório ausente: creatinina."]
+
 
 
 def test_room2_summary_objective_reason_deny_uses_fallback_when_no_known_cause() -> None:

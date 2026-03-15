@@ -198,6 +198,21 @@ def _extract_payload_from_widget_body(body: str) -> dict[str, Any]:
     return cast(dict[str, Any], parsed)
 
 
+def _extract_markdown_section_lines(
+    *,
+    body: str,
+    section: str,
+    next_section: str | None,
+) -> list[str]:
+    start = body.index(section) + len(section)
+    if next_section is None:
+        end = len(body)
+    else:
+        end = body.index(next_section, start)
+    chunk = body[start:end]
+    return [line.strip() for line in chunk.splitlines() if line.strip()]
+
+
 @pytest.mark.asyncio
 async def test_room2_widget_payload_uses_rewritten_support_and_asa_context(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "post_room2_widget_payload_rewrite.db")
@@ -264,6 +279,107 @@ async def test_room2_widget_payload_uses_rewritten_support_and_asa_context(tmp_p
     assert asa_payload["bucket"] == "insufficient_data"
     assert asa_payload["display_text"] == "não foi possível estimar com os dados apresentados"
     assert asa_payload["source_text_hint"] == "dados insuficientes para ASA pratico"
+
+
+@pytest.mark.asyncio
+async def test_post_room2_widget_propagates_pediatric_subtype_asa_and_preop_precedence(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "post_room2_widget_room2_summary_coverage.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-current-room2-coverage",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/current-room2-coverage",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+
+    structured_data = _structured_data("12345")
+    patient = cast(dict[str, Any], structured_data["patient"])
+    patient["age"] = 14
+    eda = cast(dict[str, Any], structured_data["eda"])
+    eda["is_pediatric"] = True
+    requested_procedure = cast(dict[str, Any], eda["requested_procedure"])
+    requested_procedure["name"] = "pedido livre que nao deve aparecer"
+    requested_procedure["subtype"] = "esophageal_dilation"
+    eda["asa"] = {"bucket": "insufficient_data", "source_text_hint": "dados escassos"}
+
+    policy_precheck = cast(dict[str, Any], structured_data["policy_precheck"])
+    policy_precheck["labs_pass"] = "no"
+    policy_precheck["labs_failed_items"] = ["creatinina ausente"]
+    policy_precheck["ecg_present"] = "no"
+
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=structured_data,
+        summary_text="Resumo LLM1",
+    )
+
+    suggested_action = _suggested_action(current_case.case_id, "12345")
+    suggested_action["asa"] = {
+        "bucket": "insufficient_data",
+        "display_text": "não foi possível estimar com os dados apresentados",
+        "source_text_hint": "dados escassos",
+    }
+    suggested_action["reason_code"] = "hb_below_threshold"
+    suggested_action["reason_text"] = "HB < 8 para perfil cardiopatia do rulebook EDA."
+    suggested_action["preop_gate"] = {
+        "decision": "deny",
+        "reason_code": "hb_below_threshold",
+        "reason_text": "HB < 8 para perfil cardiopatia do rulebook EDA.",
+        "evidence_spans": [],
+    }
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json=suggested_action,
+    )
+
+    service = PostRoom2WidgetService(
+        room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        prior_case_queries=prior_queries,
+        matrix_poster=matrix_poster,
+    )
+
+    await service.post_widget(case_id=current_case.case_id)
+
+    summary_body = matrix_poster.reply_calls[0][2]
+    summary_formatted_body = matrix_poster.reply_calls[0][4]
+    assert "procedimento solicitado: EDA para dilatação esofágica" in summary_body
+    assert "paciente pediátrico: sim" in summary_body
+    assert "pedido livre que nao deve aparecer" not in summary_body
+    assert "- não foi possível estimar com os dados apresentados" in summary_body
+    assert summary_formatted_body is not None
+    assert "procedimento solicitado: EDA para dilatação esofágica" in summary_formatted_body
+    assert "paciente pediátrico: sim" in summary_formatted_body
+    assert "<li>não foi possível estimar com os dados apresentados</li>" in summary_formatted_body
+
+    reason_lines = _extract_markdown_section_lines(
+        body=summary_body,
+        section="## Motivo objetivo:\n\n",
+        next_section=None,
+    )
+
+    assert reason_lines == ["- Negado por: contraindicação: HB < 8 para perfil cardiopatia."]
 
 
 @pytest.mark.asyncio
