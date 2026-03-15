@@ -79,20 +79,51 @@ Expected in the technical summary:
 
 1. Open message III and copy the strict template.
 
-2. Send the decision as a Matrix reply to message I:
+2. Validate that the acceptance template explicitly includes the line
+   `admission flow: scheduled`.
+
+3. Send the decision as a Matrix reply to message I:
 
 - keep exactly one line per template field
 - respect the valid values provided by the bot
 - `reason` may be empty/optional
+- for `decision: accept`, fill the `admission flow` line mandatorily
 
-1. For positive-flow validation, send an acceptance response without additional
-   support.
+### Accepted with scheduled admission
+
+1. For the default positive-path validation, send an acceptance response without
+   additional support using `admission flow: scheduled`.
 
 2. Validate expected progression:
 
 - case status moves to `DOCTOR_ACCEPTED`
 - next job `post_room3_request` is enqueued
+- the bot confirmation in Room-2 echoes the normalized flow as `scheduled`
+- Room-3 receives the standard scheduling request + template combo
 - audit includes the Matrix sender as actor and outcome
+
+### Accepted with immediate admission
+
+1. Repeat the acceptance flow using `admission flow: vinda_imediata`.
+
+2. Validate accepted aliases in mobile clients when applicable:
+
+- `vinda_imediata`
+- `vinda imediata`
+
+1. Validate the expected progression for the immediate branch:
+
+- the medical status remains `DOCTOR_ACCEPTED` until the Room-1 final message
+- next job `post_immediate_admission_flow` is enqueued
+- the bot confirmation in Room-2 echoes the normalized immediate flow
+- Room-3 receives only the informational immediate-admission communication and
+  the auditable ACK target
+- Room-3 must not receive the standard scheduling combo (`post_room3_request`)
+- Room-1 receives the final message equivalent to
+  `accepted with immediate admission authorized`
+- closure proceeds via the positive Room-1 reaction through
+  `post_room1_final_immediate`
+- the Room-3 acknowledgment remains optional, not mandatory, for case closure
 
 ## Supported EDA Cases: Subtype and Room-2 Context
 
@@ -334,6 +365,21 @@ Recommended example:
 - send the template as a reply to message II/III or an unrelated event
 - expected: bot feedback includes `error_code: invalid_template`
 - expected: no decision mutation and no new downstream job
+
+1. Post `decision: accept` without the required `admission flow` line:
+
+- example: accept without the required `admission flow` line
+- expected: the decision is rejected without state/job mutation
+- expected: the bot correction message restores the required field in the
+  template
+
+1. Post `decision: accept` with an invalid `admission flow` value:
+
+- invalid examples: `plantao`, `urgent`, or any value outside
+  `scheduled|vinda_imediata`
+- expected: the decision is rejected without state/job mutation
+- expected: no scheduling is opened and no `post_immediate_admission_flow` job
+  is created
 
 ## Dashboard and Monitoring API Checks
 

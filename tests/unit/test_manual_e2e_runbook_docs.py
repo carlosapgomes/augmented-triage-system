@@ -151,6 +151,20 @@ def test_manual_e2e_runbook_defines_user_management_authorization_and_audit_chec
     assert "user_removed" in runbook
 
 
+def test_manual_e2e_runbook_english_mirror_covers_admission_flow_and_immediate_branch() -> None:
+    runbook = _read("docs/en/manual_e2e_runbook.md")
+
+    assert "admission flow" in runbook
+    assert "scheduled" in runbook
+    assert "vinda_imediata" in runbook
+    assert "accepted with immediate admission authorized" in runbook
+    assert "post_immediate_admission_flow" in runbook
+    assert "post_room3_request" in runbook
+    assert "post_room1_final_immediate" in runbook
+    assert "optional, not mandatory" in runbook
+    assert "accept without the required `admission flow` line" in runbook
+
+
 def test_manual_e2e_runbook_english_mirror_defines_user_management_checks() -> None:
     runbook = _read("docs/en/manual_e2e_runbook.md")
 
