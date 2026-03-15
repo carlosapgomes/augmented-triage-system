@@ -362,7 +362,7 @@ Recommended example:
 
 ## Prompt Management Authorization Flow
 
-1. Using a `reader` token, verify read-only behavior:
+1. Using a reader token, verify read-only behavior:
 
 - `GET /monitoring/cases` returns `200`
 - `GET /admin/prompts/versions` returns `403`
@@ -391,7 +391,7 @@ Recommended example:
 
 ## User Management Authorization Flow
 
-1. Using a `reader` token, validate access blocking:
+1. Using a reader token, validate access blocking:
 
 - `GET /admin/users` returns `403`
 - `POST /admin/users` returns `403`

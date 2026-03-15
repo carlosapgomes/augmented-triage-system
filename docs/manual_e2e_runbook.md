@@ -59,7 +59,7 @@ uv run python -m apps.worker.main
 
 - mensagem I: contexto original do PDF
 - mensagem II: resumo técnico da triagem, reply da mensagem I
-- mensagem III: instruções de template estrito, reply da mensagem I
+- mensagem III (`message III`): instruções de template estrito, reply da mensagem I
 - verificar em desktop e mobile que as mensagens permanecem agrupadas sob a
   mensagem I
 
@@ -80,7 +80,7 @@ Esperado no resumo técnico:
 
 1. Abrir a mensagem III e copiar o template estrito.
 
-2. Enviar decisão como reply Matrix para a mensagem I:
+2. Enviar decisão como reply Matrix para a mensagem I (`reply to message I`):
 
 - manter exatamente uma linha por campo do template
 - respeitar os valores válidos fornecidos pelo bot
@@ -303,17 +303,17 @@ Exemplo recomendado:
 
 ## Checagens negativas de auth do widget
 
-1. Enviar sem Authorization header:
+1. Enviar sem Authorization header (`without Authorization`):
 
 - `POST /widget/room2/submit`
 - esperado: `401`
 
-1. Enviar com token de papel `reader`:
+1. Enviar com token de papel `reader` (`reader role token`):
 
 - `POST /widget/room2/submit`
 - esperado: `403`
 
-1. Validar ausência de mutação inesperada de estado/job:
+1. Validar ausência de mutação inesperada de estado/job (`state/job mutation`):
 
 - status do caso não muda
 - nenhum job adicional de decisão é enfileirado
@@ -321,17 +321,17 @@ Exemplo recomendado:
 
 ## Checagens negativas de reply da Sala 2
 
-1. Postar reply com template malformado:
+1. Postar reply com template malformado (`malformed template`):
 
 - reply para a mensagem I com linhas obrigatórias ausentes/inválidas
 - esperado: feedback do bot inclui `error_code: invalid_template`
-- esperado: nenhuma mutação de decisão e nenhum novo job downstream
+- esperado: nenhuma mutação de decisão (`no decision mutation`) e nenhum novo job downstream
 
-1. Postar template válido no parent de reply errado:
+1. Postar template válido no parent de reply errado (`wrong reply-parent`):
 
 - enviar template como reply para message II/III ou evento não relacionado
 - esperado: feedback do bot inclui `error_code: invalid_template`
-- esperado: nenhuma mutação de decisão e nenhum novo job downstream
+- esperado: nenhuma mutação de decisão (`no decision mutation`) e nenhum novo job downstream
 
 ## Checagens de dashboard e API de monitoramento
 
@@ -348,7 +348,7 @@ Exemplo recomendado:
 1. Validar API de detalhe por caso e eventos auditáveis:
 
 - `GET /monitoring/cases/{case_id}`
-- esperado: `200` com timeline cronológica ordenada por `timestamp`
+- esperado: `200` com timeline cronológica (`chronological timeline`) ordenada por `timestamp`
 - timeline deve incluir `source`, `channel`, `actor`, `event_type`
 - quando aplicável, validar presença de eventos ACK e human reply
 
@@ -360,14 +360,14 @@ Exemplo recomendado:
 
 ## Fluxo de autorização de gerenciamento de prompts
 
-1. Usando token de `reader`, verificar comportamento read-only:
+1. Usando `reader token`, verificar comportamento read-only:
 
 - `GET /monitoring/cases` retorna `200`
 - `GET /admin/prompts/versions` retorna `403`
 - `GET /admin/prompts/{prompt_name}/active` retorna `403`
 - `POST /admin/prompts/{prompt_name}/activate` retorna `403`
 
-1. Usando token de `admin`, verificar mutação de prompts:
+1. Usando `admin token`, verificar mutação de prompts:
 
 - `GET /admin/prompts/versions` retorna `200`
 - `GET /admin/prompts/{prompt_name}/active` retorna `200`
@@ -388,7 +388,7 @@ Exemplo recomendado:
 
 ## Fluxo de autorização de gerenciamento de usuários
 
-1. Usando token de `reader`, validar bloqueio de acesso:
+1. Usando `reader token`, validar bloqueio de acesso:
 
 - `GET /admin/users` retorna `403`
 - `POST /admin/users` retorna `403`
