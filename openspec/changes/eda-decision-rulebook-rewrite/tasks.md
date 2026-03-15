@@ -29,7 +29,7 @@
 ## 5. Documentation and bilingual mirrors
 
 - [x] 5.1 Update `docs/decision-engine-and-rulebook.md` to describe the rewritten EDA rulebook, supported subtypes, evidence rules, contraindication thresholds, practical ASA estimate, and support semantics.
-- [ ] 5.2 Update `docs/en/decision-engine-and-rulebook.md` as the required English mirror of the rulebook documentation change.
+- [x] 5.2 Update `docs/en/decision-engine-and-rulebook.md` as the required English mirror of the rulebook documentation change.
 - [ ] 5.3 Update `docs/manual_e2e_runbook.md` to cover the new supported EDA subtypes, foreign-body bypass, new denial scenarios, explicit ASA block, and revised manual validation expectations.
 - [ ] 5.4 Update `docs/en/manual_e2e_runbook.md` as the required English mirror of the manual E2E runbook change.
 - [ ] 5.5 Run markdown and bilingual documentation checks for all changed documentation files and record the command results in this task file.
@@ -106,3 +106,7 @@
   - `markdownlint-cli2 "openspec/changes/eda-decision-rulebook-rewrite/tasks.md"`
   - Exceção registrada de sincronização bilíngue: `docs/en/decision-engine-and-rulebook.md` será atualizado no slice 5.2 para respeitar a regra de uma tarefa por sessão.
   - Guardas bilíngues não executados neste slice porque o espelho em inglês ainda não foi atualizado.
+- Slice 5.2 verification executed successfully:
+  - `markdownlint-cli2 "docs/decision-engine-and-rulebook.md" "docs/en/decision-engine-and-rulebook.md"`
+  - `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q`
+  - `markdownlint-cli2 "openspec/changes/eda-decision-rulebook-rewrite/tasks.md"`
