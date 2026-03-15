@@ -402,3 +402,127 @@ async def test_metrics_query_counts_current_backlog_by_pending_stage(
     assert metrics.pending_room3 == 1
     assert metrics.pending_room1 == 2
     assert metrics.pending_immediate_branch == 1
+
+
+@pytest.mark.asyncio
+async def test_metrics_query_keeps_pending_immediate_cases_out_of_concluded_immediate_totals(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "supervisor_summary_metrics_pending_immediate_not_concluded.db",
+    )
+    session_factory = create_session_factory(async_url)
+    case_repository = SqlAlchemyCaseRepository(session_factory)
+    queries = SqlAlchemySupervisorSummaryMetricsQueries(session_factory)
+
+    pending_immediate_case_id = uuid4()
+    await case_repository.create_case(
+        CaseCreateInput(
+            case_id=pending_immediate_case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-pending-immediate",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    window_start = datetime(2026, 2, 16, 10, 0, tzinfo=UTC)
+    window_end = datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
+                "doctor_admission_flow = :doctor_admission_flow, "
+                "room1_final_reply_event_id = :room1_final_reply_event_id "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.WAIT_R1_CLEANUP_THUMBS.value,
+                "doctor_decision": "accept",
+                "doctor_admission_flow": "immediate",
+                "room1_final_reply_event_id": "$room1-final-pending-immediate",
+                "case_id": pending_immediate_case_id.hex,
+            },
+        )
+
+    metrics = await queries.aggregate_metrics(
+        window_start=window_start,
+        window_end=window_end,
+    )
+
+    assert metrics.immediate_admission == 0
+    assert metrics.in_progress == 1
+    assert metrics.pending_room1 == 1
+    assert metrics.pending_immediate_branch == 1
+
+
+@pytest.mark.asyncio
+async def test_metrics_query_legacy_cases_only_count_branch_totals_with_persisted_evidence(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "supervisor_summary_metrics_legacy_branch_evidence.db",
+    )
+    session_factory = create_session_factory(async_url)
+    case_repository = SqlAlchemyCaseRepository(session_factory)
+    queries = SqlAlchemySupervisorSummaryMetricsQueries(session_factory)
+
+    legacy_case_id = uuid4()
+    explicit_immediate_case_id = uuid4()
+    for case_id in (legacy_case_id, explicit_immediate_case_id):
+        await case_repository.create_case(
+            CaseCreateInput(
+                case_id=case_id,
+                status=CaseStatus.WAIT_DOCTOR,
+                room1_origin_room_id="!room1:example.org",
+                room1_origin_event_id=f"$origin-{case_id}",
+                room1_sender_user_id="@human:example.org",
+            )
+        )
+
+    window_start = datetime(2026, 2, 16, 10, 0, tzinfo=UTC)
+    window_end = datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.DOCTOR_ACCEPTED.value,
+                "doctor_decision": "accept",
+                "case_id": legacy_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
+                "doctor_admission_flow = :doctor_admission_flow, "
+                "room1_final_reply_event_id = :room1_final_reply_event_id "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.WAIT_R1_CLEANUP_THUMBS.value,
+                "doctor_decision": "accept",
+                "doctor_admission_flow": "immediate",
+                "room1_final_reply_event_id": "$room1-final-explicit-immediate",
+                "case_id": explicit_immediate_case_id.hex,
+            },
+        )
+
+    metrics = await queries.aggregate_metrics(
+        window_start=window_start,
+        window_end=window_end,
+    )
+
+    assert metrics.in_progress == 2
+    assert metrics.pending_room3 == 1
+    assert metrics.pending_room1 == 1
+    assert metrics.pending_immediate_branch == 1
+    assert metrics.immediate_admission == 0
