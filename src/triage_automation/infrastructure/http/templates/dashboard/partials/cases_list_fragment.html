@@ -36,7 +36,14 @@
                   <div class="small text-secondary">{{ item.case_id }}</div>
                 </td>
                 <td data-mobile-label="Status"><code>{{ item.status.value }}</code></td>
-                <td data-mobile-label="Desfecho"><code>{{ item.case_outcome }}</code></td>
+                <td data-mobile-label="Desfecho">
+                  <code>{{ item.case_outcome }}</code>
+                  {% if item.compact_operational_summary != item.case_outcome %}
+                    <div class="small text-secondary mt-1">
+                      {{ item.compact_operational_summary }}
+                    </div>
+                  {% endif %}
+                </td>
                 <td
                   data-mobile-label="Atividade"
                   data-utc-timestamp="{{ item.latest_activity_at.isoformat() }}"

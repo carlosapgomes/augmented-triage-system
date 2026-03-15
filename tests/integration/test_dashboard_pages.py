@@ -581,6 +581,89 @@ async def test_dashboard_case_list_renders_operational_outcome_labels_from_decis
 
 
 @pytest.mark.asyncio
+async def test_dashboard_case_list_distinguishes_pending_and_concluded_immediate_admission(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_immediate_observability.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-immediate-observability"
+    now = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+    pending_immediate_case = uuid4()
+    concluded_immediate_case = uuid4()
+    legacy_case = uuid4()
+    filter_date = now.date().isoformat()
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=pending_immediate_case,
+            status="WAIT_R1_CLEANUP_THUMBS",
+            updated_at=now - timedelta(minutes=20),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-pending-immediate",
+        )
+        _insert_case(
+            connection,
+            case_id=concluded_immediate_case,
+            status="CLEANED",
+            updated_at=now - timedelta(minutes=18),
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+            room1_final_reply_event_id="$room1-final-concluded-immediate",
+        )
+        _insert_case(
+            connection,
+            case_id=legacy_case,
+            status="DOCTOR_ACCEPTED",
+            updated_at=now - timedelta(minutes=16),
+            doctor_decision="accept",
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=pending_immediate_case,
+            event_id="$evt-list-pending-immediate",
+            captured_at=now - timedelta(minutes=3),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=concluded_immediate_case,
+            event_id="$evt-list-concluded-immediate",
+            captured_at=now - timedelta(minutes=2),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=legacy_case,
+            event_id="$evt-list-legacy",
+            captured_at=now - timedelta(minutes=1),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert str(pending_immediate_case) in response.text
+    assert str(concluded_immediate_case) in response.text
+    assert str(legacy_case) in response.text
+    assert "EM_ANDAMENTO · AGUARDANDO_SALA_1 · VINDA_IMEDIATA" in response.text
+    assert "VINDA_IMEDIATA" in response.text
+    assert "EM_ANDAMENTO · AGUARDANDO_SALA_3 · INDISPONIVEL" in response.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_case_list_filters_by_pending_stage_and_immediate_branch(
     tmp_path: Path,
 ) -> None:

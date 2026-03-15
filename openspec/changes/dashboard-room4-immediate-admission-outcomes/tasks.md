@@ -9,7 +9,7 @@
 
 - [x] 2.1 Update dashboard monitoring queries/adapters so case list responses expose the compact operational summary and the derived observability fields needed by filters and totals.
 - [x] 2.2 Implement dashboard filters and totals that distinguish backlog state from concluded outcomes, including subtotal by pending stage and subtotal of pending cases already in the `vinda_imediata` branch.
-- [ ] 2.3 Add dashboard list coverage proving that a pending immediate-admission case remains `EM_ANDAMENTO`, a concluded immediate-admission case renders `VINDA_IMEDIATA`, and legacy cases are not retroactively inferred as immediate-admission.
+- [x] 2.3 Add dashboard list coverage proving that a pending immediate-admission case remains `EM_ANDAMENTO`, a concluded immediate-admission case renders `VINDA_IMEDIATA`, and legacy cases are not retroactively inferred as immediate-admission.
 
 ## 3. Dashboard detail and mobile usability
 
@@ -62,3 +62,11 @@
 - `uv run pytest tests/unit/test_case_monitoring_service.py tests/integration/test_dashboard_pages.py tests/integration/test_case_repositories.py::test_case_monitoring_list_derives_operational_outcome_from_decision_fields -q` ✅ passed (`33 passed`)
 - `uv run ruff check src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py tests/unit/test_case_monitoring_service.py tests/integration/test_dashboard_pages.py tests/integration/test_case_repositories.py` ✅ passed
 - `uv run mypy src/triage_automation/application/ports/case_repository_port.py src/triage_automation/application/services/case_monitoring_service.py src/triage_automation/infrastructure/db/case_repository.py src/triage_automation/infrastructure/http/dashboard_router.py` ✅ passed
+
+### Task 2.3
+
+- Added dashboard list coverage proving that pending `vinda_imediata` rows still render `EM_ANDAMENTO`, concluded immediate-admission rows render `VINDA_IMEDIATA`, and legacy accepted rows fall back to `INDISPONIVEL` instead of retroactive inference
+- Updated the dashboard list row to render the compact operational summary alongside the legacy outcome badge so the new observability semantics are visible in the list
+- `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`32 passed`)
+- `uv run ruff check tests/integration/test_dashboard_pages.py` ✅ passed
+- `uv run mypy tests/integration/test_dashboard_pages.py` ✅ passed
