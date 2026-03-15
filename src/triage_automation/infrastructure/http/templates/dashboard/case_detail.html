@@ -133,12 +133,18 @@
     </div>
   </section>
 
-  <section id="case-operational-summary" class="card shadow-sm mb-4">
+  <section
+    id="case-operational-summary"
+    class="card shadow-sm mb-4"
+    role="region"
+    aria-labelledby="case-operational-summary-title"
+    aria-describedby="case-operational-summary-description"
+  >
     <div class="card-body">
       <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-3">
         <div>
-          <h3 class="h6 mb-1">Resumo Operacional</h3>
-          <p class="text-secondary small mb-0">{{ compact_operational_summary }}</p>
+          <h3 id="case-operational-summary-title" class="h6 mb-1">Resumo Operacional</h3>
+          <p id="case-operational-summary-description" class="text-secondary small mb-0">{{ compact_operational_summary }}</p>
         </div>
       </div>
       <div class="row g-3 case-operational-summary-grid">

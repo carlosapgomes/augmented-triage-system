@@ -39,7 +39,11 @@
                 <td data-mobile-label="Desfecho">
                   <code>{{ item.case_outcome }}</code>
                   {% if item.compact_operational_summary != item.case_outcome %}
-                    <div class="small text-secondary mt-1 cases-mobile-summary">
+                    <div
+                      class="small text-secondary mt-1 cases-mobile-summary"
+                      aria-label="Resumo operacional compacto"
+                      data-compact-summary="{{ item.compact_operational_summary }}"
+                    >
                       {{ item.compact_operational_summary }}
                     </div>
                   {% endif %}

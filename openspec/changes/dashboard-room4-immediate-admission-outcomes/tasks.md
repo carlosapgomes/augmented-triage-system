@@ -15,7 +15,7 @@
 
 - [x] 3.1 Add the operational summary block to the case detail view so operators can see current status, pending stage, branch, and final outcome without inferring them only from the timeline.
 - [x] 3.2 Adapt dashboard mobile rendering so the compact list summary, operational filters, totals, and detail summary remain readable and usable on small viewports.
-- [ ] 3.3 Add UI/integration coverage for desktop and mobile dashboard behavior, including compact summary composition and visibility/accessibility of the detail operational summary in both thread and pure views.
+- [x] 3.3 Add UI/integration coverage for desktop and mobile dashboard behavior, including compact summary composition and visibility/accessibility of the detail operational summary in both thread and pure views.
 
 ## 4. Room-4 supervisory periodic summary
 
@@ -85,5 +85,14 @@
 - Added mobile-specific list rendering hooks for the compact operational summary, operational filter controls, and operational totals cards so the richer semantics remain readable on small viewports
 - Added mobile-specific detail rendering hooks for the operational summary grid/cards in both thread and pure modes
 - `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`36 passed`)
+- `uv run ruff check tests/integration/test_dashboard_pages.py` ✅ passed
+- `uv run mypy tests/integration/test_dashboard_pages.py` ✅ passed
+
+### Task 3.3
+
+- Added desktop and mobile integration coverage proving the compact operational summary keeps a stable dedicated markup hook while preserving the legacy outcome badge
+- Added accessibility-focused integration coverage proving the detail operational summary is exposed as a labeled region in both `view=thread` and `view=pure`, on desktop and mobile requests
+- Added deterministic template hooks (`data-compact-summary`, labeled summary region metadata) to support the new UI coverage without changing workflow semantics
+- `uv run pytest tests/integration/test_dashboard_pages.py -q` ✅ passed (`38 passed`)
 - `uv run ruff check tests/integration/test_dashboard_pages.py` ✅ passed
 - `uv run mypy tests/integration/test_dashboard_pages.py` ✅ passed
