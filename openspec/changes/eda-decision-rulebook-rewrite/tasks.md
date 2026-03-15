@@ -28,7 +28,7 @@
 
 ## 5. Documentation and bilingual mirrors
 
-- [ ] 5.1 Update `docs/decision-engine-and-rulebook.md` to describe the rewritten EDA rulebook, supported subtypes, evidence rules, contraindication thresholds, practical ASA estimate, and support semantics.
+- [x] 5.1 Update `docs/decision-engine-and-rulebook.md` to describe the rewritten EDA rulebook, supported subtypes, evidence rules, contraindication thresholds, practical ASA estimate, and support semantics.
 - [ ] 5.2 Update `docs/en/decision-engine-and-rulebook.md` as the required English mirror of the rulebook documentation change.
 - [ ] 5.3 Update `docs/manual_e2e_runbook.md` to cover the new supported EDA subtypes, foreign-body bypass, new denial scenarios, explicit ASA block, and revised manual validation expectations.
 - [ ] 5.4 Update `docs/en/manual_e2e_runbook.md` as the required English mirror of the manual E2E runbook change.
@@ -101,3 +101,8 @@
   - `uv run ruff check tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`
   - `uv run mypy tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`
   - `markdownlint-cli2 "openspec/changes/eda-decision-rulebook-rewrite/tasks.md"`
+- Slice 5.1 verification executed successfully:
+  - `markdownlint-cli2 "docs/decision-engine-and-rulebook.md"`
+  - `markdownlint-cli2 "openspec/changes/eda-decision-rulebook-rewrite/tasks.md"`
+  - Exceção registrada de sincronização bilíngue: `docs/en/decision-engine-and-rulebook.md` será atualizado no slice 5.2 para respeitar a regra de uma tarefa por sessão.
+  - Guardas bilíngues não executados neste slice porque o espelho em inglês ainda não foi atualizado.
