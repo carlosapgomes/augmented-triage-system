@@ -1455,6 +1455,7 @@ def build_room2_case_decision_template_message(
     return (
         f"{identification_block}\n"
         "decisao: aceitar\n"
+        "fluxo de admissao: agendamento\n"
         "suporte: nenhum\n"
         "motivo: (opcional)\n"
         f"caso: {case_id}"
@@ -1481,6 +1482,7 @@ def build_room2_case_decision_template_formatted_html(
         "<p>"
         f"{identification_lines_html}<br>"
         "decisao: aceitar<br>"
+        "fluxo de admissao: agendamento<br>"
         "suporte: nenhum<br>"
         "motivo: (opcional)<br>"
         f"caso: {case_value}"

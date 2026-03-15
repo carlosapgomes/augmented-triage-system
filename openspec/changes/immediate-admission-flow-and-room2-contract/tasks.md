@@ -11,7 +11,8 @@
 
 ## 2. Room-2 templates and feedback
 
-- [ ] 2.1 Update Room-2 decision template and formatted HTML builders to show the explicit `fluxo de admissão: agendamento` line in the copy-ready physician reply model.
+- [x] 2.1 Update Room-2 decision template and formatted HTML builders to show the explicit `fluxo de admissão: agendamento` line in the copy-ready physician reply model.
+  - 2026-03-14 verification (Task 2.1 slice): `uv run pytest tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py -q -k "decision_template or post_room2_widget_posts_pdf_summary_instructions_and_template_messages"`, `uv run ruff check src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_room2_message_templates.py tests/integration/test_post_room2_widget.py`, and `uv run mypy src/triage_automation/infrastructure/matrix/message_templates.py` passed.
 - [ ] 2.2 Update Room-2 success and error feedback templates so accepted decisions echo the normalized admission flow and correction guidance preserves the new required field.
 - [ ] 2.3 Add or adjust parser and Room-2 reply-flow tests covering scheduled acceptance, immediate-admission aliases, deny permissiveness, unknown-field rejection, and duplicate/race handling.
 

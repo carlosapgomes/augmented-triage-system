@@ -473,6 +473,7 @@ def test_build_room2_case_decision_template_message_is_copy_paste_ready() -> Non
 
     assert body.startswith("no. ocorrência: 12345\npaciente: PACIENTE\n")
     assert "decisao: aceitar\n" in body
+    assert "fluxo de admissao: agendamento\n" in body
     assert "suporte: nenhum\n" in body
     assert "motivo: (opcional)\n" in body
     assert body.endswith(f"caso: {case_id}")
@@ -491,6 +492,7 @@ def test_build_room2_case_decision_template_formatted_html_has_plain_lines() -> 
     assert "no. ocorrência: 12345" in body
     assert "paciente: PACIENTE" in body
     assert "decisao: aceitar" in body
+    assert "fluxo de admissao: agendamento" in body
     assert "suporte: nenhum" in body
     assert "motivo: (opcional)" in body
     assert f"caso: {case_id}" in body
