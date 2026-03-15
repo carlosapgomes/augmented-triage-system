@@ -37,7 +37,7 @@
 ## 6. Verification and change bookkeeping
 
 - [x] 6.1 Run targeted pytest coverage for the rewritten EDA policy, scope gating, Room-2 summary rendering, and affected integration flows.
-- [ ] 6.2 Run `ruff` and `mypy` against all changed Python paths for this change.
+- [x] 6.2 Run `ruff` and `mypy` against all changed Python paths for this change.
 - [ ] 6.3 Update this `tasks.md` with completed checkboxes and verification notes as implementation slices land.
 
 ## Notes
@@ -126,3 +126,6 @@
   - `markdownlint-cli2 "openspec/changes/eda-decision-rulebook-rewrite/tasks.md"`
 - Slice 6.1 verification executed successfully:
   - `uv run pytest tests/unit/test_eda_preop_policy.py tests/unit/test_eda_policy_crosscheck.py tests/unit/test_eda_recommendation_synthesis.py tests/unit/test_room2_message_templates.py tests/integration/test_process_pdf_case_llm2.py tests/integration/test_post_room2_widget.py -q`
+- Slice 6.2 verification executed successfully:
+  - `uv run ruff check src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py alembic/versions/0016_prompt_templates_llm1_ptbr_v5.py src/triage_automation/infrastructure/llm/deterministic_client.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/llm2_service.py src/triage_automation/domain/policy/eda_recommendation_synthesis.py src/triage_automation/application/services/post_room2_widget_service.py src/triage_automation/infrastructure/matrix/message_templates.py tests/unit/test_llm1_validation.py tests/integration/test_llm_prompt_loading_runtime.py tests/integration/test_prompt_management_admin_endpoints.py tests/unit/test_deterministic_llm_client.py tests/integration/test_process_pdf_case_llm1.py tests/integration/test_worker_runtime_service_wiring.py tests/integration/test_process_pdf_case_llm2.py tests/unit/test_eda_preop_policy.py tests/unit/test_eda_policy_crosscheck.py tests/unit/test_llm2_validation.py tests/unit/test_eda_recommendation_synthesis.py tests/integration/test_post_room2_widget.py tests/unit/test_room2_message_templates.py`
+  - `uv run mypy src/triage_automation/application/dto/llm1_models.py src/triage_automation/application/services/llm1_service.py alembic/versions/0016_prompt_templates_llm1_ptbr_v5.py src/triage_automation/infrastructure/llm/deterministic_client.py src/triage_automation/application/services/process_pdf_case_service.py src/triage_automation/domain/policy/eda_preop_policy.py src/triage_automation/application/services/llm2_service.py src/triage_automation/domain/policy/eda_recommendation_synthesis.py src/triage_automation/application/services/post_room2_widget_service.py src/triage_automation/infrastructure/matrix/message_templates.py`
