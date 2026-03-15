@@ -103,18 +103,26 @@ class PostImmediateAdmissionFlowService:
                 details="Case is not marked for immediate admission flow",
             )
 
-        existing_info = await self._message_repository.has_message_kind(
+        existing_info_event_id = await self._message_repository.get_message_event_id_by_kind(
             case_id=case_id,
             room_id=self._room3_id,
             kind="room3_immediate_info",
         )
-        if existing_info:
+        existing_ack_event_id = await self._message_repository.get_message_event_id_by_kind(
+            case_id=case_id,
+            room_id=self._room3_id,
+            kind="room3_immediate_ack",
+        )
+        if existing_ack_event_id is not None:
             await self._audit_repository.append_event(
                 AuditEventCreateInput(
                     case_id=case_id,
                     actor_type="system",
                     event_type="ROOM3_IMMEDIATE_POST_SKIPPED_ALREADY_POSTED",
-                    payload={"status": snapshot.status.value},
+                    payload={
+                        "status": snapshot.status.value,
+                        "ack_event_id": existing_ack_event_id,
+                    },
                 )
             )
             logger.info(
@@ -138,39 +146,73 @@ class PostImmediateAdmissionFlowService:
             supported_eda_subtype=supported_eda_subtype,
             pediatric_flag=pediatric_flag,
         )
-        info_event_id = await self._matrix_poster.send_text(
-            room_id=self._room3_id,
-            body=info_body,
-        )
-        await self._message_repository.add_message(
-            CaseMessageCreateInput(
-                case_id=case_id,
-                room_id=self._room3_id,
-                event_id=info_event_id,
-                sender_user_id=None,
-                kind="room3_immediate_info",
+
+        info_event_id = existing_info_event_id
+        if info_event_id is None:
+            try:
+                info_event_id = await self._matrix_poster.send_text(
+                    room_id=self._room3_id,
+                    body=info_body,
+                )
+            except Exception as exc:  # pragma: no cover - defensive resilience path
+                logger.warning(
+                    "room3_immediate_info_post_failed case_id=%s error=%s",
+                    case_id,
+                    exc,
+                )
+                await self._audit_repository.append_event(
+                    AuditEventCreateInput(
+                        case_id=case_id,
+                        actor_type="system",
+                        room_id=self._room3_id,
+                        event_type="ROOM3_IMMEDIATE_INFO_POST_FAILED",
+                        payload={"error": str(exc)},
+                    )
+                )
+                return PostImmediateAdmissionFlowResult(
+                    posted=False,
+                    reason="info_post_failed",
+                )
+            await self._message_repository.add_message(
+                CaseMessageCreateInput(
+                    case_id=case_id,
+                    room_id=self._room3_id,
+                    event_id=info_event_id,
+                    sender_user_id=None,
+                    kind="room3_immediate_info",
+                )
             )
-        )
-        await self._message_repository.append_case_matrix_message_transcript(
-            CaseMatrixMessageTranscriptCreateInput(
-                case_id=case_id,
-                room_id=self._room3_id,
-                event_id=info_event_id,
-                sender="bot",
-                message_type="room3_immediate_info",
-                message_text=info_body,
+            await self._message_repository.append_case_matrix_message_transcript(
+                CaseMatrixMessageTranscriptCreateInput(
+                    case_id=case_id,
+                    room_id=self._room3_id,
+                    event_id=info_event_id,
+                    sender="bot",
+                    message_type="room3_immediate_info",
+                    message_text=info_body,
+                )
             )
-        )
-        await self._audit_repository.append_event(
-            AuditEventCreateInput(
-                case_id=case_id,
-                actor_type="bot",
-                room_id=self._room3_id,
-                matrix_event_id=info_event_id,
-                event_type="ROOM3_IMMEDIATE_INFO_POSTED",
-                payload={},
+            await self._audit_repository.append_event(
+                AuditEventCreateInput(
+                    case_id=case_id,
+                    actor_type="bot",
+                    room_id=self._room3_id,
+                    matrix_event_id=info_event_id,
+                    event_type="ROOM3_IMMEDIATE_INFO_POSTED",
+                    payload={},
+                )
             )
-        )
+        else:
+            await self._audit_repository.append_event(
+                AuditEventCreateInput(
+                    case_id=case_id,
+                    actor_type="system",
+                    room_id=self._room3_id,
+                    matrix_event_id=info_event_id,
+                    event_type="ROOM3_IMMEDIATE_PARTIAL_PROGRESS_RESUMED",
+                    payload={"resume_from": "info_posted_ack_missing"},
+                )
+            )
 
         ack_body = build_room3_immediate_admission_ack_message(
             agency_record_number=snapshot.agency_record_number,
@@ -182,11 +224,30 @@ class PostImmediateAdmissionFlowService:
             supported_eda_subtype=supported_eda_subtype,
             pediatric_flag=pediatric_flag,
         )
-        ack_event_id = await self._matrix_poster.reply_text(
-            room_id=self._room3_id,
-            event_id=info_event_id,
-            body=ack_body,
-        )
+        try:
+            ack_event_id = await self._matrix_poster.reply_text(
+                room_id=self._room3_id,
+                event_id=info_event_id,
+                body=ack_body,
+            )
+        except Exception as exc:  # pragma: no cover - defensive resilience path
+            logger.warning(
+                "room3_immediate_ack_post_failed case_id=%s info_event_id=%s error=%s",
+                case_id,
+                info_event_id,
+                exc,
+            )
+            await self._audit_repository.append_event(
+                AuditEventCreateInput(
+                    case_id=case_id,
+                    actor_type="system",
+                    room_id=self._room3_id,
+                    matrix_event_id=info_event_id,
+                    event_type="ROOM3_IMMEDIATE_ACK_POST_FAILED",
+                    payload={"error": str(exc), "reply_to_event_id": info_event_id},
+                )
+            )
+            return PostImmediateAdmissionFlowResult(posted=False, reason="ack_post_failed")
         await self._message_repository.add_message(
             CaseMessageCreateInput(
                 case_id=case_id,

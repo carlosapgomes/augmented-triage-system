@@ -14,6 +14,7 @@ from triage_automation.application.ports.case_repository_port import (
 )
 from triage_automation.application.ports.message_repository_port import (
     CaseMatrixMessageTranscriptCreateInput,
+    CaseMessageCreateInput,
 )
 from triage_automation.application.services.post_immediate_admission_flow_service import (
     PostImmediateAdmissionFlowService,
@@ -30,14 +31,20 @@ class FakeMatrixPoster:
         self.send_calls: list[tuple[str, str]] = []
         self.reply_calls: list[tuple[str, str, str]] = []
         self._counter = 0
+        self.fail_send = False
+        self.fail_reply = False
 
     async def send_text(self, *, room_id: str, body: str) -> str:
         self.send_calls.append((room_id, body))
+        if self.fail_send:
+            raise RuntimeError("send failed")
         self._counter += 1
         return f"$room3-immediate-{self._counter}"
 
     async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
         self.reply_calls.append((room_id, event_id, body))
+        if self.fail_reply:
+            raise RuntimeError("reply failed")
         self._counter += 1
         return f"$room3-immediate-{self._counter}"
 
@@ -241,6 +248,7 @@ async def test_immediate_admission_flow_is_idempotent_when_room3_messages_exist(
 
     assert first.posted is True
     assert second.posted is False
+    assert second.reason == "already_posted"
     assert len(matrix_poster.send_calls) == 1
     assert len(matrix_poster.reply_calls) == 1
 
@@ -252,3 +260,227 @@ async def test_immediate_admission_flow_is_idempotent_when_room3_messages_exist(
         ).scalar_one()
 
     assert int(message_count) == 2
+
+
+@pytest.mark.asyncio
+async def test_immediate_admission_flow_retries_only_missing_ack_after_partial_progress(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_immediate_flow_partial_retry.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room3-immediate-3",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.apply_doctor_decision_if_waiting(
+        DoctorDecisionUpdateInput(
+            case_id=case.case_id,
+            doctor_user_id="@doctor:example.org",
+            decision="accept",
+            support_flag="none",
+            admission_flow="immediate",
+            reason=None,
+        )
+    )
+    await message_repo.add_message(
+        CaseMessageCreateInput(
+            case_id=case.case_id,
+            room_id="!room3:example.org",
+            event_id="$existing-room3-info",
+            sender_user_id=None,
+            kind="room3_immediate_info",
+        )
+    )
+    await message_repo.append_case_matrix_message_transcript(
+        CaseMatrixMessageTranscriptCreateInput(
+            case_id=case.case_id,
+            room_id="!room3:example.org",
+            event_id="$existing-room3-info",
+            sender="bot",
+            message_type="room3_immediate_info",
+            message_text="mensagem já postada",
+        )
+    )
+
+    service = PostImmediateAdmissionFlowService(
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_poster=matrix_poster,
+    )
+
+    result = await service.post(case_id=case.case_id)
+
+    assert result.posted is True
+    assert len(matrix_poster.send_calls) == 0
+    assert len(matrix_poster.reply_calls) == 1
+    assert matrix_poster.reply_calls[0][1] == "$existing-room3-info"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        kinds = connection.execute(
+            sa.text(
+                "SELECT kind FROM case_messages WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalars().all()
+        event_types = connection.execute(
+            sa.text(
+                "SELECT event_type FROM case_events WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalars().all()
+
+    assert list(kinds) == ["room3_immediate_info", "room3_immediate_ack"]
+    assert "ROOM3_IMMEDIATE_PARTIAL_PROGRESS_RESUMED" in list(event_types)
+
+
+@pytest.mark.asyncio
+async def test_immediate_admission_flow_audits_and_returns_when_info_post_fails(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_immediate_flow_info_failure.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    matrix_poster = FakeMatrixPoster()
+    matrix_poster.fail_send = True
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room3-immediate-4",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.apply_doctor_decision_if_waiting(
+        DoctorDecisionUpdateInput(
+            case_id=case.case_id,
+            doctor_user_id="@doctor:example.org",
+            decision="accept",
+            support_flag="none",
+            admission_flow="immediate",
+            reason=None,
+        )
+    )
+
+    service = PostImmediateAdmissionFlowService(
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_poster=matrix_poster,
+    )
+
+    result = await service.post(case_id=case.case_id)
+
+    assert result.posted is False
+    assert result.reason == "info_post_failed"
+    assert len(matrix_poster.reply_calls) == 0
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        message_count = connection.execute(
+            sa.text("SELECT COUNT(*) FROM case_messages WHERE case_id = :case_id"),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        event_types = connection.execute(
+            sa.text(
+                "SELECT event_type FROM case_events WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalars().all()
+
+    assert int(message_count) == 0
+    assert "ROOM3_IMMEDIATE_INFO_POST_FAILED" in list(event_types)
+
+
+@pytest.mark.asyncio
+async def test_immediate_admission_flow_audits_ack_failure_and_recovers_without_duplicate_info(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_immediate_flow_ack_failure.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    matrix_poster = FakeMatrixPoster()
+    matrix_poster.fail_reply = True
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room3-immediate-5",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.apply_doctor_decision_if_waiting(
+        DoctorDecisionUpdateInput(
+            case_id=case.case_id,
+            doctor_user_id="@doctor:example.org",
+            decision="accept",
+            support_flag="none",
+            admission_flow="immediate",
+            reason=None,
+        )
+    )
+
+    service = PostImmediateAdmissionFlowService(
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_poster=matrix_poster,
+    )
+
+    first = await service.post(case_id=case.case_id)
+
+    assert first.posted is False
+    assert first.reason == "ack_post_failed"
+    assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_calls) == 1
+
+    matrix_poster.fail_reply = False
+    second = await service.post(case_id=case.case_id)
+
+    assert second.posted is True
+    assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_calls) == 2
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        kinds = connection.execute(
+            sa.text(
+                "SELECT kind FROM case_messages WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalars().all()
+        event_types = connection.execute(
+            sa.text(
+                "SELECT event_type FROM case_events WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalars().all()
+
+    assert list(kinds) == ["room3_immediate_info", "room3_immediate_ack"]
+    assert "ROOM3_IMMEDIATE_ACK_POST_FAILED" in list(event_types)
+    assert "ROOM3_IMMEDIATE_PARTIAL_PROGRESS_RESUMED" in list(event_types)

@@ -67,6 +67,15 @@ class MessageRepositoryPort(Protocol):
     async def has_message_kind(self, *, case_id: UUID, room_id: str, kind: str) -> bool:
         """Return whether a message mapping exists for case/room/kind."""
 
+    async def get_message_event_id_by_kind(
+        self,
+        *,
+        case_id: UUID,
+        room_id: str,
+        kind: str,
+    ) -> str | None:
+        """Return the stored event id for a case/room/kind mapping, when present."""
+
     async def find_case_id_by_room_event_kind(
         self,
         *,
