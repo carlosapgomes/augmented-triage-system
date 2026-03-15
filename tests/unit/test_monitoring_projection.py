@@ -26,6 +26,21 @@ def test_projection_marks_scheduled_cases_as_pending_on_room3_until_final_ack() 
     assert projection.desfecho_final is None
 
 
+def test_projection_routes_immediate_branch_directly_to_room1_pending_stage() -> None:
+    projection = derive_monitoring_projection(
+        MonitoringProjectionInput(
+            status=CaseStatus.DOCTOR_ACCEPTED,
+            doctor_decision="accept",
+            doctor_admission_flow="immediate",
+        )
+    )
+
+    assert projection.status_atual is MonitoringCurrentStatus.EM_ANDAMENTO
+    assert projection.etapa_pendente is MonitoringPendingStage.AGUARDANDO_SALA_1
+    assert projection.ramo_operacional is MonitoringOperationalBranch.VINDA_IMEDIATA
+    assert projection.desfecho_final is None
+
+
 def test_projection_keeps_immediate_cases_in_progress_until_room1_acknowledges() -> None:
     projection = derive_monitoring_projection(
         MonitoringProjectionInput(

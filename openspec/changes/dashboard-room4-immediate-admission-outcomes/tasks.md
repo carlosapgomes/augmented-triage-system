@@ -3,7 +3,7 @@
 ## 1. Shared observability projection foundations
 
 - [x] 1.1 Define the shared monitoring projection that derives `status_atual`, `etapa_pendente`, `ramo_operacional`, and `desfecho_final` from persisted case state without changing runtime workflow semantics.
-- [ ] 1.2 Add targeted unit/integration coverage for the shared projection, including scheduled pending cases, `vinda_imediata` pending on Room-1 acknowledgment, concluded `VINDA_IMEDIATA`, denied cases, and legacy fallback as `não aplicável`/`indisponível`.
+- [x] 1.2 Add targeted unit/integration coverage for the shared projection, including scheduled pending cases, `vinda_imediata` pending on Room-1 acknowledgment, concluded `VINDA_IMEDIATA`, denied cases, and legacy fallback as `não aplicável`/`indisponível`.
 
 ## 2. Dashboard list, filters, and totals
 
@@ -35,4 +35,12 @@
 - `uv run pytest tests/unit/test_monitoring_projection.py -q` ❌ failed first (red): `ModuleNotFoundError: No module named 'triage_automation.domain.monitoring_projection'`
 - `uv run pytest tests/unit/test_monitoring_projection.py -q` ✅ passed (`5 passed`)
 - `uv run ruff check src/triage_automation/domain/monitoring_projection.py tests/unit/test_monitoring_projection.py` ✅ passed
+- `uv run mypy src/triage_automation/domain/monitoring_projection.py` ✅ passed
+
+### Task 1.2
+
+- Added unit coverage for the non-blocking `vinda_imediata` branch mapping directly to `AGUARDANDO_SALA_1`
+- Added integration coverage that derives the shared projection from persisted `cases` rows for scheduled pending, immediate pending, concluded immediate, denied, and legacy fallback scenarios
+- `uv run pytest tests/unit/test_monitoring_projection.py tests/integration/test_monitoring_projection_persisted_state.py -q` ✅ passed (`11 passed`)
+- `uv run ruff check src/triage_automation/domain/monitoring_projection.py tests/unit/test_monitoring_projection.py tests/integration/test_monitoring_projection_persisted_state.py` ✅ passed
 - `uv run mypy src/triage_automation/domain/monitoring_projection.py` ✅ passed
