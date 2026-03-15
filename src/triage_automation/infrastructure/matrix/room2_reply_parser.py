@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
+from triage_automation.application.dto.webhook_models import AdmissionFlow, Decision, SupportFlag
 from triage_automation.domain.doctor_decision_parser import (
     DoctorDecisionParseError,
     parse_doctor_decision_reply,
@@ -22,8 +23,9 @@ class Room2DecisionReplyEvent:
     sender_display_name: str | None
     reply_to_event_id: str
     case_id: UUID
-    decision: str
-    support_flag: str
+    decision: Decision
+    support_flag: SupportFlag
+    admission_flow: AdmissionFlow | None
     reason: str | None
 
 
@@ -90,7 +92,8 @@ def parse_room2_decision_reply_event(
         sender_display_name=sender_display_name,
         reply_to_event_id=reply_to_event_id,
         case_id=parsed.case_id,
-        decision=parsed.decision,
-        support_flag=parsed.support_flag,
+        decision=cast(Decision, parsed.decision),
+        support_flag=cast(SupportFlag, parsed.support_flag),
+        admission_flow=cast(AdmissionFlow | None, parsed.admission_flow),
         reason=parsed.reason,
     )

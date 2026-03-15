@@ -14,13 +14,21 @@ from triage_automation.application.dto.widget_models import (
 )
 
 
-def _submit_payload(*, decision: str, support_flag: str) -> dict[str, str]:
-    return {
+def _submit_payload(
+    *,
+    decision: str,
+    support_flag: str,
+    admission_flow: str | None,
+) -> dict[str, str]:
+    payload = {
         "case_id": str(uuid4()),
         "doctor_user_id": "@doctor:example.org",
         "decision": decision,
         "support_flag": support_flag,
     }
+    if admission_flow is not None:
+        payload["admission_flow"] = admission_flow
+    return payload
 
 
 def _is_valid_widget_submit(payload: dict[str, str]) -> bool:
@@ -40,27 +48,38 @@ def _is_valid_webhook_submit(payload: dict[str, str]) -> bool:
 
 
 @pytest.mark.parametrize(
-    ("decision", "support_flag"),
+    ("decision", "support_flag", "admission_flow"),
     [
-        ("accept", "none"),
-        ("accept", "anesthesist"),
-        ("accept", "anesthesist_icu"),
-        ("deny", "none"),
-        ("deny", "anesthesist"),
-        ("accept", "invalid"),
+        ("accept", "none", "scheduled"),
+        ("accept", "anesthesist", "immediate"),
+        ("accept", "anesthesist_icu", "scheduled"),
+        ("deny", "none", None),
+        ("accept", "none", None),
+        ("deny", "anesthesist", None),
+        ("deny", "none", "scheduled"),
+        ("accept", "invalid", "scheduled"),
     ],
 )
 def test_widget_submit_validation_matches_webhook_contract(
     decision: str,
     support_flag: str,
+    admission_flow: str | None,
 ) -> None:
-    payload = _submit_payload(decision=decision, support_flag=support_flag)
+    payload = _submit_payload(
+        decision=decision,
+        support_flag=support_flag,
+        admission_flow=admission_flow,
+    )
 
     assert _is_valid_widget_submit(payload) is _is_valid_webhook_submit(payload)
 
 
 def test_widget_submit_rejects_unknown_fields() -> None:
-    payload = _submit_payload(decision="accept", support_flag="none")
+    payload = _submit_payload(
+        decision="accept",
+        support_flag="none",
+        admission_flow="scheduled",
+    )
     payload["unexpected"] = "value"
 
     with pytest.raises(ValidationError):

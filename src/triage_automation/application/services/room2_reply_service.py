@@ -8,6 +8,7 @@ from typing import Protocol
 from uuid import UUID
 
 from triage_automation.application.dto.webhook_models import (
+    AdmissionFlow,
     Decision,
     SupportFlag,
     TriageDecisionWebhookPayload,
@@ -31,6 +32,7 @@ class Room2ReplyEvent:
     case_id: UUID
     decision: Decision
     support_flag: SupportFlag
+    admission_flow: AdmissionFlow | None
     reason: str | None
 
 
@@ -99,6 +101,7 @@ class Room2ReplyService:
             doctor_user_id=doctor_user_id,
             decision=event.decision,
             support_flag=event.support_flag,
+            admission_flow=event.admission_flow,
             reason=event.reason,
             widget_event_id=event.event_id,
         )

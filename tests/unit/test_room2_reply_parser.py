@@ -34,6 +34,7 @@ def test_parse_room2_reply_accepts_valid_reply_to_active_root() -> None:
     active_root_event_id = "$room2-root-1"
     body = (
         "decision: accept\n"
+        "admission_flow: scheduled\n"
         "support_flag: none\n"
         "reason: ok\n"
         "case_id: 11111111-1111-1111-1111-111111111111\n"
@@ -56,6 +57,7 @@ def test_parse_room2_reply_accepts_valid_reply_to_active_root() -> None:
     assert parsed.sender_user_id == "@doctor:example.org"
     assert parsed.reply_to_event_id == active_root_event_id
     assert parsed.decision == "accept"
+    assert parsed.admission_flow == "scheduled"
     assert parsed.support_flag == "none"
     assert str(parsed.case_id) == "11111111-1111-1111-1111-111111111111"
 
@@ -69,6 +71,7 @@ def test_parse_room2_reply_rejects_missing_reply_relation() -> None:
             "msgtype": "m.text",
             "body": (
                 "decision: accept\n"
+                "admission_flow: scheduled\n"
                 "support_flag: none\n"
                 "reason: ok\n"
                 "case_id: 11111111-1111-1111-1111-111111111111\n"
@@ -92,6 +95,7 @@ def test_parse_room2_reply_rejects_wrong_parent_reply_target() -> None:
         sender="@doctor:example.org",
         body=(
             "decision: accept\n"
+            "admission_flow: scheduled\n"
             "support_flag: none\n"
             "reason: ok\n"
             "case_id: 11111111-1111-1111-1111-111111111111\n"
@@ -128,13 +132,14 @@ def test_parse_room2_reply_rejects_invalid_template_even_with_correct_parent() -
     assert parsed is None
 
 
-def test_parse_room2_reply_accepts_without_space_after_colon() -> None:
+def test_parse_room2_reply_accepts_immediate_alias_without_space_after_colon() -> None:
     active_root_event_id = "$room2-root-1"
     event = _room2_reply_event(
         event_id="$room2-reply-compact",
         sender="@doctor:example.org",
         body=(
             "decisao:aceitar\n"
+            "fluxo_admissao:vinda imediata\n"
             "suporte:nenhum\n"
             "motivo:ok\n"
             "caso:11111111-1111-1111-1111-111111111111\n"
@@ -151,7 +156,35 @@ def test_parse_room2_reply_accepts_without_space_after_colon() -> None:
 
     assert parsed is not None
     assert parsed.decision == "accept"
+    assert parsed.admission_flow == "immediate"
     assert parsed.support_flag == "none"
+
+
+def test_parse_room2_reply_accepts_deny_without_support_or_admission_flow() -> None:
+    active_root_event_id = "$room2-root-1"
+    event = _room2_reply_event(
+        event_id="$room2-reply-deny",
+        sender="@doctor:example.org",
+        body=(
+            "decisao: negar\n"
+            "motivo: contraindicacao\n"
+            "caso: 11111111-1111-1111-1111-111111111111\n"
+        ),
+        reply_to_event_id=active_root_event_id,
+    )
+
+    parsed = parse_room2_decision_reply_event(
+        room_id="!room2:example.org",
+        event=event,
+        bot_user_id="@bot:example.org",
+        active_root_event_id=active_root_event_id,
+    )
+
+    assert parsed is not None
+    assert parsed.decision == "deny"
+    assert parsed.admission_flow is None
+    assert parsed.support_flag == "none"
+    assert parsed.reason == "contraindicacao"
 
 
 def test_parse_room2_reply_rejects_case_id_mismatch_against_expected() -> None:
@@ -161,6 +194,7 @@ def test_parse_room2_reply_rejects_case_id_mismatch_against_expected() -> None:
         sender="@doctor:example.org",
         body=(
             "decision: accept\n"
+            "admission_flow: scheduled\n"
             "support_flag: none\n"
             "reason: ok\n"
             "case_id: 11111111-1111-1111-1111-111111111111\n"
@@ -186,6 +220,7 @@ def test_parse_room2_reply_rejects_event_from_bot_sender() -> None:
         sender="@bot:example.org",
         body=(
             "decision: accept\n"
+            "admission_flow: scheduled\n"
             "support_flag: none\n"
             "reason: ok\n"
             "case_id: 11111111-1111-1111-1111-111111111111\n"

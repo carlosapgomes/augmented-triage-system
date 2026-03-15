@@ -7,10 +7,18 @@ import unicodedata
 from dataclasses import dataclass
 from uuid import UUID
 
-_REQUIRED_KEYS = ("decision", "support_flag", "case_id")
+_REQUIRED_KEYS = ("decision", "case_id")
+_ACCEPT_REQUIRED_KEYS = ("support_flag", "admission_flow")
 _KEY_ALIASES: dict[str, tuple[str, ...]] = {
     "decision": ("decision", "decisao", "decisão"),
     "support_flag": ("support_flag", "suporte"),
+    "admission_flow": (
+        "admission_flow",
+        "admission flow",
+        "fluxo de admissao",
+        "fluxo de admissão",
+        "fluxo_admissao",
+    ),
     "reason": ("reason", "motivo"),
     "case_id": ("case_id", "caso"),
 }
@@ -38,6 +46,12 @@ _SUPPORT_ALIASES: dict[str, str] = {
     "anestesista_uti": "anesthesist_icu",
     "anestesista_icu": "anesthesist_icu",
 }
+_ADMISSION_FLOW_ALIASES: dict[str, str] = {
+    "scheduled": "scheduled",
+    "agendamento": "scheduled",
+    "immediate": "immediate",
+    "vinda_imediata": "immediate",
+}
 _EMPTY_REASON_MARKERS = {
     "",
     "(opcional)",
@@ -60,14 +74,16 @@ class DoctorDecisionReplyParsed:
     case_id: UUID
     decision: str
     support_flag: str
+    admission_flow: str | None
     reason: str | None
 
 
-@dataclass(frozen=True)
 class DoctorDecisionParseError(ValueError):
     """Deterministic parse failure with machine-readable reason."""
 
-    reason: str
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
     def __str__(self) -> str:
         return self.reason
@@ -96,7 +112,7 @@ def parse_doctor_decision_reply(
             raise DoctorDecisionParseError("unknown_field")
         parsed_key = _resolve_key(normalized_key)
         if parsed_key is None:
-            continue
+            raise DoctorDecisionParseError("unknown_field")
         if parsed_key in parsed_fields:
             raise DoctorDecisionParseError("duplicate_field")
         parsed_fields[parsed_key] = value.strip()
@@ -105,16 +121,19 @@ def parse_doctor_decision_reply(
         if required_key not in parsed_fields:
             raise DoctorDecisionParseError(f"missing_{required_key}_line")
 
-    decision_raw = parsed_fields["decision"].lower()
+    decision_raw = _normalize_token(parsed_fields["decision"])
     decision = _DECISION_ALIASES.get(decision_raw)
     if decision is None:
         raise DoctorDecisionParseError("invalid_decision_value")
 
-    support_raw = parsed_fields["support_flag"].lower()
-    support_flag = _SUPPORT_ALIASES.get(support_raw)
-    if support_flag is None:
-        raise DoctorDecisionParseError("invalid_support_flag_value")
-    _validate_decision_support_flag(decision=decision, support_flag=support_flag)
+    support_flag = _resolve_support_flag(
+        decision=decision,
+        support_raw=parsed_fields.get("support_flag"),
+    )
+    admission_flow = _resolve_admission_flow(
+        decision=decision,
+        admission_flow_raw=parsed_fields.get("admission_flow"),
+    )
 
     case_raw = parsed_fields["case_id"]
     case_match = _UUID_PATTERN.search(case_raw)
@@ -133,15 +152,37 @@ def parse_doctor_decision_reply(
         case_id=case_id,
         decision=decision,
         support_flag=support_flag,
+        admission_flow=admission_flow,
         reason=reason,
     )
 
 
-def _validate_decision_support_flag(*, decision: str, support_flag: str) -> None:
-    """Enforce decision/support_flag invariants used by doctor decision contract."""
+def _resolve_support_flag(*, decision: str, support_raw: str | None) -> str:
+    if support_raw is None:
+        if decision == "accept":
+            raise DoctorDecisionParseError("missing_support_flag_line")
+        return "none"
 
-    if decision == "deny" and support_flag != "none":
-        raise DoctorDecisionParseError("invalid_support_flag_for_decision")
+    support_flag = _SUPPORT_ALIASES.get(_normalize_token(support_raw))
+    if support_flag is None:
+        raise DoctorDecisionParseError("invalid_support_flag_value")
+    if decision == "deny":
+        return "none"
+    return support_flag
+
+
+def _resolve_admission_flow(*, decision: str, admission_flow_raw: str | None) -> str | None:
+    if admission_flow_raw is None:
+        if decision == "accept":
+            raise DoctorDecisionParseError("missing_admission_flow_line")
+        return None
+
+    admission_flow = _ADMISSION_FLOW_ALIASES.get(_normalize_token(admission_flow_raw))
+    if admission_flow is None:
+        raise DoctorDecisionParseError("invalid_admission_flow_value")
+    if decision == "deny":
+        return None
+    return admission_flow
 
 
 def _normalize_key(raw_key: str) -> str:

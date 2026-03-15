@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import Field, model_validator
 
 from triage_automation.application.dto.webhook_models import (
+    AdmissionFlow,
     Decision,
     StrictModel,
     SupportFlag,
@@ -40,6 +41,7 @@ class WidgetDecisionSubmitRequest(StrictModel):
     doctor_user_id: str = Field(min_length=1)
     decision: Decision
     support_flag: SupportFlag = "none"
+    admission_flow: AdmissionFlow | None = None
     reason: str | None = None
     submitted_at: datetime | None = None
     widget_event_id: str | None = None
@@ -51,6 +53,7 @@ class WidgetDecisionSubmitRequest(StrictModel):
         validate_decision_support_flag(
             decision=self.decision,
             support_flag=self.support_flag,
+            admission_flow=self.admission_flow,
         )
         return self
 

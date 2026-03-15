@@ -17,13 +17,21 @@ class StrictModel(BaseModel):
 
 SupportFlag = Literal["none", "anesthesist", "anesthesist_icu"]
 Decision = Literal["accept", "deny"]
+AdmissionFlow = Literal["scheduled", "immediate"]
 
 
-def validate_decision_support_flag(*, decision: Decision, support_flag: SupportFlag) -> None:
-    """Enforce decision/support_flag invariants shared by webhook and widget contracts."""
+def validate_decision_support_flag(
+    *,
+    decision: Decision,
+    support_flag: SupportFlag,
+    admission_flow: AdmissionFlow | None,
+) -> None:
+    """Enforce decision/support/admission-flow invariants shared by decision contracts."""
 
     if decision == "deny" and support_flag != "none":
         raise ValueError("decision=deny requires support_flag=none")
+    if decision == "deny" and admission_flow is not None:
+        raise ValueError("decision=deny requires admission_flow omitted")
 
     if decision == "accept" and support_flag not in {
         "none",
@@ -31,6 +39,8 @@ def validate_decision_support_flag(*, decision: Decision, support_flag: SupportF
         "anesthesist_icu",
     }:
         raise ValueError("decision=accept requires a valid support_flag")
+    if decision == "accept" and admission_flow is None:
+        raise ValueError("decision=accept requires admission_flow")
 
 
 class TriageDecisionWebhookPayload(StrictModel):
@@ -40,6 +50,7 @@ class TriageDecisionWebhookPayload(StrictModel):
     doctor_user_id: str = Field(min_length=1)
     decision: Decision
     support_flag: SupportFlag = "none"
+    admission_flow: AdmissionFlow | None = None
     reason: str | None = None
     submitted_at: datetime | None = None
     widget_event_id: str | None = None
@@ -49,6 +60,7 @@ class TriageDecisionWebhookPayload(StrictModel):
         validate_decision_support_flag(
             decision=self.decision,
             support_flag=self.support_flag,
+            admission_flow=self.admission_flow,
         )
         return self
 
