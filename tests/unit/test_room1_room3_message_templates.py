@@ -50,6 +50,25 @@ def test_build_room3_request_message_includes_doctor_display_name_when_provided(
     assert "aceito por: Dr. João Pereira" in body
 
 
+def test_build_room3_request_message_includes_pediatric_context_when_flagged() -> None:
+    case_id = UUID("12121212-1212-1212-1212-121212121212")
+
+    body = build_room3_request_message(
+        case_id=case_id,
+        agency_record_number="4821526",
+        patient_name="EMANUELLE VITORIA CASTRO PEREIRA",
+        patient_age="1",
+        requested_exam="Endoscopia digestiva alta",
+        doctor_display_name="admin",
+        pediatric_flag=True,
+    )
+
+    assert "idade: 1" in body
+    assert "exame solicitado: Endoscopia digestiva alta" in body
+    assert "paciente pediátrico: sim" in body
+    assert "aceito por: admin" in body
+
+
 def test_build_room3_ack_message_prioritizes_human_identification_without_uuid() -> None:
     case_id = UUID("11111111-1111-1111-1111-111111111111")
 

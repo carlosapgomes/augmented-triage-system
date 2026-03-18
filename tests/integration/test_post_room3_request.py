@@ -172,6 +172,84 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
 
 
 @pytest.mark.asyncio
+async def test_room3_request_includes_pediatric_context_when_case_is_pediatric(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_request_pediatric.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.DOCTOR_ACCEPTED,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room3-pediatric",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=case.case_id,
+        pdf_mxc_url="mxc://example.org/report",
+        extracted_text="texto extraido",
+        agency_record_number="4821526",
+    )
+    await case_repo.store_llm1_artifacts(
+        case_id=case.case_id,
+        structured_data_json={
+            "eda": {
+                "requested_procedure": {"name": "Endoscopia digestiva alta"},
+                "is_pediatric": True,
+            },
+            "patient": {
+                "name": "EMANUELLE VITORIA CASTRO PEREIRA",
+                "age": 1,
+            },
+            "policy_precheck": {
+                "pediatric_flag": True,
+            },
+        },
+        summary_text="Resumo",
+    )
+    await message_repo.append_case_matrix_message_transcript(
+        CaseMatrixMessageTranscriptCreateInput(
+            case_id=case.case_id,
+            room_id="!room2:example.org",
+            event_id="$doctor-reply-pediatric",
+            sender="@doctor:example.org",
+            sender_display_name="admin",
+            message_type="room2_doctor_reply",
+            message_text="status: aceitar",
+            reply_to_event_id="$room2-widget-pediatric",
+        )
+    )
+
+    service = PostRoom3RequestService(
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        matrix_poster=matrix_poster,
+    )
+
+    result = await service.post_request(case_id=case.case_id)
+
+    assert result.posted is True
+    assert len(matrix_poster.send_calls) == 1
+    _, request_body = matrix_poster.send_calls[0]
+    assert "## no. ocorrência: 4821526" in request_body
+    assert "## paciente: EMANUELLE VITORIA CASTRO PEREIRA" in request_body
+    assert "idade: 1" in request_body
+    assert "exame solicitado: Endoscopia digestiva alta" in request_body
+    assert "paciente pediátrico: sim" in request_body
+    assert "aceito por: admin" in request_body
+
+
+@pytest.mark.asyncio
 async def test_duplicate_job_execution_is_idempotent(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "room3_request_idempotent.db")
     session_factory = create_session_factory(async_url)

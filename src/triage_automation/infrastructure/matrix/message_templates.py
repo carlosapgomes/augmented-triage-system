@@ -1643,6 +1643,7 @@ def build_room3_request_message(
     patient_age: str | None,
     requested_exam: str | None,
     doctor_display_name: str | None = None,
+    pediatric_flag: bool | None = None,
 ) -> str:
     """Build Room-3 guidance message that points scheduler to copy template."""
 
@@ -1655,6 +1656,7 @@ def build_room3_request_message(
         patient_age=patient_age,
         requested_exam=requested_exam,
         doctor_display_name=doctor_display_name,
+        pediatric_flag=pediatric_flag,
         include_doctor_line=True,
     )
     return (
