@@ -139,11 +139,11 @@ async def test_post_room4_summary_service_renders_metrics_and_posts_to_room4() -
     assert "Aceitos por agendamento: 4" in body
     assert "Vinda imediata: 2" in body
     assert "Recusados: 3" in body
-    assert "Casos em andamento: 5" in body
-    assert "Aguardando Sala 2: 2" in body
-    assert "Aguardando Sala 3: 1" in body
-    assert "Aguardando Sala 1: 2" in body
-    assert "Pendentes no ramo vinda imediata: 1" in body
+    assert "Casos em andamento:" not in body
+    assert "Aguardando Sala 2:" not in body
+    assert "Aguardando Sala 3:" not in body
+    assert "Aguardando Sala 1:" not in body
+    assert "Pendentes no ramo vinda imediata:" not in body
 
 
 @pytest.mark.asyncio

@@ -161,11 +161,6 @@ def render_room4_summary_message(
             f"- Aceitos por agendamento: {metrics.accepted_scheduled}",
             f"- Vinda imediata: {metrics.immediate_admission}",
             f"- Recusados: {metrics.refused}",
-            f"- Casos em andamento: {metrics.in_progress}",
-            f"- Aguardando Sala 2: {metrics.pending_room2}",
-            f"- Aguardando Sala 3: {metrics.pending_room3}",
-            f"- Aguardando Sala 1: {metrics.pending_room1}",
-            f"- Pendentes no ramo vinda imediata: {metrics.pending_immediate_branch}",
         ]
     )
     return SupervisorSummaryRendered(body=body, metrics=metrics)
