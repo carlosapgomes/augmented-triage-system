@@ -6,4 +6,4 @@
 
 ## 2. Fechamento do change
 
-- [ ] 2.1 Revisar o comportamento final com o solicitante e arquivar o change após aprovação.
+- [x] 2.1 Revisar o comportamento final com o solicitante e arquivar o change após aprovação.
