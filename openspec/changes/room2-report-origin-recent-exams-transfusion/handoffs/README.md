@@ -15,3 +15,9 @@ Ordem recomendada de execução (contexto limpo por slice):
 11. `6.1-final-implementation-report.md`
 
 Todos os handoffs exigem geração de relatório operacional em `/tmp/openspec-slice-report-<slice>.md`.
+
+Arquivos de apoio:
+
+- `MASTER_PROMPT.md`: prompt mestre reutilizável por slice.
+- `MINI_HANDOFF.md`: contexto mínimo para retomada em outra máquina.
+- `reports/openspec-slice-report-1.1.md`: relatório versionado do slice 1.1.
