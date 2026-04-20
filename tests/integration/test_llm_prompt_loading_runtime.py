@@ -358,6 +358,12 @@ async def test_default_prompt_names_resolve_seeded_rows(tmp_path: Path) -> None:
     assert "Tarefa: extrair dados estruturados" in llm1_user_prompt
     assert "rulebook_signals" in llm1_user_prompt
     assert "paciente pediatrico" in llm1_user_prompt
+    assert "origem_context" in llm1_user_prompt
+    assert "cidade/hospital/unidade" in llm1_user_prompt
+    assert "mais recente" in llm1_user_prompt
+    assert "desempate pela ultima ocorrencia" in llm1_user_prompt
+    assert "had_transfusion" in llm1_user_prompt
+    assert "ausencia de evidencia" in llm1_user_prompt
     assert llm1_result.prompt_system_name == "llm1_system"
     assert llm1_result.prompt_user_name == "llm1_user"
     assert llm1_result.prompt_system_version == 5
