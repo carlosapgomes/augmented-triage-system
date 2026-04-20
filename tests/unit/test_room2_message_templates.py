@@ -1630,6 +1630,354 @@ def test_build_room2_decision_ack_message_omits_admission_flow_for_deny() -> Non
     assert "suporte: nenhum" in body
 
 
+# --- Slice 3.1: Origin context and transfusion tests ---
+
+
+def test_room2_summary_origin_renders_full_data_in_markdown() -> None:
+    """Origin renders city, hospital, unit with state_uf in markdown."""
+    case_id = UUID("a1a1a1a1-b2b2-c3c3-d4d4-e5e5e5e5e5e5")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "origin_context": {
+                "city": "São Paulo",
+                "hospital": "Hospital Municipal",
+                "unit": "Pronto Socorro",
+                "state_uf": "SP",
+                "source_text_hint": "encaminhado do HM",
+            },
+            "transfusion": {
+                "had_transfusion": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "origem: São Paulo (SP) - Hospital Municipal - Pronto Socorro" in body
+
+
+def test_room2_summary_origin_renders_full_data_in_html() -> None:
+    """Origin renders city, hospital, unit with state_uf in HTML."""
+    case_id = UUID("a1a1a1a1-b2b2-c3c3-d4d4-e5e5e5e5e5e5")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "origin_context": {
+                "city": "São Paulo",
+                "hospital": "Hospital Municipal",
+                "unit": "Pronto Socorro",
+                "state_uf": "SP",
+                "source_text_hint": "encaminhado do HM",
+            },
+            "transfusion": {
+                "had_transfusion": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "<p>origem: São Paulo (SP) - Hospital Municipal - Pronto Socorro</p>" in body
+
+
+def test_room2_summary_origin_fallback_when_absent_in_markdown() -> None:
+    """Origin shows 'sem evidência no laudo' when origin_context is absent."""
+    case_id = UUID("a2a2a2a2-b3b3-c4c4-d5d5-e6e6e6e6e6e6")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "origem: sem evidência no laudo" in body
+
+
+def test_room2_summary_origin_fallback_when_absent_in_html() -> None:
+    """Origin HTML shows 'sem evidência no laudo' when origin_context is absent."""
+    case_id = UUID("a2a2a2a2-b3b3-c4c4-d5d5-e6e6e6e6e6e6")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "<p>origem: sem evidência no laudo</p>" in body
+
+
+def test_room2_summary_origin_fallback_when_all_fields_none() -> None:
+    """Origin shows 'sem evidência no laudo' when all origin fields are null."""
+    case_id = UUID("a3a3a3a3-b4b4-c5c5-d6d6-e7e7e7e7e7e7")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "origin_context": {
+                "city": None,
+                "hospital": None,
+                "unit": None,
+                "state_uf": None,
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "origem: sem evidência no laudo" in body
+
+
+def test_room2_summary_origin_partial_data_shows_available_fields() -> None:
+    """Origin renders only available fields (city + hospital) without unit."""
+    case_id = UUID("a4a4a4a4-b5b5-c6c6-d7d7-e8e8e8e8e8e8")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "origin_context": {
+                "city": "Campinas",
+                "hospital": "HC Unicamp",
+                "unit": None,
+                "state_uf": None,
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "origem: Campinas - HC Unicamp" in body
+
+
+def test_room2_summary_transfusion_no_in_markdown() -> None:
+    """Mandatory transfusion line renders 'não' in markdown."""
+    case_id = UUID("b1b1b1b1-c2c2-d3d3-e4e4-f5f5f5f5f5f5")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "transfusion": {
+                "had_transfusion": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Há relato de transfusão? não" in body
+
+
+def test_room2_summary_transfusion_no_in_html() -> None:
+    """Mandatory transfusion line renders 'não' in HTML."""
+    case_id = UUID("b1b1b1b1-c2c2-d3d3-e4e4-f5f5f5f5f5f5")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "transfusion": {
+                "had_transfusion": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "<p>Há relato de transfusão? não</p>" in body
+
+
+def test_room2_summary_transfusion_default_no_when_absent() -> None:
+    """Transfusion defaults to 'não' when not present in structured_data."""
+    case_id = UUID("b2b2b2b2-c3c3-d4d4-e5e5-f6f6f6f6f6f6")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Há relato de transfusão? não" in body
+
+
+def test_room2_summary_transfusion_yes_with_details_in_markdown() -> None:
+    """Transfusion 'sim' renders total units and hemocomponent in markdown."""
+    case_id = UUID("b3b3b3b3-c4c4-d5d5-e6e6-f7f7f7f7f7f7")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "transfusion": {
+                "had_transfusion": "yes",
+                "total_units": 2,
+                "hemocomponent": "concentrado de hemácias",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Há relato de transfusão? sim" in body
+    assert "Total de unidades transfundidas: 2" in body
+    assert "Hemocomponente: concentrado de hemácias" in body
+
+
+def test_room2_summary_transfusion_yes_with_details_in_html() -> None:
+    """Transfusion 'sim' renders total units and hemocomponent in HTML."""
+    case_id = UUID("b3b3b3b3-c4c4-d5d5-e6e6-f7f7f7f7f7f7")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "transfusion": {
+                "had_transfusion": "yes",
+                "total_units": 2,
+                "hemocomponent": "concentrado de hemácias",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "<p>Há relato de transfusão? sim</p>" in body
+    assert "<p>Total de unidades transfundidas: 2</p>" in body
+    assert "<p>Hemocomponente: concentrado de hemácias</p>" in body
+
+
+def test_room2_summary_transfusion_yes_without_optional_details_in_markdown() -> None:
+    """Transfusion 'sim' with null total_units and hemocomponent shows fallbacks."""
+    case_id = UUID("b4b4b4b4-c5c5-d6d6-e7e7-f8f8f8f8f8f8")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "transfusion": {
+                "had_transfusion": "yes",
+                "total_units": None,
+                "hemocomponent": None,
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Há relato de transfusão? sim" in body
+    assert "Total de unidades transfundidas: não informado" in body
+    assert "Hemocomponente: não informado" in body
+
+
+def test_room2_summary_transfusion_yes_without_optional_details_in_html() -> None:
+    """Transfusion 'sim' HTML with null total_units and hemocomponent shows fallbacks."""
+    case_id = UUID("b4b4b4b4-c5c5-d6d6-e7e7-f8f8f8f8f8f8")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "transfusion": {
+                "had_transfusion": "yes",
+                "total_units": None,
+                "hemocomponent": None,
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "<p>Há relato de transfusão? sim</p>" in body
+    assert "<p>Total de unidades transfundidas: não informado</p>" in body
+    assert "<p>Hemocomponente: não informado</p>" in body
+
+
+def test_room2_summary_origin_and_transfusion_no_do_not_leak_source_hints() -> None:
+    """Origin and transfusion source_text_hint must not appear in the output."""
+    case_id = UUID("b5b5b5b5-c6c6-d7d7-e8e8-f9f9f9f9f9f9")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "origin_context": {
+                "city": "Santos",
+                "hospital": "Hospital Beneficência",
+                "unit": "UPA",
+                "state_uf": "SP",
+                "source_text_hint": "procedência extraída do relatório",
+            },
+            "transfusion": {
+                "had_transfusion": "no",
+                "source_text_hint": "sem menção a transfusão no laudo",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "procedência extraída do relatório" not in body
+    assert "sem menção a transfusão no laudo" not in body
+    assert "source_text_hint" not in body
+
+
+def test_room2_summary_origin_and_transfusion_appear_in_context_block_order() -> None:
+    """Origin and transfusion lines appear between procedure and clinical summary."""
+    case_id = UUID("b6b6b6b6-c7c7-d8d8-e9e9-f0f0f0f0f0f0")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "origin_context": {
+                "city": "São Paulo",
+                "hospital": "Hospital Municipal",
+                "unit": "Pronto Socorro",
+                "state_uf": "SP",
+            },
+            "transfusion": {
+                "had_transfusion": "no",
+            },
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    procedure_pos = body.index("procedimento solicitado:")
+    origin_pos = body.index("origem:")
+    transfusion_pos = body.index("Há relato de transfusão?")
+    summary_pos = body.index("## Resumo clínico:")
+
+    assert procedure_pos < origin_pos < transfusion_pos < summary_pos
+
+
 def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
     case_id = UUID("55555555-5555-5555-5555-555555555555")
 

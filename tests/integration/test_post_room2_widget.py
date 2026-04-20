@@ -860,3 +860,241 @@ async def test_post_room2_widget_skips_scope_gated_manual_review_cases(
         ).scalar_one()
 
     assert status == "LLM_SUGGEST"
+
+
+# --- Slice 3.1: Origin and transfusion integration tests ---
+
+
+@pytest.mark.asyncio
+async def test_post_room2_widget_renders_origin_with_full_data_in_summary(
+    tmp_path: Path,
+) -> None:
+    """Origin context with city/hospital/unit/state_uf appears in both markdown and HTML."""
+    sync_url, async_url = _upgrade_head(
+        tmp_path, "post_room2_widget_origin_full_data.db"
+    )
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room2-origin-full",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/origin-full",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+
+    structured_data = _structured_data("12345")
+    structured_data["origin_context"] = {
+        "city": "São Paulo",
+        "hospital": "Hospital Municipal",
+        "unit": "Pronto Socorro",
+        "state_uf": "SP",
+        "source_text_hint": "encaminhado do HM",
+    }
+    structured_data["transfusion"] = {
+        "had_transfusion": "no",
+    }
+
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=structured_data,
+        summary_text="Resumo LLM1",
+    )
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json=_suggested_action(current_case.case_id, "12345"),
+    )
+
+    service = PostRoom2WidgetService(
+        room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        prior_case_queries=prior_queries,
+        matrix_poster=matrix_poster,
+    )
+
+    await service.post_widget(case_id=current_case.case_id)
+
+    summary_body = matrix_poster.reply_calls[0][2]
+    summary_formatted_body = matrix_poster.reply_calls[0][4]
+
+    assert "origem: São Paulo (SP) - Hospital Municipal - Pronto Socorro" in summary_body
+    assert "Há relato de transfusão? não" in summary_body
+    assert "encaminhado do HM" not in summary_body
+
+    assert summary_formatted_body is not None
+    assert (
+        "<p>origem: São Paulo (SP) - Hospital Municipal - Pronto Socorro</p>"
+        in summary_formatted_body
+    )
+    assert "<p>Há relato de transfusão? não</p>" in summary_formatted_body
+
+
+@pytest.mark.asyncio
+async def test_post_room2_widget_renders_origin_fallback_in_summary(
+    tmp_path: Path,
+) -> None:
+    """Origin shows 'sem evidência no laudo' when origin_context is absent."""
+    sync_url, async_url = _upgrade_head(
+        tmp_path, "post_room2_widget_origin_fallback.db"
+    )
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room2-origin-fallback",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/origin-fallback",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+
+    structured_data = _structured_data("12345")
+    # No origin_context key — should render fallback
+    # No transfusion key — should default to 'não'
+
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=structured_data,
+        summary_text="Resumo LLM1",
+    )
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json=_suggested_action(current_case.case_id, "12345"),
+    )
+
+    service = PostRoom2WidgetService(
+        room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        prior_case_queries=prior_queries,
+        matrix_poster=matrix_poster,
+    )
+
+    await service.post_widget(case_id=current_case.case_id)
+
+    summary_body = matrix_poster.reply_calls[0][2]
+    summary_formatted_body = matrix_poster.reply_calls[0][4]
+
+    assert "origem: sem evidência no laudo" in summary_body
+    assert "Há relato de transfusão? não" in summary_body
+
+    assert summary_formatted_body is not None
+    assert "<p>origem: sem evidência no laudo</p>" in summary_formatted_body
+    assert "<p>Há relato de transfusão? não</p>" in summary_formatted_body
+
+
+@pytest.mark.asyncio
+async def test_post_room2_widget_renders_transfusion_yes_with_details_in_summary(
+    tmp_path: Path,
+) -> None:
+    """Transfusion 'sim' renders total units and hemocomponent in both formats."""
+    sync_url, async_url = _upgrade_head(
+        tmp_path, "post_room2_widget_transfusion_yes.db"
+    )
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room2-transfusion-yes",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/transfusion-yes",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+
+    structured_data = _structured_data("12345")
+    structured_data["origin_context"] = {
+        "city": "Santos",
+        "hospital": "Hospital Beneficência",
+        "unit": "UPA",
+        "state_uf": "SP",
+    }
+    structured_data["transfusion"] = {
+        "had_transfusion": "yes",
+        "total_units": 3,
+        "hemocomponent": "concentrado de hemácias",
+    }
+
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=structured_data,
+        summary_text="Resumo LLM1",
+    )
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json=_suggested_action(current_case.case_id, "12345"),
+    )
+
+    service = PostRoom2WidgetService(
+        room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        prior_case_queries=prior_queries,
+        matrix_poster=matrix_poster,
+    )
+
+    await service.post_widget(case_id=current_case.case_id)
+
+    summary_body = matrix_poster.reply_calls[0][2]
+    summary_formatted_body = matrix_poster.reply_calls[0][4]
+
+    assert "origem: Santos (SP) - Hospital Beneficência - UPA" in summary_body
+    assert "Há relato de transfusão? sim" in summary_body
+    assert "Total de unidades transfundidas: 3" in summary_body
+    assert "Hemocomponente: concentrado de hemácias" in summary_body
+
+    assert summary_formatted_body is not None
+    assert (
+        "<p>origem: Santos (SP) - Hospital Beneficência - UPA</p>"
+        in summary_formatted_body
+    )
+    assert "<p>Há relato de transfusão? sim</p>" in summary_formatted_body
+    assert "<p>Total de unidades transfundidas: 3</p>" in summary_formatted_body
+    assert "<p>Hemocomponente: concentrado de hemácias</p>" in summary_formatted_body
