@@ -7,6 +7,12 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 EvidenceFlag = Literal["yes", "no", "unknown"]
+
+BrazilStateUf = Literal[
+    "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO",
+    "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR",
+    "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
+]
 EdaRequestedProcedureSubtype = Literal[
     "standard",
     "gastrostomy",
@@ -217,6 +223,36 @@ class Llm1ExtractionQuality(StrictModel):
     notes: str | None
 
 
+class Llm1OriginContext(StrictModel):
+    """Structured provenance/origin context extracted from the medical report."""
+
+    city: str | None = None
+    hospital: str | None = None
+    unit: str | None = None
+    state_uf: BrazilStateUf | None = None
+    source_text_hint: str | None = None
+
+
+class Llm1Transfusion(StrictModel):
+    """Binary transfusion evidence with optional unit count and hemocomponent."""
+
+    had_transfusion: Literal["yes", "no"]
+    total_units: int | None = Field(default=None, ge=0)
+    hemocomponent: str | None = None
+    source_text_hint: str | None = None
+
+
+class Llm1TrackedExam(StrictModel):
+    """A single tracked exam with recency marker and optional datetime."""
+
+    exam_type: str = Field(min_length=1)
+    exam_label: str | None = None
+    result_value: str | None = None
+    exam_datetime_iso: str | None = None
+    is_most_recent: bool
+    source_text_hint: str | None = None
+
+
 class Llm1Response(StrictModel):
     """Top-level LLM1 response schema."""
 
@@ -229,6 +265,11 @@ class Llm1Response(StrictModel):
     policy_precheck: Llm1PolicyPrecheck
     summary: Llm1Summary
     extraction_quality: Llm1ExtractionQuality
+    origin_context: Llm1OriginContext = Field(default_factory=Llm1OriginContext)
+    transfusion: Llm1Transfusion = Field(
+        default_factory=lambda: Llm1Transfusion(had_transfusion="no"),
+    )
+    tracked_exams: list[Llm1TrackedExam] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_rulebook_consistency(self) -> Llm1Response:

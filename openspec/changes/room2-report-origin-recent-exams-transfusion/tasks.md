@@ -3,7 +3,7 @@
 ## 1. Fase 1 - Contrato estruturado LLM1
 
 - [x] 1.1 (Slice vertical) Criar testes de validação para novos campos de origem, transfusão binária e exames rastreados com recência em `tests/unit/test_llm1_validation.py`.
-- [ ] 1.2 (Slice vertical) Implementar extensão do schema em `src/triage_automation/application/dto/llm1_models.py` para suportar origem, transfusão e exames rastreados.
+- [x] 1.2 (Slice vertical) Implementar extensão do schema em `src/triage_automation/application/dto/llm1_models.py` para suportar origem, transfusão e exames rastreados.
 
 ## 2. Fase 2 - Prompt LLM1 versionado
 
