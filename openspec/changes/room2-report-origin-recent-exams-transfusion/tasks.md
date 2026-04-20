@@ -8,7 +8,7 @@
 ## 2. Fase 2 - Prompt LLM1 versionado
 
 - [x] 2.1 (Slice vertical) Criar testes que validem instruções de prompt LLM1 para procedência, recência e transfusão com fallback negativo.
-- [ ] 2.2 (Slice vertical) Atualizar `src/triage_automation/application/services/llm1_service.py` com novas instruções do prompt e criar migração Alembic de versão de prompt (`llm1_system`/`llm1_user` v6).
+- [x] 2.2 (Slice vertical) Atualizar `src/triage_automation/application/services/llm1_service.py` com novas instruções do prompt e criar migração Alembic de versão de prompt (`llm1_system`/`llm1_user` v6).
 
 ## 3. Fase 3 - Room-2 com origem e transfusão explícitas
 

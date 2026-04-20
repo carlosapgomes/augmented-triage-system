@@ -242,7 +242,11 @@ def _default_user_prompt_template() -> str:
         "Preencher preop_screening.rulebook_signals para o novo rulebook, incluindo "
         "exames minimos, exames condicionais, subtipo EDA suportado e contexto de "
         "paciente pediatrico. Incluir preop_screening.evidence_spans com field_path "
-        "e excerpt sempre que houver evidencia."
+        "e excerpt sempre que houver evidencia. "
+        "Extrair origin_context (cidade/hospital/unidade/UF) quando disponivel no texto. "
+        "Identificar exames rastreados (tracked_exams) com recencia determinada por "
+        "data/hora ou posicao textual, com desempate pela ultima ocorrencia. "
+        "Registrar had_transfusion como binario (yes/no); ausencia de evidencia como 'no'."
     )
 
 
@@ -289,6 +293,19 @@ def _render_user_prompt(
         "Se patient.age < 16, marcar eda.is_pediatric=true e "
         "policy_precheck.pediatric_flag=true; se age >= 16, manter ambos false. "
         "Explicitar contexto de paciente pediatrico no resumo.\n\n"
+        "Para origin_context (cidade/hospital/unidade): "
+        "extrair cidade, hospital e unidade do texto; "
+        "se houver sigla de UF (estado), preencher state_uf. "
+        "Quando nao houver evidencia textual, preencher todos os subcampos como null.\n"
+        "Para recencia de exames rastreados (tracked_exams): "
+        "usar data/hora (exam_datetime_iso) quando disponivel para determinar o mais recente; "
+        "sem data/hora, inferir recencia pela posicao textual; "
+        "em caso de empate, desempate pela ultima ocorrencia no texto. "
+        "Marcar is_most_recent=true apenas para o mais recente de cada tipo.\n"
+        "Para had_transfusion: resposta estritamente binaria (yes/no); "
+        "ausencia de evidencia de transfusao deve ser tratada como 'no'. "
+        "Se had_transfusion=yes, informar total_units (inteiro) "
+        "e hemocomponent quando disponivel.\n"
         f"Texto clinico do relatorio:\n{clean_text}"
     )
 
