@@ -530,3 +530,347 @@ async def test_llm1_fails_when_english_terms_persist_after_retry() -> None:
     assert error_info.value.cause == "llm1"
     assert "non-ptbr narrative terms" in error_info.value.details
     assert len(client.calls) == 2
+
+
+# ---------------------------------------------------------------------------
+# Slice 1.1 – TDD tests for origin_context, transfusion, tracked_exams
+# These tests are expected to FAIL (RED) because the schema does not yet
+# define the new fields. They will turn GREEN once slice 1.2 implements the
+# schema extensions in llm1_models.py.
+# ---------------------------------------------------------------------------
+
+
+def _payload_with_origin(
+    agency_record: str,
+    *,
+    city: str | None = "Sao Paulo",
+    hospital: str | None = "Hospital das Clinicas",
+    unit: str | None = "Unidade A",
+    state_uf: str | None = "SP",
+    source_text_hint: str | None = "paciente proveniente de SP",
+) -> dict[str, object]:
+    """Build a valid LLM1 payload augmented with origin_context."""
+    payload = _valid_llm1_payload(agency_record)
+    payload["origin_context"] = {
+        "city": city,
+        "hospital": hospital,
+        "unit": unit,
+        "state_uf": state_uf,
+        "source_text_hint": source_text_hint,
+    }
+    return payload
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_origin_context_with_all_fields() -> None:
+    """Origin context with city, hospital, unit and UF should be accepted."""
+    agency_record = "12345"
+    payload = _payload_with_origin(
+        agency_record,
+        city="Sao Paulo",
+        hospital="Hospital das Clinicas",
+        unit="Unidade A",
+        state_uf="SP",
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="paciente proveniente de Sao Paulo",
+    )
+
+    origin = result.structured_data_json["origin_context"]
+    assert origin["city"] == "Sao Paulo"
+    assert origin["hospital"] == "Hospital das Clinicas"
+    assert origin["unit"] == "Unidade A"
+    assert origin["state_uf"] == "SP"
+    assert origin["source_text_hint"] == "paciente proveniente de SP"
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_origin_context_with_optional_fields_as_none() -> None:
+    """Origin context should accept None for optional fields (unit, state_uf)."""
+    agency_record = "12345"
+    payload = _payload_with_origin(
+        agency_record,
+        city="Campinas",
+        hospital="HC",
+        unit=None,
+        state_uf=None,
+        source_text_hint=None,
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="paciente de Campinas",
+    )
+
+    origin = result.structured_data_json["origin_context"]
+    assert origin["city"] == "Campinas"
+    assert origin["hospital"] == "HC"
+    assert origin["unit"] is None
+    assert origin["state_uf"] is None
+    assert origin["source_text_hint"] is None
+
+
+@pytest.mark.asyncio
+async def test_llm1_rejects_origin_context_with_invalid_state_uf() -> None:
+    """Origin context with a state_uf value not matching a valid 2-letter code should fail."""
+    agency_record = "12345"
+    payload = _payload_with_origin(
+        agency_record,
+        city="Sao Paulo",
+        hospital="HC",
+        state_uf="INVALID",
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    with pytest.raises(Llm1RetriableError) as error_info:
+        await service.run(
+            case_id=uuid4(),
+            agency_record_number=agency_record,
+            clean_text="texto",
+        )
+
+    assert error_info.value.cause == "llm1"
+
+
+# --- Transfusion tests ---
+
+
+def _payload_with_transfusion(
+    agency_record: str,
+    *,
+    had_transfusion: str = "no",
+    total_units: int | None = None,
+    hemocomponent: str | None = None,
+    source_text_hint: str | None = None,
+) -> dict[str, object]:
+    """Build a valid LLM1 payload augmented with transfusion data."""
+    payload = _valid_llm1_payload(agency_record)
+    payload["transfusion"] = {
+        "had_transfusion": had_transfusion,
+        "total_units": total_units,
+        "hemocomponent": hemocomponent,
+        "source_text_hint": source_text_hint,
+    }
+    return payload
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_transfusion_negative_response() -> None:
+    """Transfusion with had_transfusion='no' and no units should be accepted."""
+    agency_record = "12345"
+    payload = _payload_with_transfusion(
+        agency_record,
+        had_transfusion="no",
+        total_units=None,
+        hemocomponent=None,
+        source_text_hint="sem relato de transfusao",
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="sem transfusao",
+    )
+
+    transfusion = result.structured_data_json["transfusion"]
+    assert transfusion["had_transfusion"] == "no"
+    assert transfusion["total_units"] is None
+    assert transfusion["hemocomponent"] is None
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_transfusion_positive_with_units() -> None:
+    """Transfusion with had_transfusion='yes', units and hemocomponent."""
+    agency_record = "12345"
+    payload = _payload_with_transfusion(
+        agency_record,
+        had_transfusion="yes",
+        total_units=2,
+        hemocomponent="concentrado de hemacias",
+        source_text_hint="transfundido com 2 CH",
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="transfundido com 2 CH",
+    )
+
+    transfusion = result.structured_data_json["transfusion"]
+    assert transfusion["had_transfusion"] == "yes"
+    assert transfusion["total_units"] == 2
+    assert transfusion["hemocomponent"] == "concentrado de hemacias"
+
+
+@pytest.mark.asyncio
+async def test_llm1_rejects_transfusion_with_unknown_value() -> None:
+    """Transfusion with had_transfusion='unknown' should be rejected (only yes/no allowed)."""
+    agency_record = "12345"
+    payload = _payload_with_transfusion(
+        agency_record,
+        had_transfusion="unknown",
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    with pytest.raises(Llm1RetriableError) as error_info:
+        await service.run(
+            case_id=uuid4(),
+            agency_record_number=agency_record,
+            clean_text="texto",
+        )
+
+    assert error_info.value.cause == "llm1"
+
+
+# --- Tracked exams tests ---
+
+
+def _payload_with_tracked_exams(
+    agency_record: str,
+    *,
+    tracked_exams: list[dict[str, object]],
+) -> dict[str, object]:
+    """Build a valid LLM1 payload augmented with tracked_exams."""
+    payload = _valid_llm1_payload(agency_record)
+    payload["tracked_exams"] = tracked_exams
+    return payload
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_tracked_exams_with_most_recent_flag() -> None:
+    """Tracked exams should include an is_most_recent boolean marker."""
+    agency_record = "12345"
+    payload = _payload_with_tracked_exams(
+        agency_record,
+        tracked_exams=[
+            {
+                "exam_type": "hb",
+                "exam_label": "Hemoglobina",
+                "result_value": "10.2 g/dL",
+                "exam_datetime_iso": "2025-01-10T08:00:00",
+                "is_most_recent": True,
+                "source_text_hint": "Hb 10.2 em 10/01",
+            },
+            {
+                "exam_type": "hb",
+                "exam_label": "Hemoglobina",
+                "result_value": "9.8 g/dL",
+                "exam_datetime_iso": "2025-01-05T08:00:00",
+                "is_most_recent": False,
+                "source_text_hint": "Hb 9.8 em 05/01",
+            },
+        ],
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="Hb 10.2 e Hb 9.8",
+    )
+
+    exams = result.structured_data_json["tracked_exams"]
+    assert len(exams) == 2
+    assert exams[0]["exam_type"] == "hb"
+    assert exams[0]["is_most_recent"] is True
+    assert exams[1]["is_most_recent"] is False
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_tracked_exams_without_datetime() -> None:
+    """Tracked exams without exam_datetime_iso should be accepted (recency indeterminate)."""
+    agency_record = "12345"
+    payload = _payload_with_tracked_exams(
+        agency_record,
+        tracked_exams=[
+            {
+                "exam_type": "creatina",
+                "exam_label": "Creatinina",
+                "result_value": "1.2 mg/dL",
+                "exam_datetime_iso": None,
+                "is_most_recent": True,
+                "source_text_hint": "Creatinina 1.2 sem data",
+            },
+        ],
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="Creatinina 1.2",
+    )
+
+    exams = result.structured_data_json["tracked_exams"]
+    assert len(exams) == 1
+    assert exams[0]["exam_datetime_iso"] is None
+    assert exams[0]["is_most_recent"] is True
+
+
+@pytest.mark.asyncio
+async def test_llm1_extracts_tracked_exams_multiple_types_with_recency() -> None:
+    """Multiple exam types each with their own most-recent marker."""
+    agency_record = "12345"
+    payload = _payload_with_tracked_exams(
+        agency_record,
+        tracked_exams=[
+            {
+                "exam_type": "hb",
+                "exam_label": "Hemoglobina",
+                "result_value": "11.0 g/dL",
+                "exam_datetime_iso": "2025-02-01T10:00:00",
+                "is_most_recent": True,
+                "source_text_hint": "Hb 11.0",
+            },
+            {
+                "exam_type": "platelets",
+                "exam_label": "Plaquetas",
+                "result_value": "150000 /mm3",
+                "exam_datetime_iso": "2025-02-01T10:00:00",
+                "is_most_recent": True,
+                "source_text_hint": "Plaquetas 150000",
+            },
+            {
+                "exam_type": "inr",
+                "exam_label": "INR",
+                "result_value": "1.1",
+                "exam_datetime_iso": "2025-01-15T08:00:00",
+                "is_most_recent": False,
+                "source_text_hint": "INR 1.1 antigo",
+            },
+        ],
+    )
+    client = FakeLlmClient(json.dumps(payload))
+    service = Llm1Service(llm_client=client)
+
+    result = await service.run(
+        case_id=uuid4(),
+        agency_record_number=agency_record,
+        clean_text="Hb 11.0 Plaquetas 150000 INR 1.1",
+    )
+
+    exams = result.structured_data_json["tracked_exams"]
+    assert len(exams) == 3
+    # Hb and platelets are most recent, INR is not
+    hb_exams = [e for e in exams if e["exam_type"] == "hb"]
+    platelet_exams = [e for e in exams if e["exam_type"] == "platelets"]
+    inr_exams = [e for e in exams if e["exam_type"] == "inr"]
+    assert hb_exams[0]["is_most_recent"] is True
+    assert platelet_exams[0]["is_most_recent"] is True
+    assert inr_exams[0]["is_most_recent"] is False
