@@ -13,7 +13,7 @@
 ## 3. Fase 3 - Room-2 com origem e transfusão explícitas
 
 - [x] 3.1 (Slice vertical) Criar testes de template Room-2 (unit + integração) para renderizar origem com fallback `sem evidência no laudo` e linha mandatória `Há relato de transfusão? sim|não`.
-- [ ] 3.2 (Slice vertical) Implementar renderização markdown/HTML correspondente em `src/triage_automation/infrastructure/matrix/message_templates.py`.
+- [x] 3.2 (Slice vertical) Implementar renderização markdown/HTML correspondente em `src/triage_automation/infrastructure/matrix/message_templates.py`.
 
 ## 4. Fase 4 - Room-2 com exames marcados como mais recentes
 

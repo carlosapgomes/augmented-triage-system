@@ -396,13 +396,104 @@ def _build_room2_case_context_html(structured_data: dict[str, object]) -> str:
     )
 
 
+def _build_room2_origin_line(structured_data: dict[str, object]) -> str:
+    """Build origin display line from structured origin_context data.
+
+    Renders as ``origem: city (UF) - hospital - unit`` when data is available.
+    UF, hospital, and unit are optional.  Returns fallback text when no
+    meaningful origin data exists.
+    """
+
+    origin = _extract_room2_nested_value(structured_data, "origin_context")
+    if not isinstance(origin, dict):
+        return "origem: sem evidência no laudo"
+
+    city = origin.get("city")
+    hospital = origin.get("hospital")
+    unit = origin.get("unit")
+    state_uf = origin.get("state_uf")
+
+    parts: list[str] = []
+
+    city_str = _normalize_room2_origin_field(city)
+    uf_str = _normalize_room2_origin_field(state_uf)
+
+    if city_str:
+        if uf_str:
+            parts.append(f"{city_str} ({uf_str})")
+        else:
+            parts.append(city_str)
+
+    hospital_str = _normalize_room2_origin_field(hospital)
+    if hospital_str:
+        parts.append(hospital_str)
+
+    unit_str = _normalize_room2_origin_field(unit)
+    if unit_str:
+        parts.append(unit_str)
+
+    if not parts:
+        return "origem: sem evidência no laudo"
+    return f"origem: {' - '.join(parts)}"
+
+
+def _normalize_room2_origin_field(value: object) -> str:
+    """Normalize origin field to non-empty string or empty string."""
+
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized:
+            return normalized
+    return ""
+
+
+def _build_room2_transfusion_lines(structured_data: dict[str, object]) -> list[str]:
+    """Build mandatory transfusion lines from structured transfusion data.
+
+    Always renders the question line ``Há relato de transfusão? sim|não``.
+    When the answer is ``sim``, appends total units and hemocomponent lines.
+    Absence of transfusion data defaults to ``não``.
+    """
+
+    transfusion = _extract_room2_nested_value(structured_data, "transfusion")
+
+    had_value = None
+    if isinstance(transfusion, dict):
+        had_value = transfusion.get("had_transfusion")
+
+    is_yes = isinstance(had_value, str) and had_value.strip().lower() == "yes"
+
+    lines: list[str] = [f"Há relato de transfusão? {'sim' if is_yes else 'não'}"]
+
+    if is_yes and isinstance(transfusion, dict):
+        total_units = transfusion.get("total_units")
+        hemocomponent = transfusion.get("hemocomponent")
+
+        units_label = (
+            str(total_units) if isinstance(total_units, (int, float)) else "não informado"
+        )
+        hemo_label = (
+            str(hemocomponent).strip()
+            if isinstance(hemocomponent, str) and hemocomponent.strip()
+            else "não informado"
+        )
+        lines.append(f"Total de unidades transfundidas: {units_label}")
+        lines.append(f"Hemocomponente: {hemo_label}")
+
+    return lines
+
+
 
 def _build_room2_case_context_lines(structured_data: dict[str, object]) -> list[str]:
-    """Build canonical procedure and pediatric context lines for Room-2 summary."""
+    """Build canonical procedure, origin, transfusion, and pediatric
+    context lines for Room-2 summary.
+    """
 
     lines = [
         f"procedimento solicitado: {_resolve_room2_canonical_procedure_name(structured_data)}"
     ]
+    lines.append(_build_room2_origin_line(structured_data))
+    lines.extend(_build_room2_transfusion_lines(structured_data))
     if _is_room2_pediatric_case(structured_data):
         lines.append("paciente pediátrico: sim")
     return lines
