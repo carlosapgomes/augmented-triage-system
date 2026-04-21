@@ -484,8 +484,59 @@ def _build_room2_transfusion_lines(structured_data: dict[str, object]) -> list[s
 
 
 
+def _build_room2_tracked_exam_lines(structured_data: dict[str, object]) -> list[str]:
+    """Build tracked exam display lines with recency markers.
+
+    Renders each tracked exam as ``label: value`` with an optional suffix:
+
+    - ``(mais recente)`` when ``is_most_recent`` is ``True`` and a date is available.
+    - ``(recência indeterminada (sem data no laudo))`` when ``is_most_recent``
+      is ``True`` but no date exists.
+
+    Tie-breaking: when multiple exams of the same type share the same datetime,
+    the last textual occurrence (later in the list) is rendered as most recent.
+    """
+
+    tracked_exams = structured_data.get("tracked_exams")
+    if not isinstance(tracked_exams, list) or not tracked_exams:
+        return []
+
+    lines: list[str] = []
+    for exam in tracked_exams:
+        if not isinstance(exam, dict):
+            continue
+
+        exam_label = exam.get("exam_label")
+        result_value = exam.get("result_value")
+        is_most_recent = exam.get("is_most_recent")
+        exam_datetime = exam.get("exam_datetime_iso")
+
+        label_str = (
+            str(exam_label).strip()
+            if isinstance(exam_label, str) and exam_label.strip()
+            else "exame"
+        )
+        value_str = (
+            str(result_value).strip()
+            if isinstance(result_value, str) and result_value.strip()
+            else "não informado"
+        )
+
+        line = f"{label_str}: {value_str}"
+
+        if is_most_recent is True:
+            if isinstance(exam_datetime, str) and exam_datetime.strip():
+                line += " (mais recente)"
+            else:
+                line += " (recência indeterminada (sem data no laudo))"
+
+        lines.append(line)
+
+    return lines
+
+
 def _build_room2_case_context_lines(structured_data: dict[str, object]) -> list[str]:
-    """Build canonical procedure, origin, transfusion, and pediatric
+    """Build canonical procedure, origin, transfusion, tracked exam, and pediatric
     context lines for Room-2 summary.
     """
 
@@ -494,6 +545,7 @@ def _build_room2_case_context_lines(structured_data: dict[str, object]) -> list[
     ]
     lines.append(_build_room2_origin_line(structured_data))
     lines.extend(_build_room2_transfusion_lines(structured_data))
+    lines.extend(_build_room2_tracked_exam_lines(structured_data))
     if _is_room2_pediatric_case(structured_data):
         lines.append("paciente pediátrico: sim")
     return lines
