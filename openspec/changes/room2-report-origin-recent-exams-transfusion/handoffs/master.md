@@ -2,15 +2,16 @@ Você está em contexto limpo e deve executar APENAS um slice.
 
 ## Leitura obrigatória (nesta ordem)
 1) AGENTS.md
-2) openspec/changes/room2-report-origin-recent-exams-transfusion/handoffs/1.1-llm1-validation-tests.md
+2) openspec/changes/room2-report-origin-recent-exams-transfusion/handoffs/6.1-final-implementation-report.md
+
 3) openspec/changes/room2-report-origin-recent-exams-transfusion/tasks.md
 
 ## Parâmetros
 - Skill obrigatório: openspec-apply-change
 - Change ID: room2-report-origin-recent-exams-transfusion
 - Task file: openspec/changes/room2-report-origin-recent-exams-transfusion/tasks.md
-- Slice alvo: 1.1
-- Handoff do slice:openspec/changes/room2-report-origin-recent-exams-transfusion/handoffs/1.1-llm1-validation-tests.md
+- Slice alvo: 6.1
+- Handoff do slice:openspec/changes/room2-report-origin-recent-exams-transfusion/handoffs/6.1-final-implementation-report.md
 
 ## Modo de execução
 - Execute somente o slice alvo.
@@ -24,7 +25,7 @@ Você está em contexto limpo e deve executar APENAS um slice.
 - Pare e aguarde aprovação.
 
 ## Conteúdo obrigatório do relatório temporário
-Arquivo: /tmp/openspec-slice-report-1.1.md
+Arquivo: /tmp/openspec-slice-report-6.1.md
 Deve conter:
 - objetivo do slice
 - arquivos alterados
