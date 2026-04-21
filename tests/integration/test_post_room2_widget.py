@@ -1098,3 +1098,110 @@ async def test_post_room2_widget_renders_transfusion_yes_with_details_in_summary
     assert "<p>Há relato de transfusão? sim</p>" in summary_formatted_body
     assert "<p>Total de unidades transfundidas: 3</p>" in summary_formatted_body
     assert "<p>Hemocomponente: concentrado de hemácias</p>" in summary_formatted_body
+
+
+# --- Slice 4.1: Tracked exams recency integration tests ---
+
+
+@pytest.mark.asyncio
+async def test_post_room2_widget_renders_tracked_exams_with_recency_in_summary(
+    tmp_path: Path,
+) -> None:
+    """Tracked exams with recency markers appear in both markdown and HTML."""
+    sync_url, async_url = _upgrade_head(
+        tmp_path, "post_room2_widget_tracked_exams_recency.db"
+    )
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-room2-tracked-exams",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/tracked-exams",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+
+    structured_data = _structured_data("12345")
+    structured_data["tracked_exams"] = [
+        {
+            "exam_type": "hb",
+            "exam_label": "Hemoglobina",
+            "result_value": "10.2 g/dL",
+            "exam_datetime_iso": "2025-01-10T08:00:00",
+            "is_most_recent": True,
+            "source_text_hint": "Hb 10.2 em 10/01",
+        },
+        {
+            "exam_type": "hb",
+            "exam_label": "Hemoglobina",
+            "result_value": "9.8 g/dL",
+            "exam_datetime_iso": "2025-01-05T08:00:00",
+            "is_most_recent": False,
+            "source_text_hint": "Hb 9.8 em 05/01",
+        },
+        {
+            "exam_type": "creatina",
+            "exam_label": "Creatinina",
+            "result_value": "1.2 mg/dL",
+            "exam_datetime_iso": None,
+            "is_most_recent": True,
+            "source_text_hint": "Creatinina sem data",
+        },
+    ]
+
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=structured_data,
+        summary_text="Resumo LLM1",
+    )
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json=_suggested_action(current_case.case_id, "12345"),
+    )
+
+    service = PostRoom2WidgetService(
+        room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        prior_case_queries=prior_queries,
+        matrix_poster=matrix_poster,
+    )
+
+    await service.post_widget(case_id=current_case.case_id)
+
+    summary_body = matrix_poster.reply_calls[0][2]
+    summary_formatted_body = matrix_poster.reply_calls[0][4]
+
+    # Most recent exam with date
+    assert "Hemoglobina: 10.2 g/dL (mais recente)" in summary_body
+    # Older exam without marker
+    assert "Hemoglobina: 9.8 g/dL" in summary_body
+    # Exam without date shows recency fallback
+    assert "Creatinina: 1.2 mg/dL" in summary_body
+    assert "recência indeterminada (sem data no laudo)" in summary_body
+    # Source hints must not leak
+    assert "Hb 10.2 em 10/01" not in summary_body
+    assert "source_text_hint" not in summary_body
+
+    # HTML parity
+    assert summary_formatted_body is not None
+    assert "Hemoglobina: 10.2 g/dL (mais recente)" in summary_formatted_body
+    assert "Hemoglobina: 9.8 g/dL" in summary_formatted_body
+    assert "Creatinina: 1.2 mg/dL" in summary_formatted_body
+    assert "recência indeterminada (sem data no laudo)" in summary_formatted_body

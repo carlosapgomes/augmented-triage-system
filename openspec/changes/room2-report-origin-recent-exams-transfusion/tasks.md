@@ -17,7 +17,7 @@
 
 ## 4. Fase 4 - Room-2 com exames marcados como mais recentes
 
-- [ ] 4.1 (Slice vertical) Criar testes de template Room-2 para exames com sufixo `(mais recente)` e fallback `recência indeterminada (sem data no laudo)`.
+- [x] 4.1 (Slice vertical) Criar testes de template Room-2 para exames com sufixo `(mais recente)` e fallback `recência indeterminada (sem data no laudo)`.
 - [ ] 4.2 (Slice vertical) Implementar renderização dos exames rastreados no template Room-2, com regra de empate por última ocorrência textual.
 
 ## 5. Fase 5 - Cliente determinístico e consistência de runtime

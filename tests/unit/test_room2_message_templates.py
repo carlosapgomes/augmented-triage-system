@@ -1993,3 +1993,286 @@ def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
     assert "Modelo obrigatório" in body
     assert "decisao: aceitar|negar" in body
     assert "fluxo de admissao: agendamento|vinda_imediata" in body
+
+
+# --- Slice 4.1: Tracked exams recency tests ---
+
+
+def test_room2_summary_tracked_exam_most_recent_suffix_in_markdown() -> None:
+    """Tracked exam with is_most_recent=True and a date shows '(mais recente)'."""
+    case_id = UUID("c1c1c1c1-d2d2-e3e3-f4f4-a5a5a5a5a5a5")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "10.2 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": True,
+                    "source_text_hint": "Hb 10.2 em 10/01",
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Hemoglobina: 10.2 g/dL (mais recente)" in body
+
+
+def test_room2_summary_tracked_exam_most_recent_suffix_in_html() -> None:
+    """Tracked exam with is_most_recent=True and a date shows '(mais recente)' in HTML."""
+    case_id = UUID("c1c1c1c1-d2d2-e3e3-f4f4-a5a5a5a5a5a5")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "10.2 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": True,
+                    "source_text_hint": "Hb 10.2 em 10/01",
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Hemoglobina: 10.2 g/dL (mais recente)" in body
+
+
+def test_room2_summary_tracked_exam_recency_indeterminate_no_date_in_markdown() -> None:
+    """Tracked exam without exam_datetime_iso shows recência indeterminada fallback."""
+    case_id = UUID("c2c2c2c2-d3d3-e4e4-f5f5-b6b6b6b6b6b6")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "creatina",
+                    "exam_label": "Creatinina",
+                    "result_value": "1.2 mg/dL",
+                    "exam_datetime_iso": None,
+                    "is_most_recent": True,
+                    "source_text_hint": "Creatinina sem data",
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Creatinina: 1.2 mg/dL" in body
+    assert "recência indeterminada (sem data no laudo)" in body
+
+
+def test_room2_summary_tracked_exam_recency_indeterminate_no_date_in_html() -> None:
+    """Tracked exam without exam_datetime_iso shows recência indeterminada in HTML."""
+    case_id = UUID("c2c2c2c2-d3d3-e4e4-f5f5-b6b6b6b6b6b6")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "creatina",
+                    "exam_label": "Creatinina",
+                    "result_value": "1.2 mg/dL",
+                    "exam_datetime_iso": None,
+                    "is_most_recent": True,
+                    "source_text_hint": "Creatinina sem data",
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Creatinina: 1.2 mg/dL" in body
+    assert "recência indeterminada (sem data no laudo)" in body
+
+
+def test_room2_summary_tracked_exam_tie_break_by_last_occurrence_in_markdown() -> None:
+    """When two exams of the same type exist, the last one in the list (later textual
+    occurrence) should be rendered as '(mais recente)'."""
+    case_id = UUID("c3c3c3c3-d4d4-e5e5-f6f6-c7c7c7c7c7c7")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "9.8 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": False,
+                    "source_text_hint": "Hb 9.8",
+                },
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "10.2 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": True,
+                    "source_text_hint": "Hb 10.2",
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    # The second exam (last textual occurrence) should be marked as most recent
+    assert "Hemoglobina: 10.2 g/dL (mais recente)" in body
+    # The first exam should appear without the marker
+    assert "Hemoglobina: 9.8 g/dL" in body
+
+
+def test_room2_summary_tracked_exam_tie_break_by_last_occurrence_in_html() -> None:
+    """Tie-break by last textual occurrence renders correctly in HTML."""
+    case_id = UUID("c3c3c3c3-d4d4-e5e5-f6f6-c7c7c7c7c7c7")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "9.8 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": False,
+                    "source_text_hint": "Hb 9.8",
+                },
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "10.2 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": True,
+                    "source_text_hint": "Hb 10.2",
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "Hemoglobina: 10.2 g/dL (mais recente)" in body
+    assert "Hemoglobina: 9.8 g/dL" in body
+
+
+def test_room2_summary_tracked_exam_does_not_leak_source_hint() -> None:
+    """source_text_hint must not appear in the rendered output."""
+    case_id = UUID("c4c4c4c4-d5d5-e6e6-f7f7-d8d8d8d8d8d8")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "10.5 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": True,
+                    "source_text_hint": "dica interna não deve vazar",
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "dica interna não deve vazar" not in body
+    assert "source_text_hint" not in body
+
+
+def test_room2_summary_tracked_exam_absent_renders_no_exam_block() -> None:
+    """When tracked_exams is absent, no exam-related lines appear."""
+    case_id = UUID("c5c5c5c5-d6d6-e7e7-f8f8-e9e9e9e9e9e9")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    assert "(mais recente)" not in body
+    assert "recência indeterminada" not in body
+    assert "Exames rastreados" not in body
+
+
+def test_room2_summary_tracked_exam_mixed_recency_states_in_markdown() -> None:
+    """Multiple exams with different recency states render correctly in markdown."""
+    case_id = UUID("c6c6c6c6-d7d7-e8e8-f9f9-0f0f0f0f0f0f")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "tracked_exams": [
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "10.2 g/dL",
+                    "exam_datetime_iso": "2025-01-10T08:00:00",
+                    "is_most_recent": True,
+                    "source_text_hint": None,
+                },
+                {
+                    "exam_type": "hb",
+                    "exam_label": "Hemoglobina",
+                    "result_value": "9.8 g/dL",
+                    "exam_datetime_iso": "2025-01-05T08:00:00",
+                    "is_most_recent": False,
+                    "source_text_hint": None,
+                },
+                {
+                    "exam_type": "creatina",
+                    "exam_label": "Creatinina",
+                    "result_value": "1.2 mg/dL",
+                    "exam_datetime_iso": None,
+                    "is_most_recent": True,
+                    "source_text_hint": None,
+                },
+            ],
+        },
+        summary_text="Resumo clínico base",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+    )
+
+    # Most recent with date
+    assert "Hemoglobina: 10.2 g/dL (mais recente)" in body
+    # Older exam without the marker
+    assert "Hemoglobina: 9.8 g/dL" in body
+    # Exam without date shows fallback
+    assert "Creatinina: 1.2 mg/dL" in body
+    assert "recência indeterminada (sem data no laudo)" in body
