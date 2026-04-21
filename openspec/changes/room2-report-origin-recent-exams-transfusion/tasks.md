@@ -27,5 +27,5 @@
 
 ## 6. Fase 6 - Fechamento e evidências
 
-- [ ] 6.1 (Slice vertical) Consolidar relatório final em `docs/implementation-reports/room2-report-origin-recent-exams-transfusion.md` com checklist por slice, comandos executados, fragmentos de diff e cobertura dos 3 requisitos.
+- [x] 6.1 (Slice vertical) Consolidar relatório final em `docs/implementation-reports/room2-report-origin-recent-exams-transfusion.md` com checklist por slice, comandos executados, fragmentos de diff e cobertura dos 3 requisitos.
 - [ ] 6.2 Revisar com solicitante, registrar pendências/follow-ups e preparar arquivamento do change após aprovação.
