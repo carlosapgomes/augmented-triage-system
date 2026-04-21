@@ -22,6 +22,56 @@ _HIGH_RISK_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Origin context patterns
+_ORIGIN_CITY_STATE_PATTERN = re.compile(
+    r"procedente\s+de\s+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+)*),\s*([A-Z]{2})",
+    re.IGNORECASE,
+)
+_ORIGIN_HOSPITAL_PATTERN = re.compile(
+    r"(?:Hospital|Hospital das Cl[ií]nicas|HC|UHE|UPA|UBS|AMA"
+    r"|Emerg[eê]ncia|Pronto\s+Socorro)\s*[\w\s]*",
+    re.IGNORECASE,
+)
+_ORIGIN_UNIT_PATTERN = re.compile(
+    r"Unidade\s+de\s+[\w\s]+",
+    re.IGNORECASE,
+)
+
+# Transfusion patterns
+_TRANSFUSION_NEGATION_PATTERN = re.compile(
+    r"sem\s+men[cç][aã]o\s+a\s+transfus[aã]o|sem\s+transfus[aã]o|n[aã]o\s+transfundido",
+    re.IGNORECASE,
+)
+_TRANSFUSION_PATTERN = re.compile(
+    r"transfus[aã]o",
+    re.IGNORECASE,
+)
+_TRANSFUSION_UNITS_PATTERN = re.compile(
+    r"(\d+)\s+(?:concentrados?|unidades?|bolsas?)\s+de\s+(?:hem[aá]cias?|plasma|plaquetas?)",
+    re.IGNORECASE,
+)
+
+# Tracked exam patterns
+_TRACKED_EXAM_PATTERN = re.compile(
+    r"(Hemoglobina|Hb|Hemat[aó]crito|Ht|Plaquetas|Creatinina|Ureia|Ureia|TP|INR|TTPA)"
+    r"\s+(\d+[,.]?\d*)"
+    r"(?:\s+em\s+(\d{2}/\d{2}/\d{4}))?",
+    re.IGNORECASE,
+)
+_EXAM_TYPE_MAP: dict[str, str] = {
+    "hemoglobina": "hb",
+    "hb": "hb",
+    "hematócrito": "hct",
+    "hematocrito": "hct",
+    "ht": "hct",
+    "plaquetas": "platelets",
+    "creatinina": "creatinine",
+    "ureia": "urea",
+    "tp": "tp",
+    "inr": "inr",
+    "ttpa": "ttpa",
+}
+
 
 @dataclass(frozen=True)
 class DeterministicLlmClient:
@@ -49,6 +99,9 @@ def _build_llm1_payload(*, user_prompt: str) -> str:
         clinical_text=clinical_text,
         asa_bucket=asa_bucket,
     )
+    origin_context = _extract_origin_context(clinical_text=clinical_text)
+    transfusion = _extract_transfusion(clinical_text=clinical_text)
+    tracked_exams = _extract_tracked_exams(clinical_text=clinical_text)
     payload = {
         "schema_version": "1.1",
         "language": "pt-BR",
@@ -148,6 +201,9 @@ def _build_llm1_payload(*, user_prompt: str) -> str:
             ],
         },
         "extraction_quality": {"confidence": "media", "missing_fields": [], "notes": None},
+        "origin_context": origin_context,
+        "transfusion": transfusion,
+        "tracked_exams": tracked_exams,
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -337,3 +393,103 @@ def _extract_agency_record_number(*, user_prompt: str) -> str:
     if match is None:
         raise ValueError("deterministic llm prompt missing agency_record_number")
     return match.group(1)
+
+
+def _extract_origin_context(*, clinical_text: str) -> dict[str, str | None]:
+    """Extract origin context fields from clinical text."""
+    city: str | None = None
+    state_uf: str | None = None
+
+    city_state_match = _ORIGIN_CITY_STATE_PATTERN.search(clinical_text)
+    if city_state_match:
+        city = city_state_match.group(1).strip()
+        state_uf = city_state_match.group(2).strip().upper()
+
+    hospital: str | None = None
+    hospital_match = _ORIGIN_HOSPITAL_PATTERN.search(clinical_text)
+    if hospital_match:
+        hospital = hospital_match.group(0).strip()
+
+    unit: str | None = None
+    unit_match = _ORIGIN_UNIT_PATTERN.search(clinical_text)
+    if unit_match:
+        unit = unit_match.group(0).strip()
+
+    # When no explicit hospital but a unit is found, use unit as hospital fallback
+    if hospital is None and unit is not None:
+        hospital = unit
+
+    return {
+        "city": city,
+        "hospital": hospital,
+        "unit": unit,
+        "state_uf": state_uf,
+        "source_text_hint": "deterministico: origem extraida do texto",
+    }
+
+
+def _extract_transfusion(*, clinical_text: str) -> dict[str, str | int | None]:
+    """Detect transfusion mentions and extract structured transfusion data."""
+    # Check for negation patterns first
+    if _TRANSFUSION_NEGATION_PATTERN.search(clinical_text):
+        return {
+            "had_transfusion": "no",
+            "total_units": None,
+            "hemocomponent": None,
+            "source_text_hint": "deterministico: nenhuma mencao a transfusao",
+        }
+
+    if not _TRANSFUSION_PATTERN.search(clinical_text):
+        return {
+            "had_transfusion": "no",
+            "total_units": None,
+            "hemocomponent": None,
+            "source_text_hint": "deterministico: nenhuma mencao a transfusao",
+        }
+
+    total_units: int | None = None
+    hemocomponent: str | None = None
+    units_match = _TRANSFUSION_UNITS_PATTERN.search(clinical_text)
+    if units_match:
+        total_units = int(units_match.group(1))
+        hemocomponent = "concentrado de hemacias"
+
+    return {
+        "had_transfusion": "yes",
+        "total_units": total_units if total_units is not None else 1,
+        "hemocomponent": hemocomponent,
+        "source_text_hint": "deterministico: transfusao mencionada no texto",
+    }
+
+
+def _extract_tracked_exams(*, clinical_text: str) -> list[dict[str, str | bool | None]]:
+    """Extract tracked exams with recency markers from clinical text."""
+    matches = list(_TRACKED_EXAM_PATTERN.finditer(clinical_text))
+    if not matches:
+        return []
+
+    # Group by exam type to determine recency (last occurrence wins)
+    exam_type_last_index: dict[str, int] = {}
+    for idx, match in enumerate(matches):
+        raw_label = match.group(1).strip()
+        exam_type = _EXAM_TYPE_MAP.get(raw_label.lower(), raw_label.lower())
+        exam_type_last_index[exam_type] = idx
+
+    tracked_exams: list[dict[str, str | bool | None]] = []
+    for idx, match in enumerate(matches):
+        raw_label = match.group(1).strip()
+        exam_type = _EXAM_TYPE_MAP.get(raw_label.lower(), raw_label.lower())
+        result_value = match.group(2).replace(",", ".")
+        exam_datetime = match.group(3)  # may be None
+        is_most_recent = idx == exam_type_last_index.get(exam_type, idx)
+
+        tracked_exams.append({
+            "exam_type": exam_type,
+            "exam_label": raw_label,
+            "result_value": result_value,
+            "exam_datetime_iso": exam_datetime,
+            "is_most_recent": is_most_recent,
+            "source_text_hint": "deterministico: exame rastreado",
+        })
+
+    return tracked_exams
