@@ -22,7 +22,7 @@
 
 ## 5. Fase 5 - Cliente determinístico e consistência de runtime
 
-- [ ] 5.1 (Slice vertical) Criar/ajustar testes do cliente determinístico para refletir o contrato LLM1 estendido.
+- [x] 5.1 (Slice vertical) Criar/ajustar testes do cliente determinístico para refletir o contrato LLM1 estendido.
 - [ ] 5.2 (Slice vertical) Atualizar `src/triage_automation/infrastructure/llm/deterministic_client.py` para gerar payloads com origem, transfusão e exames rastreados.
 
 ## 6. Fase 6 - Fechamento e evidências
