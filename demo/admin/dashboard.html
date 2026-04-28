@@ -114,7 +114,7 @@
   <div class="card p-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="mb-0">Todos os Casos</h5>
-      <div class="d-flex gap-2">
+      <div class="admin-filters d-flex gap-2 align-items-center">
         <select class="form-select form-select-sm" style="width:auto;">
           <option>Todos os status</option>
           <option>Aguardando Médico</option>
@@ -133,10 +133,10 @@
           <tr>
             <th>Paciente</th>
             <th>Registro</th>
-            <th>Idade</th>
+            <th class="hide-mobile">Idade</th>
             <th>Status</th>
-            <th>Etapa</th>
-            <th>Enviado</th>
+            <th class="hide-mobile">Etapa</th>
+            <th class="hide-mobile">Enviado</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -144,46 +144,46 @@
           <tr>
             <td><strong>Maria Silva dos Santos</strong></td>
             <td>2026-0428-001</td>
-            <td>75</td>
-            <td><span class="status-badge status-done">AGENDAMENTO CONFIRMADO</span></td>
-            <td>Resultado Final</td>
-            <td>14:32</td>
+            <td class="hide-mobile">75</td>
+            <td><span class="status-badge status-done">AGEND. CONFIRMADO</span></td>
+            <td class="hide-mobile">Resultado Final</td>
+            <td class="hide-mobile">14:32</td>
             <td><a href="../nir/case-detail.html" class="btn btn-sm btn-outline-secondary">Ver</a></td>
           </tr>
           <tr>
             <td><strong>João Pereira Gomes</strong></td>
             <td>2026-0428-002</td>
-            <td>62</td>
-            <td><span class="status-badge status-progress">AGUARDANDO MÉDICO</span></td>
-            <td>Avaliação Médica</td>
-            <td>15:10</td>
+            <td class="hide-mobile">62</td>
+            <td><span class="status-badge status-progress">AG. MÉDICO</span></td>
+            <td class="hide-mobile">Avaliação Médica</td>
+            <td class="hide-mobile">15:10</td>
             <td><a href="../nir/case-detail.html" class="btn btn-sm btn-outline-secondary">Ver</a></td>
           </tr>
           <tr>
             <td><strong>Antônio Ferreira Lima</strong></td>
             <td>2026-0428-003</td>
-            <td>58</td>
-            <td><span class="status-badge status-progress">AGUARDANDO AGENDAMENTO</span></td>
-            <td>Agendamento</td>
-            <td>15:45</td>
+            <td class="hide-mobile">58</td>
+            <td><span class="status-badge status-progress">AG. AGENDAMENTO</span></td>
+            <td class="hide-mobile">Agendamento</td>
+            <td class="hide-mobile">15:45</td>
             <td><a href="../nir/case-detail.html" class="btn btn-sm btn-outline-secondary">Ver</a></td>
           </tr>
           <tr>
             <td><strong>Rosa Albuquerque Costa</strong></td>
             <td>2026-0428-004</td>
-            <td>81</td>
+            <td class="hide-mobile">81</td>
             <td><span class="status-badge status-done">VINDA IMEDIATA</span></td>
-            <td>Resultado Final</td>
-            <td>13:15</td>
+            <td class="hide-mobile">Resultado Final</td>
+            <td class="hide-mobile">13:15</td>
             <td><a href="../nir/case-detail.html" class="btn btn-sm btn-outline-secondary">Ver</a></td>
           </tr>
           <tr>
             <td><strong>Pedro Henrique Oliveira</strong></td>
             <td>2026-0428-005</td>
-            <td>47</td>
+            <td class="hide-mobile">47</td>
             <td><span class="status-badge status-denied">TRIAGEM NEGADA</span></td>
-            <td>Resultado Final</td>
-            <td>11:50</td>
+            <td class="hide-mobile">Resultado Final</td>
+            <td class="hide-mobile">11:50</td>
             <td><a href="../nir/case-detail.html" class="btn btn-sm btn-outline-secondary">Ver</a></td>
           </tr>
         </tbody>
