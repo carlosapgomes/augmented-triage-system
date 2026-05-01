@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 # Map each role value to its landing URL path.
 ROLE_HOME_MAP: dict[str, str] = {
@@ -62,9 +62,9 @@ def login_view(request: HttpRequest) -> HttpResponse:
     return render(request, "django_ops/login.html")
 
 
-@require_GET  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
 def logout_view(request: HttpRequest) -> HttpResponse:
-    """Log out the current user and redirect to the login page.
+    """Log out the current user via POST and redirect to the login page.
 
     Args:
         request: The HTTP request.

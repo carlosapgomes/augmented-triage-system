@@ -72,7 +72,7 @@ class TestLoginSession(TestCase):
 
 
 class TestLogoutSession(TestCase):
-    """Validate logout destroys the session."""
+    """Validate logout destroys the session via POST only."""
 
     def setUp(self) -> None:
         """Create and authenticate a test user."""
@@ -83,19 +83,24 @@ class TestLogoutSession(TestCase):
         )
         self.client.login(username="doctor@example.com", password="testpass123")
 
-    def test_logout_destroys_session(self) -> None:
-        """Logging out must clear the authenticated session."""
+    def test_logout_via_post_destroys_session(self) -> None:
+        """POST logout must clear the authenticated session."""
         assert "_auth_user_id" in self.client.session
-        response = self.client.get("/logout/")
+        response = self.client.post("/logout/", {})
         assert response.status_code == 302
         # After logout, session must no longer have auth user
         assert "_auth_user_id" not in self.client.session
 
-    def test_logout_redirects_to_login(self) -> None:
-        """After logout, user must be redirected to the login page."""
-        response = self.client.get("/logout/")
+    def test_logout_via_post_redirects_to_login(self) -> None:
+        """POST logout must redirect to the login page."""
+        response = self.client.post("/logout/", {})
         assert response.status_code == 302
         assert response.url == "/login/"
+
+    def test_logout_via_get_is_rejected(self) -> None:
+        """GET /logout/ must be rejected with 405 Method Not Allowed."""
+        response = self.client.get("/logout/")
+        assert response.status_code == 405
 
 
 class TestRoleBasedRedirect(TestCase):
@@ -161,13 +166,63 @@ class TestRoleBasedRedirect(TestCase):
 
 
 class TestRootRedirect(TestCase):
-    """Validate anonymous user at root is redirected to login."""
+    """Validate anonymous and authenticated redirects at root."""
 
     def test_anonymous_root_redirects_to_login(self) -> None:
         """Unauthenticated user requesting / must be redirected to /login/."""
         response = self.client.get("/")
         assert response.status_code == 302
         assert "/login/" in response.url
+
+    def test_authenticated_nir_root_redirects_to_nir(self) -> None:
+        """Authenticated nir requesting / must redirect to /nir/."""
+        User.objects.create_user(
+            email="nir@example.com", password="testpass123", role="nir"
+        )
+        self.client.login(username="nir@example.com", password="testpass123")
+        response = self.client.get("/")
+        assert response.status_code == 302
+        assert response.url == "/nir/"
+
+    def test_authenticated_doctor_root_redirects_to_doctor(self) -> None:
+        """Authenticated doctor requesting / must redirect to /doctor/."""
+        User.objects.create_user(
+            email="doctor@example.com", password="testpass123", role="doctor"
+        )
+        self.client.login(username="doctor@example.com", password="testpass123")
+        response = self.client.get("/")
+        assert response.status_code == 302
+        assert response.url == "/doctor/"
+
+    def test_authenticated_manager_root_redirects_to_manager(self) -> None:
+        """Authenticated manager requesting / must redirect to /manager/."""
+        User.objects.create_user(
+            email="manager@example.com", password="testpass123", role="manager"
+        )
+        self.client.login(username="manager@example.com", password="testpass123")
+        response = self.client.get("/")
+        assert response.status_code == 302
+        assert response.url == "/manager/"
+
+    def test_authenticated_admin_root_redirects_to_admin(self) -> None:
+        """Authenticated admin requesting / must redirect to /admin/."""
+        User.objects.create_user(
+            email="admin@example.com", password="testpass123", role="admin"
+        )
+        self.client.login(username="admin@example.com", password="testpass123")
+        response = self.client.get("/")
+        assert response.status_code == 302
+        assert response.url == "/admin/"
+
+    def test_authenticated_scheduler_root_redirects_to_scheduler(self) -> None:
+        """Authenticated scheduler requesting / must redirect to /scheduler/."""
+        User.objects.create_user(
+            email="scheduler@example.com", password="testpass123", role="scheduler"
+        )
+        self.client.login(username="scheduler@example.com", password="testpass123")
+        response = self.client.get("/")
+        assert response.status_code == 302
+        assert response.url == "/scheduler/"
 
 
 class TestRolePlaceholderPages(TestCase):
