@@ -1,14 +1,23 @@
 """Views for the django_ops operations web application.
 
 Provides login/logout authentication, role-based redirect after login,
-and minimal placeholder landing pages for each operational role.
+minimal placeholder landing pages for each operational role, and PWA
+installability assets (manifest and online-only service worker).
 """
+
+from pathlib import Path
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
+
+# Roles eligible for the installable PWA shell (remote-capable).
+PWA_CAPABLE_ROLES: frozenset[str] = frozenset({"doctor", "manager", "admin"})
+
+# Directory containing PWA static assets served directly by Django views.
+PWA_STATIC_DIR: Path = Path(__file__).resolve().parent / "static" / "django_ops" / "pwa"
 
 # Map each role value to its landing URL path.
 ROLE_HOME_MAP: dict[str, str] = {
@@ -95,6 +104,10 @@ def root_redirect(request: HttpRequest) -> HttpResponse:
 def _role_home(request: HttpRequest, role_label: str) -> HttpResponse:
     """Render a minimal placeholder page for a given role.
 
+    For remote-capable roles (doctor, manager, admin) the response
+    includes PWA installability metadata so the page is installable
+    as a standalone app on supported mobile browsers.
+
     Args:
         request: The HTTP request.
         role_label: The display label for the role.
@@ -102,10 +115,15 @@ def _role_home(request: HttpRequest, role_label: str) -> HttpResponse:
     Returns:
         An HTML response with the placeholder content.
     """
+    user_role: str = getattr(request.user, "role", "")
+    pwa_capable: bool = user_role in PWA_CAPABLE_ROLES
     return render(
         request,
         "django_ops/role_home.html",
-        {"role_label": role_label},
+        {
+            "role_label": role_label,
+            "pwa_capable": pwa_capable,
+        },
     )
 
 
@@ -142,6 +160,47 @@ def manager_home(request: HttpRequest) -> HttpResponse:
 def admin_home(request: HttpRequest) -> HttpResponse:
     """Placeholder landing page for Admin users."""
     return _role_home(request, "Admin")
+
+
+@require_GET  # type: ignore[untyped-decorator]
+def manifest_view(request: HttpRequest) -> HttpResponse:
+    """Serve the PWA web app manifest.
+
+    Returns the manifest.webmanifest file with the correct
+    ``application/manifest+json`` content type so browsers
+    recognize it as a valid installability document.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        The manifest file content.
+    """
+    manifest_path = PWA_STATIC_DIR / "manifest.webmanifest"
+    return HttpResponse(
+        manifest_path.read_bytes(),
+        content_type="application/manifest+json",
+    )
+
+
+@require_GET  # type: ignore[untyped-decorator]
+def service_worker_view(request: HttpRequest) -> HttpResponse:
+    """Serve the online-only PWA service worker.
+
+    The service worker uses network-only fetch behavior and does
+    not cache any clinical content for offline use.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        The service worker JavaScript content.
+    """
+    sw_path = PWA_STATIC_DIR / "service-worker.js"
+    return HttpResponse(
+        sw_path.read_bytes(),
+        content_type="text/javascript",
+    )
 
 
 def smoke(request: HttpRequest) -> HttpResponse:

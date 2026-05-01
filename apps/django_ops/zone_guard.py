@@ -30,12 +30,14 @@ logger = logging.getLogger(__name__)
 # Roles restricted to the intranet zone.
 INTRANET_ONLY_ROLES: frozenset[str] = frozenset({"nir", "scheduler"})
 
-# Paths that bypass the zone guard entirely (login, smoke, logout, static).
+# Paths that bypass the zone guard entirely (login, smoke, logout, static, PWA assets).
 BYPASS_PATH_PREFIXES: tuple[str, ...] = (
     "/login/",
     "/logout/",
     "/smoke/",
     "/static/",
+    "/manifest.webmanifest",
+    "/service-worker.js",
 )
 
 

@@ -1,0 +1,27 @@
+{
+  "name": "ATS Operations",
+  "short_name": "ATS Ops",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0b4263",
+  "background_color": "#f3f8fb",
+  "icons": [
+    {
+      "src": "/static/django_ops/pwa/icons/ats-ops-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/django_ops/pwa/icons/ats-ops-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/django_ops/pwa/icons/ats-ops-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

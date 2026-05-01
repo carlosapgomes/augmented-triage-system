@@ -12,9 +12,11 @@ from apps.django_ops.views import (
     login_view,
     logout_view,
     manager_home,
+    manifest_view,
     nir_home,
     root_redirect,
     scheduler_home,
+    service_worker_view,
     smoke,
 )
 
@@ -28,4 +30,6 @@ urlpatterns = [
     path("scheduler/", scheduler_home, name="scheduler_home"),
     path("manager/", manager_home, name="manager_home"),
     path("admin/", admin_home, name="admin_home"),
+    path("manifest.webmanifest", manifest_view, name="manifest"),
+    path("service-worker.js", service_worker_view, name="service_worker"),
 ]

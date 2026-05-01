@@ -21,7 +21,7 @@
 
 ## Phase 4 - PWA shell foundation
 
-- [ ] 4.1 Implementar shell PWA Django online-only com metadata instalável e páginas iniciais mínimas por papel.
+- [x] 4.1 Implementar shell PWA Django online-only com metadata instalável e páginas iniciais mínimas por papel.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/06-django-pwa-shell.md`
 
 ## Phase 5 - Verification and handoff
