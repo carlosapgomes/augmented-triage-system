@@ -2,7 +2,7 @@
 
 ## Phase 1 - Shared workflow projections
 
-- [ ] 1.1 Preparar projeções/queries compartilhadas para filas web, cards de caso e detalhes operacionais por papel, fixando cedo o contrato mínimo dos eventos humanos web na timeline.
+- [x] 1.1 Preparar projeções/queries compartilhadas para filas web, cards de caso e detalhes operacionais por papel, fixando cedo o contrato mínimo dos eventos humanos web na timeline.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/01-shared-workflow-projections.md`
 
 ## Phase 2 - NIR intake and tracking
