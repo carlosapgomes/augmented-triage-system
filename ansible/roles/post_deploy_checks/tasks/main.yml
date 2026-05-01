@@ -140,6 +140,25 @@
       {{ (ats_post_deploy_bot_api_health_response.status | default(0) | int == ats_post_deploy_bot_api_expected_status | int)
       and (ats_post_deploy_bot_api_expected_text in (ats_post_deploy_bot_api_health_response.content | default('') | lower)) }}
 
+- name: Validate django-ops health endpoint status and payload
+  ansible.builtin.uri:
+    url: "{{ ats_post_deploy_django_ops_healthcheck_url }}"
+    method: GET
+    status_code: "{{ ats_post_deploy_django_ops_expected_status }}"
+    return_content: true
+  failed_when: false
+  register: ats_post_deploy_django_ops_health_response
+
+- name: Evaluate django-ops health endpoint objective criteria
+  ansible.builtin.set_fact:
+    ats_post_deploy_criterion_django_ops_health_status: >-
+      {{ ats_post_deploy_django_ops_health_response.status | default(0) | int == ats_post_deploy_django_ops_expected_status | int }}
+    ats_post_deploy_criterion_django_ops_health_content: >-
+      {{ ats_post_deploy_django_ops_expected_text in (ats_post_deploy_django_ops_health_response.content | default('') | lower) }}
+    ats_post_deploy_criterion_django_ops_health: >-
+      {{ (ats_post_deploy_django_ops_health_response.status | default(0) | int == ats_post_deploy_django_ops_expected_status | int)
+      and (ats_post_deploy_django_ops_expected_text in (ats_post_deploy_django_ops_health_response.content | default('') | lower)) }}
+
 - name: Build objective post-deploy approval criteria summary
   ansible.builtin.set_fact:
     ats_post_deploy_approval_criteria:
@@ -149,6 +168,8 @@
         {{ (not ats_post_deploy_require_logs_clean_criterion) or (ats_post_deploy_criterion_logs_clean | bool) }}
       bot_api_health: >-
         {{ (not ats_post_deploy_require_bot_api_health_criterion) or (ats_post_deploy_criterion_bot_api_health | bool) }}
+      django_ops_health: >-
+        {{ (not ats_post_deploy_require_django_ops_health_criterion) or (ats_post_deploy_criterion_django_ops_health | bool) }}
       non_root_runtime: >-
         {{ (not ats_post_deploy_require_non_root_runtime_criterion) or (ats_post_deploy_criterion_non_root_runtime | bool) }}
 
@@ -158,6 +179,7 @@
       - ats_post_deploy_approval_criteria.services_running | bool
       - ats_post_deploy_approval_criteria.logs_clean | bool
       - ats_post_deploy_approval_criteria.bot_api_health | bool
+      - ats_post_deploy_approval_criteria.django_ops_health | bool
       - ats_post_deploy_approval_criteria.non_root_runtime | bool
     fail_msg: >-
       Deploy approval gate failed.
@@ -169,6 +191,10 @@
       http_status={{ ats_post_deploy_bot_api_health_response.status | default('n/a') }}
       expected_status={{ ats_post_deploy_bot_api_expected_status }}
       expected_text_found={{ ats_post_deploy_criterion_bot_api_health_content | default(false) }};
+      django_ops_health={{ ats_post_deploy_approval_criteria.django_ops_health }}
+      http_status={{ ats_post_deploy_django_ops_health_response.status | default('n/a') }}
+      expected_status={{ ats_post_deploy_django_ops_expected_status }}
+      expected_text_found={{ ats_post_deploy_criterion_django_ops_health_content | default(false) }};
       non_root_runtime={{ ats_post_deploy_approval_criteria.non_root_runtime }}
       service_user_uid={{ ats_post_deploy_service_user_uid.stdout | default('n/a') }}
       runtime_process_owners={{ ats_post_deploy_runtime_process_owners | default({}) }}

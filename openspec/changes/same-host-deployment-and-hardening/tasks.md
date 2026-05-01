@@ -4,7 +4,7 @@
 
 - [x] 1.1 Atualizar a composição suportada de runtime para incluir a web app Django no mesmo host.
   - Slice file: `openspec/changes/same-host-deployment-and-hardening/tasks/01-runtime-composition-update.md`
-- [ ] 1.2 Ajustar a automação Ansible/rootless para o stack consolidado.
+- [x] 1.2 Ajustar a automação Ansible/rootless para o stack consolidado.
   - Slice file: `openspec/changes/same-host-deployment-and-hardening/tasks/02-ansible-stack-consolidation.md`
 
 ## Phase 2 - Publication topology and zone hardening

@@ -15,6 +15,7 @@ ats_runtime_environment_file_mode: "0640"
 ats_runtime_compose_file_mode: "0644"
 ats_runtime_root_mode: "0750"
 ats_runtime_bot_api_publish_port: "127.0.0.1:8000:8000"
+ats_runtime_django_ops_publish_port: "127.0.0.1:8001:8001"
 ats_runtime_postgres_publish_port: "127.0.0.1:5432:5432"
 
 # Public GHCR image coordinates.
@@ -51,6 +52,16 @@ ats_runtime_services:
       - "python"
       - "-m"
       - "apps.worker.main"
+  django_ops:
+    command:
+      - "uv"
+      - "run"
+      - "uvicorn"
+      - "apps.django_ops.asgi:application"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8001"
 
 # Mandatory runtime environment keys. Values must be overridden per environment.
 ats_runtime_env_required:
@@ -105,6 +116,7 @@ ats_runtime_deploy_services:
   - bot-api
   - bot-matrix
   - worker
+  - django-ops
 # Note: postgres is intentionally excluded from post-deploy checks.
 # Postgres is infrastructure (database) and may remain running across
 # application deploys; post-deploy checks focus on application services.
@@ -112,6 +124,7 @@ ats_post_deploy_expected_services:
   - bot-api
   - bot-matrix
   - worker
+  - django-ops
 ats_runtime_pull_policy: "always"
 ats_runtime_up_flags: "--detach --no-recreate --no-build"
 ats_runtime_worker_replicas: 3
@@ -138,3 +151,12 @@ ats_runtime_supported_service_commands:
     - "python"
     - "-m"
     - "apps.worker.main"
+  django_ops:
+    - "uv"
+    - "run"
+    - "uvicorn"
+    - "apps.django_ops.asgi:application"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8001"

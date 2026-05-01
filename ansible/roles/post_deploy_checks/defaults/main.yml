@@ -12,3 +12,8 @@ ats_post_deploy_require_services_running_criterion: true
 ats_post_deploy_require_logs_clean_criterion: true
 ats_post_deploy_require_bot_api_health_criterion: true
 ats_post_deploy_require_non_root_runtime_criterion: true
+
+ats_post_deploy_django_ops_healthcheck_url: "http://127.0.0.1:8001/smoke/"
+ats_post_deploy_django_ops_expected_status: 200
+ats_post_deploy_django_ops_expected_text: "ok"
+ats_post_deploy_require_django_ops_health_criterion: true
