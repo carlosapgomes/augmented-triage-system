@@ -14,7 +14,7 @@
 
 ## Phase 3 - Access zones
 
-- [ ] 3.1 Implementar resolução confiável do IP de origem atrás de proxy/túnel, com testes positivos e negativos.
+- [x] 3.1 Implementar resolução confiável do IP de origem atrás de proxy/túnel, com testes positivos e negativos.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/04-client-ip-resolution.md`
 - [ ] 3.2 Implementar restrição app-level para `nir` e `scheduler`, limitada à intranet, com auditoria de acesso negado.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/05-intranet-role-restrictions.md`
@@ -60,9 +60,19 @@ O relatório entregue pelo executor do slice deve incluir:
 - riscos, desvios ou pendências;
 - SNP before/after com trechos relevantes do código alterado.
 
+## Mandatory gate reporting rules for every slice
+
+- Relatar no arquivo final os comandos exatos executados, sem resumir ou generalizar.
+- Não usar comandos ambíguos como `uv run ruff check .` quando o slice alterar apenas subconjuntos do repositório.
+- Rodar `ruff` apenas em caminhos Python relevantes alterados.
+- Rodar `markdownlint-cli2` em todos os arquivos Markdown alterados, incluindo arquivos em `openspec/changes/...` quando modificados.
+- Se qualquer arquivo em `docs/*.md` for alterado, também executar e reportar: `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q`.
+- Se algum gate obrigatório não puder ser executado, explicar explicitamente o motivo no relatório.
+
 ## Mandatory gates for every slice
 
 - `uv run pytest <targeted-tests>`
-- `uv run ruff check <changed-paths>`
+- `uv run ruff check <changed-python-paths>`
 - `uv run mypy <changed-paths-or-package>`
 - `markdownlint-cli2 "<changed-markdown-paths>"`
+- `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` quando `docs/*.md` mudar

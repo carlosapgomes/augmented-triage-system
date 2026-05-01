@@ -79,6 +79,11 @@ DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
 # Custom user model
 AUTH_USER_MODEL: str = "django_ops.User"
 
+# Trusted proxy configuration for client IP resolution.
+# Only IP addresses listed here will have their X-Forwarded-For headers
+# trusted by the IP resolver. Leave empty to trust no proxies.
+TRUSTED_PROXIES: list[str] = []
+
 # Authentication URLs
 LOGIN_URL: str = "/login/"
 LOGOUT_REDIRECT_URL: str = "/login/"

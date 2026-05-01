@@ -16,14 +16,19 @@ A política de intranet para `nir` e `scheduler` depende de um client IP resolvi
 
 ## Tests to write FIRST (TDD)
 
-- request direta usa IP remoto real;
-- request via proxy confiável usa forwarded client IP aceito;
-- forwarding vindo de origem não confiável é ignorado.
+- [x] request direta usa IP remoto real;
+- [x] request via proxy confiável usa forwarded client IP aceito;
+- [x] forwarding vindo de origem não confiável é ignorado.
 
 ## Success criteria
 
-- existe resolução determinística de client IP;
-- headers não confiáveis não influenciam autorização futura.
+- [x] existe resolução determinística de client IP;
+- [x] headers não confiáveis não influenciam autorização futura.
+
+## Mandatory report file
+
+- Write the implementation report to: `/tmp/django-web-foundation-and-access-zones-04-client-ip-resolution-report.md`
+- In the final response, include the exact file path above so the user can copy it.
 
 ## Mandatory implementation prompt
 
@@ -37,4 +42,9 @@ Do not enforce role restrictions yet; only resolve origin IP safely.
 Keep the design reusable by later access-control slices.
 Run gates, commit, push, and stop.
 Report SNP before/after.
+In the report, list the exact commands executed for pytest, ruff, mypy, and markdownlint.
+Do not use `uv run ruff check .`; run ruff only on changed Python paths.
+If any Markdown files are changed, run markdownlint on those exact paths and report the command.
+Write the full implementation report to `/tmp/django-web-foundation-and-access-zones-04-client-ip-resolution-report.md`.
+In your final response, provide the exact report file path.
 ```
