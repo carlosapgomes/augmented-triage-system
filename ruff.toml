@@ -22,3 +22,4 @@ extend-select = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
 # retaining correctness via pytest and core lint rules (E/F/I/UP).
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
 "alembic/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
+"apps/django_ops/migrations/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201", "E501"]

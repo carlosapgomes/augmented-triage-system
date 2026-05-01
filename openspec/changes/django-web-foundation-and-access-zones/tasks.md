@@ -7,7 +7,7 @@
 
 ## Phase 2 - Identity and role model
 
-- [ ] 2.1 Implementar modelo de usuário custom com contas individuais e papéis `nir`, `doctor`, `scheduler`, `manager`, `admin`.
+- [x] 2.1 Implementar modelo de usuário custom com contas individuais e papéis `nir`, `doctor`, `scheduler`, `manager`, `admin`.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/02-custom-user-and-roles.md`
 - [ ] 2.2 Implementar login/logout/sessão e redirecionamento pós-login específico por papel.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/03-login-session-and-role-routing.md`
@@ -41,6 +41,12 @@
 - Manter type hints e docstrings em todo código novo/alterado.
 - Respeitar a direção arquitetural `adapters -> application -> domain -> infrastructure`.
 - Parar ao final do slice, atualizar checklist e aguardar aprovação.
+
+## Mandatory implementation report delivery
+
+- O executor do slice deve gravar o relatório final em um arquivo temporário em `/tmp/`.
+- O caminho exato do arquivo temporário deve seguir o valor definido no arquivo do slice.
+- A resposta final do executor deve incluir explicitamente o caminho do arquivo para que o usuário possa copiá-lo.
 
 ## Mandatory implementation report format for every slice
 

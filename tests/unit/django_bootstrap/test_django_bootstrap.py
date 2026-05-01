@@ -8,20 +8,13 @@ import os
 
 import django
 from django.test import RequestFactory
-from django.test.utils import setup_test_environment
 
-
-def _setup_django() -> None:
-    """Configure Django settings for test execution."""
-    os.environ.setdefault(
-        "DJANGO_SETTINGS_MODULE",
-        "apps.django_ops.settings",
-    )
+os.environ.setdefault(
+    "DJANGO_SETTINGS_MODULE",
+    "apps.django_ops.settings",
+)
+if not django.conf.settings.configured:
     django.setup()
-
-
-_setup_django()
-setup_test_environment()
 
 
 class TestDjangoBootstrap:

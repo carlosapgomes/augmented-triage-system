@@ -66,3 +66,6 @@ STATIC_URL: str = "static/"
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
+
+# Custom user model
+AUTH_USER_MODEL: str = "django_ops.User"
