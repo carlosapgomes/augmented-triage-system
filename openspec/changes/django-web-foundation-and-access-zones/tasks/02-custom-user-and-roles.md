@@ -26,6 +26,11 @@ A fundação Django já existe. Agora o sistema precisa de uma base de identidad
 - os cinco papéis aprovados existem e são testados;
 - a base suporta uma conta por pessoa.
 
+## Mandatory report file
+
+- Write the implementation report to: `/tmp/django-web-foundation-and-access-zones-02-custom-user-and-roles-report.md`
+- In the final response, include the exact file path above so the user can copy it.
+
 ## Mandatory implementation prompt
 
 ```text
@@ -38,4 +43,6 @@ Do not implement login, session, PWA, or network restrictions.
 Keep migrations deterministic and reversible.
 Update task tracking, run gates, commit, push, and stop.
 Report SNP before/after.
+Write the full implementation report to `/tmp/django-web-foundation-and-access-zones-02-custom-user-and-roles-report.md`.
+In your final response, provide the exact report file path.
 ```

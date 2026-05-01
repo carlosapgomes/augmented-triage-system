@@ -28,6 +28,11 @@ A resolução confiável do client IP já existe. Agora o app deve negar `nir` e
 - credenciais válidas não burlam a política;
 - acessos negados ficam rastreáveis.
 
+## Mandatory report file
+
+- Write the implementation report to: `/tmp/django-web-foundation-and-access-zones-05-intranet-role-restrictions-report.md`
+- In the final response, include the exact file path above so the user can copy it.
+
 ## Mandatory implementation prompt
 
 ```text
@@ -40,4 +45,9 @@ Do not modify network/firewall automation in this slice; stay at app level.
 Preserve remote access for doctor/manager/admin.
 Run gates, update checklist, commit, push, and stop.
 Include SNP before/after in the report.
+In the report, list the exact commands executed for pytest, ruff, mypy, and markdownlint.
+Do not use `uv run ruff check .`; run ruff only on changed Python paths.
+If any Markdown files are changed, run markdownlint on those exact paths and report the command.
+Write the full implementation report to `/tmp/django-web-foundation-and-access-zones-05-intranet-role-restrictions-report.md`.
+In your final response, provide the exact report file path.
 ```

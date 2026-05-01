@@ -27,6 +27,11 @@ O modelo de usuário custom e os cinco papéis já existem. Agora a fundação p
 - logout é explícito e determinístico;
 - os cinco papéis possuem destino inicial definido.
 
+## Mandatory report file
+
+- Write the implementation report to: `/tmp/django-web-foundation-and-access-zones-03-login-session-and-role-routing-report.md`
+- In the final response, include the exact file path above so the user can copy it.
+
 ## Mandatory implementation prompt
 
 ```text
@@ -39,4 +44,6 @@ Do not add intranet restrictions or PWA yet.
 Use minimal placeholder pages if needed only to satisfy redirects.
 Run gates, update checklist, commit, push, and stop.
 Include detailed report with SNP before/after.
+Write the full implementation report to `/tmp/django-web-foundation-and-access-zones-03-login-session-and-role-routing-report.md`.
+In your final response, provide the exact report file path.
 ```

@@ -49,9 +49,19 @@
 - riscos, desvios e pendências;
 - SNP before/after.
 
+## Mandatory gate reporting rules for every slice
+
+- Relatar no arquivo final os comandos exatos executados, sem resumir ou generalizar.
+- Não usar comandos ambíguos como `uv run ruff check .` quando o slice alterar apenas subconjuntos do repositório.
+- Rodar `ruff` apenas em caminhos Python relevantes alterados.
+- Rodar `markdownlint-cli2` em todos os arquivos Markdown alterados, incluindo arquivos em `openspec/changes/...` quando modificados.
+- Se qualquer arquivo em `docs/*.md` for alterado, também executar e reportar: `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q`.
+- Se algum gate obrigatório não puder ser executado, explicar explicitamente o motivo no relatório.
+
 ## Mandatory gates for every slice
 
 - `uv run pytest <targeted-tests>`
-- `uv run ruff check <changed-paths>`
+- `uv run ruff check <changed-python-paths>`
 - `uv run mypy <changed-paths-or-package>`
 - `markdownlint-cli2 "<changed-markdown-paths>"`
+- `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q` quando `docs/*.md` mudar

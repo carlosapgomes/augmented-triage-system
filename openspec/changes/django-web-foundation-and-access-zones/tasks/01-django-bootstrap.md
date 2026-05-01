@@ -49,6 +49,11 @@ Este é o primeiro slice da fundação Django. O runtime FastAPI atual continua 
 - `uv run mypy <changed-paths-or-package>`
 - `markdownlint-cli2 "openspec/changes/django-web-foundation-and-access-zones/**/*.md"`
 
+## Mandatory report file
+
+- Write the implementation report to: `/tmp/django-web-foundation-and-access-zones-01-django-bootstrap-report.md`
+- In the final response, include the exact file path above so the user can copy it.
+
 ## Mandatory implementation prompt
 
 ```text
@@ -66,6 +71,8 @@ Produce a detailed implementation report with SNP before/after snippets.
 
 ## Mandatory implementation report
 
+- gravar o relatório completo em `/tmp/django-web-foundation-and-access-zones-01-django-bootstrap-report.md`;
+- incluir o caminho exato do arquivo na resposta final;
 - resumo do slice;
 - arquivos criados/alterados;
 - testes escritos primeiro;
