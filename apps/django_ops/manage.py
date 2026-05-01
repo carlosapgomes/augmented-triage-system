@@ -1,7 +1,18 @@
-"""Manage.py entrypoint for the django_ops operations web application."""
+"""Manage.py entrypoint for the django_ops operations web application.
+
+Adds the repository root to ``sys.path`` so that the
+``apps.django_ops`` package remains importable regardless of
+the working directory from which this script is invoked.
+"""
 
 import os
 import sys
+from pathlib import Path
+
+# Repository root (two levels up: django_ops -> apps -> repo root).
+_REPO_ROOT: str = str(Path(__file__).resolve().parent.parent.parent)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 
 def main() -> None:
