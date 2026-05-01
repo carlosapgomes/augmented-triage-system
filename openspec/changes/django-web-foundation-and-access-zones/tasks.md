@@ -16,7 +16,7 @@
 
 - [x] 3.1 Implementar resolução confiável do IP de origem atrás de proxy/túnel, com testes positivos e negativos.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/04-client-ip-resolution.md`
-- [ ] 3.2 Implementar restrição app-level para `nir` e `scheduler`, limitada à intranet, com auditoria de acesso negado.
+- [x] 3.2 Implementar restrição app-level para `nir` e `scheduler`, limitada à intranet, com auditoria de acesso negado.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/05-intranet-role-restrictions.md`
 
 ## Phase 4 - PWA shell foundation

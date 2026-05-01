@@ -35,6 +35,7 @@ MIDDLEWARE: list[str] = [
     "django.middleware.common.CommonMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.django_ops.zone_guard.IntranetZoneGuardMiddleware",
 ]
 
 ROOT_URLCONF: str = "apps.django_ops.urls"
@@ -83,6 +84,13 @@ AUTH_USER_MODEL: str = "django_ops.User"
 # Only IP addresses listed here will have their X-Forwarded-For headers
 # trusted by the IP resolver. Leave empty to trust no proxies.
 TRUSTED_PROXIES: list[str] = []
+
+# Intranet CIDR allowlist for zone-based access restrictions.
+# Only roles in INTRANET_ONLY_ROLES (nir, scheduler) are affected.
+# These roles must access the application from an IP within one of
+# these CIDRs. Defaults to loopback for development/testing.
+# In production, override with the actual intranet CIDR range.
+INTRANET_CIDR_ALLOWLIST: list[str] = ["127.0.0.0/8"]
 
 # Authentication URLs
 LOGIN_URL: str = "/login/"
