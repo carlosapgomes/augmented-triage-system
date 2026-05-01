@@ -25,11 +25,16 @@ ALLOWED_HOSTS: list[str] = ["*"]
 INSTALLED_APPS: list[str] = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    "django.contrib.sessions",
+    "django.contrib.messages",
     "apps.django_ops",
 ]
 
 MIDDLEWARE: list[str] = [
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
 ]
 
 ROOT_URLCONF: str = "apps.django_ops.urls"
@@ -40,7 +45,11 @@ TEMPLATES: list[dict[str, object]] = [
         "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
-            "context_processors": [],
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
         },
     },
 ]
@@ -69,3 +78,12 @@ DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
 
 # Custom user model
 AUTH_USER_MODEL: str = "django_ops.User"
+
+# Authentication URLs
+LOGIN_URL: str = "/login/"
+LOGOUT_REDIRECT_URL: str = "/login/"
+
+# Authentication backends
+AUTHENTICATION_BACKENDS: list[str] = [
+    "apps.django_ops.auth_backends.EmailBackend",
+]

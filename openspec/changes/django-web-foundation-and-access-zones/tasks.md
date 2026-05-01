@@ -9,7 +9,7 @@
 
 - [x] 2.1 Implementar modelo de usuário custom com contas individuais e papéis `nir`, `doctor`, `scheduler`, `manager`, `admin`.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/02-custom-user-and-roles.md`
-- [ ] 2.2 Implementar login/logout/sessão e redirecionamento pós-login específico por papel.
+- [x] 2.2 Implementar login/logout/sessão e redirecionamento pós-login específico por papel.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/03-login-session-and-role-routing.md`
 
 ## Phase 3 - Access zones

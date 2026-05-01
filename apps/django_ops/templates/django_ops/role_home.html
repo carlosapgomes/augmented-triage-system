@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ role_label }} — ATS Operations</title>
+</head>
+<body>
+    <h1>{{ role_label }} Home</h1>
+    <p>Welcome, {{ user.email }}. This is the {{ role_label }} placeholder page.</p>
+    <a href="{% url 'logout' %}">Logout</a>
+</body>
+</html>
