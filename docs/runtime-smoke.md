@@ -47,6 +47,12 @@ uv run python -m apps.bot_matrix.main
 uv run python -m apps.worker.main
 ```
 
+```bash
+uv run uvicorn apps.django_ops.asgi:application --host 0.0.0.0 --port 8001
+```
+
+O processo `django-ops` é a web app Django que serve o dashboard, login e gestão de prompts.
+
 Defina `LOG_LEVEL=DEBUG` no `.env` quando precisar de traces estilo heartbeat.
 Em `INFO`, logs mostram startup e atividades relevantes de roteamento/claim de job.
 
@@ -150,7 +156,7 @@ Use os mesmos comandos de entrypoint definidos em `docker-compose.yml`:
 
 ```bash
 docker compose up --build
-docker compose logs -f bot-api bot-matrix worker
+docker compose logs -f bot-api bot-matrix worker django-ops
 ```
 
 Paridade de comandos no Compose:
@@ -158,3 +164,4 @@ Paridade de comandos no Compose:
 - `bot-api`: `uv run uvicorn apps.bot_api.main:create_app --factory --host 0.0.0.0 --port 8000`
 - `bot-matrix`: `uv run python -m apps.bot_matrix.main`
 - `worker`: `uv run python -m apps.worker.main`
+- `django-ops`: `uv run uvicorn apps.django_ops.asgi:application --host 0.0.0.0 --port 8001`

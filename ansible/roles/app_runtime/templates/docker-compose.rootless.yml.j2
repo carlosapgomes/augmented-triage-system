@@ -49,5 +49,17 @@ services:
       postgres:
         condition: service_healthy
 
+  django-ops:
+    image: {{ ats_runtime_image }}
+    restart: unless-stopped
+    env_file:
+      - {{ ats_runtime_env_file }}
+    command: {{ ats_runtime_services.django_ops.command | to_json }}
+    ports:
+      - {{ ats_runtime_django_ops_publish_port }}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:

@@ -4,11 +4,12 @@ Idioma: **Português (BR)** | [English](en/architecture.md)
 
 ## Visão Geral
 
-O sistema é dividido em três apps deployáveis mais PostgreSQL:
+O sistema é dividido em quatro apps deployáveis mais PostgreSQL:
 
 - `bot-api`: ingress HTTP para fundação de login/auth e endpoints de suporte de runtime.
 - `bot-matrix`: integração Matrix para eventos de intake/reação.
 - `worker`: consumidor async de fila para extração, jobs LLM, postagem e cleanup.
+- `django-ops`: web app Django para interface humana (dashboard, login, gestão de prompts, fluxo web de triagem).
 - `postgres`: fonte de verdade para casos, jobs, mapeamento de mensagens e trilha de auditoria.
 
 ## Camadas e direção de dependência
@@ -33,6 +34,7 @@ Regras:
 - Job queue: `src/triage_automation/infrastructure/db/job_queue_repository.py`
 - Rota de auth/login: `src/triage_automation/infrastructure/http/auth_router.py`
 - Montagem do runtime Bot API: `apps/bot_api/main.py`
+- Web app Django (dashboard, login, gestão): `apps/django_ops/`
 
 ## Notas do workflow
 

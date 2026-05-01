@@ -121,7 +121,7 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy.yml \
 
 1. Expected result:
 
-- `bot-api`, `bot-matrix`, and `worker` services started.
+- `bot-api`, `bot-matrix`, `worker`, and `django-ops` services started.
 - runtime artifacts rendered under `{{ ats_runtime_root }}` on the remote host.
 - playbook completes without failures.
 

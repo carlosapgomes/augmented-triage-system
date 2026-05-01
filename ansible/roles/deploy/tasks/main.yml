@@ -14,6 +14,7 @@
       - ats_runtime_services.bot_api.command == ats_runtime_supported_service_commands.bot_api
       - ats_runtime_services.bot_matrix.command == ats_runtime_supported_service_commands.bot_matrix
       - ats_runtime_services.worker.command == ats_runtime_supported_service_commands.worker
+      - ats_runtime_services.django_ops.command == ats_runtime_supported_service_commands.django_ops
     fail_msg: >-
       Configured runtime commands diverge from supported startup composition.
       Align `ats_runtime_services` with declared supported commands before deploy.

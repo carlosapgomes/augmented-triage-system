@@ -103,6 +103,16 @@ After migrations and service startup, use the portal directly in a browser.
 docker compose up --build
 ```
 
+The consolidated stack starts the following services:
+
+- `postgres`: database
+- `bot-api`: FastAPI API (port 8000)
+- `bot-matrix`: Matrix integration
+- `worker`: queue consumer
+- `django-ops`: Django web app (port 8001)
+
+To run only the database locally and start other processes via UV in separate terminals, see `docs/en/runtime-smoke.md`.
+
 ## 7. Runtime smoke validation (recommended before manual E2E)
 
 Follow `docs/en/runtime-smoke.md` to validate:

@@ -38,3 +38,24 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  django-ops:
+    build: .
+    command:
+      [
+        "uv",
+        "run",
+        "uvicorn",
+        "apps.django_ops.asgi:application",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8001",
+      ]
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy

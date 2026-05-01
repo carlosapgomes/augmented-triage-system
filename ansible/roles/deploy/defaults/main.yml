@@ -3,6 +3,7 @@ ats_runtime_deploy_services:
   - bot-api
   - bot-matrix
   - worker
+  - django-ops
 ats_runtime_pull_policy: "always"
 ats_runtime_up_flags: "--detach --force-recreate --no-build"
 ats_runtime_worker_replicas: 1
@@ -30,3 +31,12 @@ ats_runtime_supported_service_commands:
     - "python"
     - "-m"
     - "apps.worker.main"
+  django_ops:
+    - "uv"
+    - "run"
+    - "uvicorn"
+    - "apps.django_ops.asgi:application"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8001"
