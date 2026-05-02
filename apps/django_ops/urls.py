@@ -8,6 +8,8 @@ from django.urls import path
 
 from apps.django_ops.views import (
     admin_home,
+    doctor_decision_form,
+    doctor_decision_form_submit,
     doctor_home,
     login_view,
     logout_view,
@@ -33,6 +35,16 @@ urlpatterns = [
     path("nir/upload/submit/", nir_upload_submit, name="nir_upload_submit"),
     path("nir/cases/<uuid:case_id>/", nir_case_detail, name="nir_case_detail"),
     path("doctor/", doctor_home, name="doctor_home"),
+    path(
+        "doctor/cases/<uuid:case_id>/decision/",
+        doctor_decision_form,
+        name="doctor_decision_form",
+    ),
+    path(
+        "doctor/cases/<uuid:case_id>/decision/submit/",
+        doctor_decision_form_submit,
+        name="doctor_decision_form_submit",
+    ),
     path("scheduler/", scheduler_home, name="scheduler_home"),
     path("manager/", manager_home, name="manager_home"),
     path("admin/", admin_home, name="admin_home"),

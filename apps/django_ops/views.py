@@ -4,7 +4,8 @@ Provides login/logout authentication, role-based redirect after login,
 minimal placeholder landing pages for each operational role, PWA
 installability assets (manifest and online-only service worker),
 NIR PDF upload for case creation via web, NIR case listing dashboard,
-and NIR case detail with operational progress and timeline.
+NIR case detail with operational progress and timeline,
+and doctor decision form for web-based medical decision submission.
 """
 
 from pathlib import Path
@@ -211,6 +212,291 @@ def doctor_home(request: HttpRequest) -> HttpResponse:
         {
             "cases": cases,
             "user_email": request.user.email,
+        },
+    )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_GET  # type: ignore[untyped-decorator]
+def doctor_decision_form(request: HttpRequest, case_id: UUID) -> HttpResponse:
+    """Render the doctor decision form for a given case.
+
+    Only accessible to authenticated ``doctor`` role users.
+    Shows case details and the structured decision form.
+    Other roles receive a 403 Forbidden response.
+    Returns 404 if the case does not exist or is not in WAIT_DOCTOR.
+    """
+    if request.user.role != "doctor":
+        return HttpResponse("Access denied: Doctor role required.", status=403)
+
+    from apps.django_ops.service_wiring import (
+        build_handle_doctor_decision_service,
+        run_async,
+    )
+    from triage_automation.application.ports.case_repository_port import (
+        CaseDoctorDecisionSnapshot,
+    )
+    from triage_automation.application.services.patient_context import (
+        extract_patient_name_age,
+    )
+
+    service = build_handle_doctor_decision_service()
+
+    raw = run_async(
+        service._case_repository.get_case_doctor_decision_snapshot(
+            case_id=case_id
+        )
+    )
+    snapshot: CaseDoctorDecisionSnapshot | None = (
+        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
+    )
+
+    if snapshot is None or snapshot.status != "WAIT_DOCTOR":
+        return HttpResponse("Case not found or not awaiting decision.", status=404)
+
+    patient_name: str | None = None
+    patient_age: int | None = None
+    if snapshot.structured_data_json:
+        patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
+            snapshot.structured_data_json
+        )
+
+    return render(
+        request,
+        "django_ops/doctor_decision_form.html",
+        {
+            "case_id": str(case_id),
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "agency_record_number": snapshot.agency_record_number,
+            "user_email": request.user.email,
+            "error_message": None,
+        },
+    )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def doctor_decision_form_submit(
+    request: HttpRequest, case_id: UUID
+) -> HttpResponse:
+    """Handle doctor decision form submission.
+
+    Validates the form data, constructs a structured decision payload,
+    and delegates to the existing ``HandleDoctorDecisionService`` for
+    CAS update, audit persistence, and next-step job enqueue.
+
+    On success, persists a web human event audit entry and redirects
+    to the doctor queue. On validation or processing failure, re-renders
+    the form with an error message.
+    """
+    if request.user.role != "doctor":
+        return HttpResponse("Access denied: Doctor role required.", status=403)
+
+    from apps.django_ops.service_wiring import (
+        build_handle_doctor_decision_service,
+        run_async,
+    )
+
+    decision = request.POST.get("decision", "")
+    support_flag = request.POST.get("support_flag", "none")
+    admission_flow_raw = request.POST.get("admission_flow", "")
+    reason = request.POST.get("reason", "")
+
+    # ── Form-level validation ─────────────────────────────────────
+    from triage_automation.application.dto.webhook_models import (
+        AdmissionFlow,
+    )
+
+    error = _validate_decision_form(
+        decision=decision,
+        support_flag=support_flag,
+        admission_flow_raw=admission_flow_raw,
+        reason=reason,
+    )
+    if error:
+        return _render_decision_form_error(
+            request=request,
+            case_id=case_id,
+            error_message=error,
+        )
+
+    # ── Build payload and delegate ─────────────────────────────────
+    from triage_automation.application.dto.webhook_models import (
+        TriageDecisionWebhookPayload,
+    )
+    from triage_automation.application.services.handle_doctor_decision_service import (
+        HandleDoctorDecisionOutcome,
+    )
+
+    admission_flow: AdmissionFlow | None = (
+        admission_flow_raw if admission_flow_raw in ("scheduled", "immediate") else None
+    )
+    reason_value: str | None = reason if reason and reason.strip() else None
+
+    payload = TriageDecisionWebhookPayload(
+        case_id=case_id,
+        doctor_user_id=str(request.user.pk),
+        decision=decision,
+        support_flag=support_flag,
+        admission_flow=admission_flow,
+        reason=reason_value,
+    )
+
+    service = build_handle_doctor_decision_service()
+
+    raw_result = run_async(service.handle(payload))
+    from triage_automation.application.services.handle_doctor_decision_service import (
+        HandleDoctorDecisionResult,
+    )
+    assert isinstance(raw_result, HandleDoctorDecisionResult)
+    result: HandleDoctorDecisionResult = raw_result
+
+    if result.outcome != HandleDoctorDecisionOutcome.APPLIED:
+        error_map: dict[HandleDoctorDecisionOutcome, str] = {
+            HandleDoctorDecisionOutcome.NOT_FOUND: "Caso não encontrado.",
+            HandleDoctorDecisionOutcome.WRONG_STATE: (
+                "O caso não está aguardando decisão médica."
+            ),
+            HandleDoctorDecisionOutcome.DUPLICATE_OR_RACE: (
+                "Decisão já aplicada ou conflito detectado."
+            ),
+        }
+        return _render_decision_form_error(
+            request=request,
+            case_id=case_id,
+            error_message=error_map.get(
+                result.outcome, "Erro ao processar decisão."
+            ),
+        )
+
+    # ── Persist web human event audit ──────────────────────────────
+    from triage_automation.application.ports.audit_repository_port import (
+        AuditEventCreateInput,
+    )
+    from triage_automation.domain.web_event_contract import (
+        WebEventOrigin,
+        WebEventType,
+    )
+
+    run_async(
+        service._audit_repository.append_event(
+            AuditEventCreateInput(
+                case_id=case_id,
+                actor_type="web_human",
+                event_type=WebEventType.DOCTOR_DECISION.value,
+                actor_user_id=str(request.user.pk),
+                payload={
+                    "origin": WebEventOrigin.WEB.value,
+                    "actor": request.user.email,
+                    "event_type": WebEventType.DOCTOR_DECISION.value,
+                    "decision": decision,
+                    "support_flag": support_flag,
+                    "admission_flow": admission_flow,
+                    "reason": reason_value,
+                    "summary_text": (
+                        f"Doctor decision '{decision}' "
+                        f"by {request.user.email}"
+                    ),
+                },
+            )
+        )
+    )
+
+    return HttpResponseRedirect("/doctor/")
+
+
+def _validate_decision_form(
+    *,
+    decision: str,
+    support_flag: str,
+    admission_flow_raw: str,
+    reason: str,
+) -> str | None:
+    """Validate form data for the doctor decision form.
+
+    Returns an error message string if validation fails, or None if valid.
+    """
+    if decision not in ("accept", "deny"):
+        return "Decisão inválida. Use 'accept' ou 'deny'."
+
+    if decision == "deny":
+        if not reason or not reason.strip():
+            return "É obrigatório informar o motivo da negativa."
+        if support_flag not in ("", "none"):
+            return "support_flag deve ser 'none' para decisão deny."
+        # No admission_flow for deny
+        return None
+
+    # decision == "accept"
+    if not admission_flow_raw or admission_flow_raw not in (
+        "scheduled",
+        "immediate",
+    ):
+        return (
+            "Fluxo de admissão inválido. "
+            "Use 'scheduled' ou 'immediate'."
+        )
+
+    # Validate support_flag for accept
+    if support_flag not in ("", "none", "anesthesist", "anesthesist_icu"):
+        return "Support flag inválido."
+
+    return None
+
+
+def _render_decision_form_error(
+    *,
+    request: HttpRequest,
+    case_id: UUID,
+    error_message: str,
+) -> HttpResponse:
+    """Re-render the decision form with an error message.
+
+    Loads case details to populate the form context alongside the error.
+    """
+    from apps.django_ops.service_wiring import (
+        build_handle_doctor_decision_service,
+        run_async,
+    )
+    from triage_automation.application.ports.case_repository_port import (
+        CaseDoctorDecisionSnapshot,
+    )
+
+    service = build_handle_doctor_decision_service()
+
+    raw = run_async(
+        service._case_repository.get_case_doctor_decision_snapshot(
+            case_id=case_id
+        )
+    )
+    snapshot: CaseDoctorDecisionSnapshot | None = (
+        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
+    )
+
+    patient_name: str | None = None
+    patient_age: int | None = None
+    agency_record_number: str | None = None
+    if snapshot is not None:
+        agency_record_number = snapshot.agency_record_number
+        if snapshot.structured_data_json:
+            from triage_automation.application.services.patient_context import (
+                extract_patient_name_age,
+            )
+            patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
+                snapshot.structured_data_json
+            )
+
+    return render(
+        request,
+        "django_ops/doctor_decision_form.html",
+        {
+            "case_id": str(case_id),
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "agency_record_number": agency_record_number,
+            "user_email": request.user.email,
+            "error_message": error_message,
         },
     )
 

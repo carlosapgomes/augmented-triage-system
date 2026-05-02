@@ -17,6 +17,9 @@ from triage_automation.application.ports.case_repository_port import CaseReposit
 from triage_automation.application.ports.job_queue_port import JobQueuePort
 from triage_automation.application.ports.pdf_storage_port import PdfFileStoragePort
 from triage_automation.application.services.doctor_queue_service import DoctorQueueService
+from triage_automation.application.services.handle_doctor_decision_service import (
+    HandleDoctorDecisionService,
+)
 from triage_automation.application.services.nir_dashboard_service import NirDashboardService
 from triage_automation.application.services.nir_web_intake_service import NirWebIntakeService
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
@@ -95,6 +98,32 @@ def build_doctor_queue_service() -> DoctorQueueService:
 
     return DoctorQueueService(
         case_repository=case_repository,
+    )
+
+
+def build_handle_doctor_decision_service() -> HandleDoctorDecisionService:
+    """Build the HandleDoctorDecisionService without Matrix dependencies.
+
+    For the web workflow, Matrix Room-2 posting is omitted. The service
+    focuses purely on the core decision logic: state check, CAS update,
+    audit persistence, and next-step job enqueue.
+
+    Returns:
+        A fully configured ``HandleDoctorDecisionService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
+    audit_repository: AuditRepositoryPort = SqlAlchemyAuditRepository(session_factory)
+    job_queue: JobQueuePort = SqlAlchemyJobQueueRepository(session_factory)
+
+    return HandleDoctorDecisionService(
+        case_repository=case_repository,
+        audit_repository=audit_repository,
+        job_queue=job_queue,
+        # No Matrix poster, message repository, room2_id, or
+        # reaction checkpoint repository — web-only path.
     )
 
 
