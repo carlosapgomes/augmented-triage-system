@@ -23,7 +23,7 @@
 
 - [x] 4.1 Implementar fila do agendador web baseada em casos aguardando confirmação.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/06-scheduler-queue.md`
-- [ ] 4.2 Implementar formulário web de confirmação/negação do agendamento.
+- [x] 4.2 Implementar formulário web de confirmação/negação do agendamento.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/07-scheduler-confirmation-form.md`
 
 ## Phase 5 - Final NIR acknowledgment and visibility

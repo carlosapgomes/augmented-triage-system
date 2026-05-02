@@ -20,6 +20,9 @@ from triage_automation.application.services.doctor_queue_service import DoctorQu
 from triage_automation.application.services.handle_doctor_decision_service import (
     HandleDoctorDecisionService,
 )
+from triage_automation.application.services.handle_scheduler_confirmation_service import (
+    HandleSchedulerConfirmationService,
+)
 from triage_automation.application.services.nir_dashboard_service import NirDashboardService
 from triage_automation.application.services.nir_web_intake_service import NirWebIntakeService
 from triage_automation.application.services.scheduler_queue_service import SchedulerQueueService
@@ -141,6 +144,32 @@ def build_handle_doctor_decision_service() -> HandleDoctorDecisionService:
         job_queue=job_queue,
         # No Matrix poster, message repository, room2_id, or
         # reaction checkpoint repository — web-only path.
+    )
+
+
+def build_handle_scheduler_confirmation_service() -> HandleSchedulerConfirmationService:
+    """Build the HandleSchedulerConfirmationService without Matrix dependencies.
+
+    For the web workflow, Matrix Room-3 reply posting is omitted. The service
+    focuses purely on the core confirmation logic: state check, CAS update,
+    audit persistence, and next-step job enqueue.
+
+    Returns:
+        A fully configured ``HandleSchedulerConfirmationService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
+    audit_repository: AuditRepositoryPort = SqlAlchemyAuditRepository(session_factory)
+    job_queue: JobQueuePort = SqlAlchemyJobQueueRepository(session_factory)
+
+    return HandleSchedulerConfirmationService(
+        case_repository=case_repository,
+        audit_repository=audit_repository,
+        job_queue=job_queue,
+        # No Matrix poster, message repository, reaction checkpoint
+        # repository, or room3_id — web-only path.
     )
 
 

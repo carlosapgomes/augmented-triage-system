@@ -445,6 +445,107 @@ def _validate_decision_form(
     return None
 
 
+def _validate_scheduler_confirmation_form(
+    request: HttpRequest,
+) -> str | None:
+    """Validate form data for the scheduler confirmation/denial form.
+
+    Returns an error message string if validation fails, or None if valid.
+    """
+    action = request.POST.get("action", "")
+    if action not in ("confirm", "deny"):
+        return "Ação inválida. Use 'confirm' ou 'deny'."
+
+    if action == "deny":
+        deny_reason = request.POST.get("deny_reason", "")
+        if not deny_reason or not deny_reason.strip():
+            return "É obrigatório informar o motivo da negativa."
+        return None
+
+    # action == "confirm"
+    appointment_date = request.POST.get("appointment_date", "")
+    appointment_time = request.POST.get("appointment_time", "")
+    location = request.POST.get("location", "")
+
+    if not appointment_date or not appointment_date.strip():
+        return "É obrigatório informar a data do agendamento."
+    if not appointment_time or not appointment_time.strip():
+        return "É obrigatório informar o horário do agendamento."
+    if not location or not location.strip():
+        return "É obrigatório informar o local do agendamento."
+
+    # Validate date/time format
+    from datetime import datetime
+    try:
+        datetime.strptime(
+            f"{appointment_date.strip()} {appointment_time.strip()}",
+            "%d/%m/%Y %H:%M",
+        )
+    except ValueError:
+        return (
+            "Data/hora inválida."
+            " Use o formato DD/MM/AAAA para data e HH:MM para horário."
+        )
+
+    return None
+
+
+def _render_scheduler_confirmation_form_error(
+    *,
+    request: HttpRequest,
+    case_id: UUID,
+    error_message: str,
+) -> HttpResponse:
+    """Re-render the scheduler confirmation form with an error message.
+
+    Loads case details to populate the form context alongside the error.
+    """
+    from apps.django_ops.service_wiring import (
+        build_handle_scheduler_confirmation_service,
+        run_async,
+    )
+    from triage_automation.application.ports.case_repository_port import (
+        CaseDoctorDecisionSnapshot,
+    )
+
+    service = build_handle_scheduler_confirmation_service()
+
+    raw = run_async(
+        service._case_repository.get_case_doctor_decision_snapshot(
+            case_id=case_id
+        )
+    )
+    snapshot: CaseDoctorDecisionSnapshot | None = (
+        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
+    )
+
+    patient_name: str | None = None
+    patient_age: int | None = None
+    agency_record_number: str | None = None
+    if snapshot is not None:
+        agency_record_number = snapshot.agency_record_number
+        if snapshot.structured_data_json:
+            from triage_automation.application.services.patient_context import (
+                extract_patient_name_age,
+            )
+            patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
+                snapshot.structured_data_json
+            )
+
+    return render(
+        request,
+        "django_ops/scheduler_confirmation_form.html",
+        {
+            "case_id": str(case_id),
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "agency_record_number": agency_record_number,
+            "user_email": request.user.email,
+            "error_message": error_message,
+        },
+    )
+
+
 def _render_decision_form_error(
     *,
     request: HttpRequest,
@@ -526,6 +627,214 @@ def scheduler_home(request: HttpRequest) -> HttpResponse:
             "user_email": request.user.email,
         },
     )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_GET  # type: ignore[untyped-decorator]
+def scheduler_confirmation_form(
+    request: HttpRequest, case_id: UUID
+) -> HttpResponse:
+    """Render the scheduler confirmation/denial form for a given case.
+
+    Only accessible to authenticated ``scheduler`` role users.
+    Shows case details and the structured confirmation/denial form.
+    Other roles receive a 403 Forbidden response.
+    Returns 404 if the case does not exist or is not in WAIT_APPT.
+    """
+    if request.user.role != "scheduler":
+        return HttpResponse("Access denied: Scheduler role required.", status=403)
+
+    from apps.django_ops.service_wiring import (
+        build_handle_scheduler_confirmation_service,
+        run_async,
+    )
+    from triage_automation.application.ports.case_repository_port import (
+        CaseDoctorDecisionSnapshot,
+    )
+    from triage_automation.application.services.patient_context import (
+        extract_patient_name_age,
+    )
+
+    service = build_handle_scheduler_confirmation_service()
+
+    raw = run_async(
+        service._case_repository.get_case_doctor_decision_snapshot(
+            case_id=case_id
+        )
+    )
+    snapshot: CaseDoctorDecisionSnapshot | None = (
+        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
+    )
+
+    if snapshot is None or snapshot.status != "WAIT_APPT":
+        return HttpResponse(
+            "Case not found or not awaiting scheduling confirmation.",
+            status=404,
+        )
+
+    patient_name: str | None = None
+    patient_age: int | None = None
+    if snapshot.structured_data_json:
+        patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
+            snapshot.structured_data_json
+        )
+
+    return render(
+        request,
+        "django_ops/scheduler_confirmation_form.html",
+        {
+            "case_id": str(case_id),
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "agency_record_number": snapshot.agency_record_number,
+            "user_email": request.user.email,
+            "error_message": None,
+        },
+    )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def scheduler_confirmation_form_submit(
+    request: HttpRequest, case_id: UUID
+) -> HttpResponse:
+    """Handle scheduler confirmation/denial form submission.
+
+    Validates the form data, constructs a payload, and delegates to
+    ``HandleSchedulerConfirmationService`` for CAS update, audit
+    persistence, and next-step job enqueue.
+
+    On success, persists a web human event audit entry and redirects
+    to the scheduler queue. On validation or processing failure,
+    re-renders the form with an error message.
+    """
+    if request.user.role != "scheduler":
+        return HttpResponse("Access denied: Scheduler role required.", status=403)
+
+    from apps.django_ops.service_wiring import (
+        build_handle_scheduler_confirmation_service,
+        run_async,
+    )
+
+    action = request.POST.get("action", "")
+
+    # ── Form-level validation ────────────────────────────────────
+    error = _validate_scheduler_confirmation_form(request)
+    if error:
+        return _render_scheduler_confirmation_form_error(
+            request=request,
+            case_id=case_id,
+            error_message=error,
+        )
+
+    # ── Build payload and delegate ───────────────────────────────
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from triage_automation.application.services.handle_scheduler_confirmation_service import (
+        HandleSchedulerConfirmationOutcome,
+        HandleSchedulerConfirmationResult,
+        SchedulerConfirmationPayload,
+    )
+
+    if action == "confirm":
+        appointment_date = request.POST.get("appointment_date", "")
+        appointment_time = request.POST.get("appointment_time", "")
+        appointment_location = request.POST.get("location", "")
+        appointment_instructions = request.POST.get("instructions", "") or None
+
+        brt = ZoneInfo("America/Bahia")
+        naive = datetime.strptime(
+            f"{appointment_date} {appointment_time}",
+            "%d/%m/%Y %H:%M",
+        )
+        appointment_at = naive.replace(tzinfo=brt)
+
+        payload = SchedulerConfirmationPayload(
+            case_id=case_id,
+            scheduler_user_id=str(request.user.pk),
+            appointment_status="confirmed",
+            appointment_at=appointment_at,
+            appointment_location=appointment_location or None,
+            appointment_instructions=appointment_instructions,
+            appointment_reason=None,
+        )
+    else:
+        deny_reason = request.POST.get("deny_reason", "")
+        payload = SchedulerConfirmationPayload(
+            case_id=case_id,
+            scheduler_user_id=str(request.user.pk),
+            appointment_status="denied",
+            appointment_at=None,
+            appointment_location=None,
+            appointment_instructions=None,
+            appointment_reason=deny_reason or None,
+        )
+
+    service = build_handle_scheduler_confirmation_service()
+
+    raw_result = run_async(service.handle(payload))
+    assert isinstance(raw_result, HandleSchedulerConfirmationResult)
+    result: HandleSchedulerConfirmationResult = raw_result
+
+    if result.outcome != HandleSchedulerConfirmationOutcome.APPLIED:
+        error_map: dict[HandleSchedulerConfirmationOutcome, str] = {
+            HandleSchedulerConfirmationOutcome.NOT_FOUND: (
+                "Caso não encontrado."
+            ),
+            HandleSchedulerConfirmationOutcome.WRONG_STATE: (
+                "O caso não está aguardando confirmação de agendamento."
+            ),
+            HandleSchedulerConfirmationOutcome.DUPLICATE_OR_RACE: (
+                "Confirmação já aplicada ou conflito detectado."
+            ),
+        }
+        return _render_scheduler_confirmation_form_error(
+            request=request,
+            case_id=case_id,
+            error_message=error_map.get(
+                result.outcome, "Erro ao processar confirmação."
+            ),
+        )
+
+    # ── Persist web human event audit ─────────────────────────────
+    from triage_automation.application.ports.audit_repository_port import (
+        AuditEventCreateInput,
+    )
+    from triage_automation.domain.web_event_contract import (
+        WebEventOrigin,
+        WebEventType,
+    )
+
+    run_async(
+        service._audit_repository.append_event(
+            AuditEventCreateInput(
+                case_id=case_id,
+                actor_type="web_human",
+                event_type=WebEventType.SCHEDULER_CONFIRMATION.value,
+                actor_user_id=str(request.user.pk),
+                payload={
+                    "origin": WebEventOrigin.WEB.value,
+                    "actor": request.user.email,
+                    "event_type": WebEventType.SCHEDULER_CONFIRMATION.value,
+                    "appointment_status": payload.appointment_status,
+                    "appointment_at": (
+                        payload.appointment_at.isoformat()
+                        if payload.appointment_at is not None
+                        else None
+                    ),
+                    "appointment_location": payload.appointment_location,
+                    "appointment_reason": payload.appointment_reason,
+                    "summary_text": (
+                        f"Scheduler {payload.appointment_status} "
+                        f"by {request.user.email}"
+                    ),
+                },
+            )
+        )
+    )
+
+    return HttpResponseRedirect("/scheduler/")
 
 
 @login_required  # type: ignore[untyped-decorator]

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Confirmação de Agendamento — ATS Operations</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#0b4263">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ATS Ops">
+    <style>
+        .error {
+            color: #b00;
+            background: #fff0f0;
+            border: 1px solid #e0b0b0;
+            padding: 0.5em 1em;
+            margin: 1em 0;
+            border-radius: 4px;
+        }
+        .case-info {
+            background: #f5f5f5;
+            padding: 0.75em 1em;
+            margin: 1em 0;
+            border-radius: 4px;
+        }
+        form {
+            margin: 1em 0;
+        }
+        fieldset {
+            margin: 0.75em 0;
+            border: 1px solid #ccc;
+            padding: 0.75em;
+            border-radius: 4px;
+        }
+        legend {
+            font-weight: bold;
+        }
+        label {
+            display: block;
+            margin: 0.3em 0;
+        }
+        input, select, textarea {
+            padding: 0.4em;
+            margin: 0.3em 0;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+        button[type="submit"] {
+            background: #0b4263;
+            color: #fff;
+            border: none;
+            padding: 0.6em 1.2em;
+            font-size: 1em;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button[type="submit"]:hover {
+            background: #0e5a80;
+        }
+        .hidden {
+            display: none;
+        }
+        .confirm-fields {
+            margin: 0.75em 0;
+        }
+        .deny-fields {
+            margin: 0.75em 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Confirmação de Agendamento</h1>
+    <p>Olá, {{ user_email }}.</p>
+
+    <div class="case-info">
+        <strong>Caso:</strong> {{ case_id }}<br>
+        {% if patient_name %}
+        <strong>Paciente:</strong> {{ patient_name }}
+        {% if patient_age %} ({{ patient_age }} anos){% endif %}<br>
+        {% endif %}
+        {% if agency_record_number %}
+        <strong>Registro:</strong> {{ agency_record_number }}
+        {% endif %}
+    </div>
+
+    {% if error_message %}
+    <div class="error">{{ error_message }}</div>
+    {% endif %}
+
+    <form method="post" action="/scheduler/cases/{{ case_id }}/confirm/submit/">
+        {% csrf_token %}
+
+        <fieldset>
+            <legend>Ação</legend>
+            <label>
+                <input type="radio" name="action" value="confirm" required
+                       onclick="showConfirmFields()">
+                Confirmar Agendamento
+            </label>
+            <label>
+                <input type="radio" name="action" value="deny" required
+                       onclick="showDenyFields()">
+                Negar Agendamento
+            </label>
+        </fieldset>
+
+        <div id="confirm-fields" class="confirm-fields hidden">
+            <fieldset>
+                <legend>Data e Horário</legend>
+                <label>
+                    Data:
+                    <input type="text" name="appointment_date"
+                           placeholder="DD/MM/AAAA">
+                </label>
+                <label>
+                    Horário:
+                    <input type="text" name="appointment_time"
+                           placeholder="HH:MM">
+                </label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Local</legend>
+                <label>
+                    Local do agendamento:
+                    <input type="text" name="location"
+                           placeholder="Ex: Hospital Central - Ala B">
+                </label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Instruções (opcional)</legend>
+                <label>
+                    <textarea name="instructions" rows="3"
+                              placeholder="Ex: Jejum 8h. Trazer documentos."></textarea>
+                </label>
+            </fieldset>
+        </div>
+
+        <div id="deny-fields" class="deny-fields hidden">
+            <fieldset>
+                <legend>Motivo da Negativa (obrigatório)</legend>
+                <label>
+                    <textarea name="deny_reason" rows="3"
+                              placeholder="Descreva o motivo da negativa..."></textarea>
+                </label>
+            </fieldset>
+        </div>
+
+        <p>
+            <button type="submit">Enviar Confirmação</button>
+            <a href="/scheduler/" style="margin-left: 1em;">Cancelar</a>
+        </p>
+    </form>
+
+    <script>
+        function showConfirmFields() {
+            document.getElementById('confirm-fields').classList.remove('hidden');
+            document.getElementById('deny-fields').classList.add('hidden');
+        }
+        function showDenyFields() {
+            document.getElementById('deny-fields').classList.remove('hidden');
+            document.getElementById('confirm-fields').classList.add('hidden');
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
+    </script>
+</body>
+</html>
