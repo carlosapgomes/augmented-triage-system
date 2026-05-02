@@ -16,11 +16,11 @@ from pathlib import Path
 from uuid import uuid4
 
 import sqlalchemy as sa
-
-from alembic import command
 from alembic.config import Config
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+
+from alembic import command
 
 User = get_user_model()
 
