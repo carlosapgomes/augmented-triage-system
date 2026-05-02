@@ -16,6 +16,7 @@ from triage_automation.application.ports.audit_repository_port import AuditRepos
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
 from triage_automation.application.ports.job_queue_port import JobQueuePort
 from triage_automation.application.ports.pdf_storage_port import PdfFileStoragePort
+from triage_automation.application.services.doctor_queue_service import DoctorQueueService
 from triage_automation.application.services.nir_dashboard_service import NirDashboardService
 from triage_automation.application.services.nir_web_intake_service import NirWebIntakeService
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
@@ -77,6 +78,22 @@ def build_nir_dashboard_service() -> NirDashboardService:
     case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
 
     return NirDashboardService(
+        case_repository=case_repository,
+    )
+
+
+def build_doctor_queue_service() -> DoctorQueueService:
+    """Build the DoctorQueueService with all dependencies wired.
+
+    Returns:
+        A fully configured ``DoctorQueueService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
+
+    return DoctorQueueService(
         case_repository=case_repository,
     )
 

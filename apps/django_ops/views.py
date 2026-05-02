@@ -191,8 +191,28 @@ def nir_case_detail(request: HttpRequest, case_id: UUID) -> HttpResponse:
 @login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
 def doctor_home(request: HttpRequest) -> HttpResponse:
-    """Placeholder landing page for Doctor users."""
-    return _role_home(request, "Doctor")
+    """Doctor queue showing cases awaiting medical decision.
+
+    Shows only cases in ``WAIT_DOCTOR`` status with clinical summaries.
+    Only accessible to authenticated ``doctor`` role users.
+    Other roles receive a 403 Forbidden response.
+    """
+    if request.user.role != "doctor":
+        return HttpResponse("Access denied: Doctor role required.", status=403)
+
+    from apps.django_ops.service_wiring import build_doctor_queue_service, run_async
+
+    service = build_doctor_queue_service()
+    cases = run_async(service.list_pending_cases())
+
+    return render(
+        request,
+        "django_ops/doctor_queue.html",
+        {
+            "cases": cases,
+            "user_email": request.user.email,
+        },
+    )
 
 
 @login_required  # type: ignore[untyped-decorator]

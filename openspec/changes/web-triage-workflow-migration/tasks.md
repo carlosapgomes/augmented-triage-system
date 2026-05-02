@@ -14,7 +14,7 @@
 
 ## Phase 3 - Doctor workflow
 
-- [ ] 3.1 Implementar fila médica web baseada em casos aguardando decisão.
+- [x] 3.1 Implementar fila médica web baseada em casos aguardando decisão.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/04-doctor-queue.md`
 - [ ] 3.2 Implementar formulário de decisão médica web reutilizando a semântica clínica existente.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/05-doctor-decision-form.md`
