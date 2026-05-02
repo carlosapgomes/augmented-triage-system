@@ -122,9 +122,9 @@ def _make_service() -> FakeServices:
     job_queue = FakeJobQueue()
     pdf_storage = FakePdfStorage()
     service = NirWebIntakeService(
-        case_repository=case_repo,
+        case_repository=case_repo,  # type: ignore[arg-type]
         audit_repository=audit_repo,
-        job_queue=job_queue,
+        job_queue=job_queue,  # type: ignore[arg-type]
         pdf_storage=pdf_storage,
     )
     return service, case_repo, audit_repo, job_queue, pdf_storage

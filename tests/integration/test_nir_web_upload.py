@@ -31,7 +31,7 @@ User = get_user_model()
 VALID_PDF_BYTES = b"%PDF-1.4\n%fake pdf content for testing"
 
 
-class _NirUploadTestBase(TestCase):
+class _NirUploadTestBase(TestCase):  # type: ignore[misc]
     """Base class with shared setup for NIR upload integration tests."""
 
     @classmethod
@@ -120,13 +120,14 @@ class TestNirUploadValidPdf(_NirUploadTestBase):
         conn = self._get_sync_connection()
         try:
             # Get the case_id from the response context
-            case_id = response.context["case_id"]  # type: ignore[index]
+            case_id = response.context["case_id"]
             result = conn.execute(
                 sa.text("SELECT status, origin_source FROM cases WHERE case_id = :case_id"),
                 {"case_id": case_id.replace("-", "")},
             )
             row = result.fetchone()
             self.assertIsNotNone(row)
+            assert row is not None
             status, origin_source = row
             self.assertEqual(status, "R1_ACK_PROCESSING")
             self.assertEqual(origin_source, "web")
@@ -148,7 +149,7 @@ class TestNirUploadValidPdf(_NirUploadTestBase):
 
         conn = self._get_sync_connection()
         try:
-            case_id = response.context["case_id"]  # type: ignore[index]
+            case_id = response.context["case_id"]
             result = conn.execute(
                 sa.text(
                     "SELECT actor_type, event_type, actor_user_id FROM case_events "
@@ -181,7 +182,7 @@ class TestNirUploadValidPdf(_NirUploadTestBase):
 
         conn = self._get_sync_connection()
         try:
-            case_id = response.context["case_id"]  # type: ignore[index]
+            case_id = response.context["case_id"]
             result = conn.execute(
                 sa.text(
                     "SELECT job_type, payload FROM jobs "
