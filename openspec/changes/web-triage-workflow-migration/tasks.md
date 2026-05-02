@@ -9,7 +9,7 @@
 
 - [x] 2.1 Implementar upload PDF NIR e criação do caso via web com auditoria individual.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/02-nir-upload-and-case-creation.md`
-- [ ] 2.2 Implementar dashboard NIR e detalhe inicial do caso com progresso operacional.
+- [x] 2.2 Implementar dashboard NIR e detalhe inicial do caso com progresso operacional.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/03-nir-dashboard-and-case-detail.md`
 
 ## Phase 3 - Doctor workflow

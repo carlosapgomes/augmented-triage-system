@@ -3,10 +3,12 @@
 Provides login/logout authentication, role-based redirect after login,
 minimal placeholder landing pages for each operational role, PWA
 installability assets (manifest and online-only service worker),
-and NIR PDF upload for case creation via web.
+NIR PDF upload for case creation via web, NIR case listing dashboard,
+and NIR case detail with operational progress and timeline.
 """
 
 from pathlib import Path
+from uuid import UUID
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -131,8 +133,59 @@ def _role_home(request: HttpRequest, role_label: str) -> HttpResponse:
 @login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
 def nir_home(request: HttpRequest) -> HttpResponse:
-    """Placeholder landing page for NIR users."""
-    return _role_home(request, "NIR")
+    """NIR dashboard listing active cases with operational progress.
+
+    Shows non-cleaned cases ordered by latest activity descending.
+    Only accessible to authenticated ``nir`` role users.
+    Other roles receive a 403 Forbidden response.
+    """
+    if request.user.role != "nir":
+        return HttpResponse("Access denied: NIR role required.", status=403)
+
+    from apps.django_ops.service_wiring import build_nir_dashboard_service, run_async
+
+    service = build_nir_dashboard_service()
+    cases = run_async(service.list_nir_cases())
+
+    return render(
+        request,
+        "django_ops/nir_dashboard.html",
+        {
+            "cases": cases,
+            "user_email": request.user.email,
+        },
+    )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_GET  # type: ignore[untyped-decorator]
+def nir_case_detail(request: HttpRequest, case_id: UUID) -> HttpResponse:
+    """NIR case detail with progress stepper and timeline.
+
+    Shows operational progress, timeline events, and current status
+    for a specific case. Only accessible to authenticated ``nir`` role
+    users. Other roles receive 403 Forbidden.
+    Returns 404 if the case does not exist.
+    """
+    if request.user.role != "nir":
+        return HttpResponse("Access denied: NIR role required.", status=403)
+
+    from apps.django_ops.service_wiring import build_nir_dashboard_service, run_async
+
+    service = build_nir_dashboard_service()
+    detail = run_async(service.get_case_detail(case_id=case_id))
+
+    if detail is None:
+        return HttpResponse("Case not found.", status=404)
+
+    return render(
+        request,
+        "django_ops/nir_case_detail.html",
+        {
+            "detail": detail,
+            "user_email": request.user.email,
+        },
+    )
 
 
 @login_required  # type: ignore[untyped-decorator]

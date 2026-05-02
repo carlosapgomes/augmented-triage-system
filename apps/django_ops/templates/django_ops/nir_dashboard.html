@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Recepção (NIR) — ATS Operations</title>
+</head>
+<body>
+    <h1>Recepção — Casos</h1>
+    <p>Olá, {{ user_email }}.</p>
+
+    <p><a href="{% url 'nir_upload' %}">Enviar novo encaminhamento</a></p>
+
+    <h2>Casos Recentes</h2>
+
+    {% if cases %}
+    <table>
+        <thead>
+            <tr>
+                <th>Caso</th>
+                <th>Paciente / Registro</th>
+                <th>Status</th>
+                <th>Progresso</th>
+                <th>Atividade</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for case in cases %}
+            <tr>
+                <td>{{ case.case_id }}</td>
+                <td>
+                    {% if case.patient_name %}
+                    {{ case.patient_name }}
+                    {% endif %}
+                    {% if case.agency_record_number %}
+                    · {{ case.agency_record_number }}
+                    {% endif %}
+                </td>
+                <td><code>{{ case.status.value }}</code></td>
+                <td>{{ case.compact_summary }}</td>
+                <td>{{ case.latest_activity_at|date:"d/m/Y H:i" }}</td>
+                <td><a href="{% url 'nir_case_detail' case.case_id %}">Ver detalhes</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Nenhum caso ativo no momento.</p>
+    {% endif %}
+
+    <p>
+        <a href="{% url 'nir_upload' %}">Enviar outro encaminhamento</a> |
+    </p>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">Sair</button>
+    </form>
+</body>
+</html>

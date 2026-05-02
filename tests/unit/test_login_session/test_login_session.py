@@ -8,8 +8,15 @@ TDD tests for slice 2.2 — validates that:
 - Anonymous users accessing root are redirected to login.
 """
 
+import os
+import tempfile
+from pathlib import Path
+
+from alembic.config import Config
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+
+from alembic import command
 
 User = get_user_model()
 
@@ -228,8 +235,31 @@ class TestRootRedirect(TestCase):
 class TestRolePlaceholderPages(TestCase):
     """Validate role-specific placeholder pages are accessible when logged in."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up SQLAlchemy database with migrations for NIR view tests."""
+        super().setUpClass()
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._db_path = Path(cls._tmp_dir) / "test_role_pages.sqlite"
+        cls._sync_url = f"sqlite+pysqlite:///{cls._db_path}"
+        cls._async_url = f"sqlite+aiosqlite:///{cls._db_path}"
+
+        alembic_config = Config()
+        alembic_config.set_main_option("script_location", "alembic")
+        alembic_config.set_main_option("sqlalchemy.url", cls._sync_url)
+        command.upgrade(alembic_config, "head")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up temp directory."""
+        import shutil
+
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+        super().tearDownClass()
+
     def test_nir_page_accessible_when_authenticated(self) -> None:
         """Authenticated nir user can access /nir/ page."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="nir@example.com", password="testpass123", role="nir"
         )

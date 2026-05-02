@@ -10,9 +10,15 @@ TDD tests for slice 3.2 — validates that:
 """
 
 import ipaddress
+import os
+import tempfile
+from pathlib import Path
 
+from alembic.config import Config
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+
+from alembic import command
 
 User = get_user_model()
 
@@ -31,6 +37,28 @@ def _is_in_intranet(ip: str, cidrs: list[str]) -> bool:
 class TestNirIntranetAccess(TestCase):
     """Validate NIR access policy with IP-based zone enforcement."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up SQLAlchemy database with migrations for NIR view tests."""
+        super().setUpClass()
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._db_path = Path(cls._tmp_dir) / "test_intranet_nir.sqlite"
+        cls._sync_url = f"sqlite+pysqlite:///{cls._db_path}"
+        cls._async_url = f"sqlite+aiosqlite:///{cls._db_path}"
+
+        alembic_config = Config()
+        alembic_config.set_main_option("script_location", "alembic")
+        alembic_config.set_main_option("sqlalchemy.url", cls._sync_url)
+        command.upgrade(alembic_config, "head")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up temp directory."""
+        import shutil
+
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+        super().tearDownClass()
+
     def setUp(self) -> None:
         """Create a NIR test user."""
         self.user = User.objects.create_user(
@@ -42,6 +70,7 @@ class TestNirIntranetAccess(TestCase):
     @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
     def test_nir_inside_intranet_is_authorized(self) -> None:
         """NIR user accessing from an intranet IP must be allowed."""
+        os.environ["DATABASE_URL"] = self._async_url
         self.client.login(username="nir@example.com", password="testpass123")
         response = self.client.get("/nir/", REMOTE_ADDR="10.0.1.50")
         assert response.status_code == 200

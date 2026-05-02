@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Caso {{ detail.case_id }} — NIR — ATS Operations</title>
+</head>
+<body>
+    <h1>Caso {{ detail.case_id }}</h1>
+    <p>
+        {% if detail.patient_name %}
+        <strong>{{ detail.patient_name }}</strong>
+        {% endif %}
+        {% if detail.agency_record_number %}
+        · Registro: <strong>{{ detail.agency_record_number }}</strong>
+        {% endif %}
+    </p>
+
+    <p><a href="{% url 'nir_home' %}">← Voltar para Casos</a></p>
+
+    <h2>Status</h2>
+    <p>
+        <code>{{ detail.status.value }}</code> — {{ detail.compact_operational_summary }}
+    </p>
+
+    <h2>Progresso do Caso</h2>
+    <div class="progress">
+        <ul>
+            <li>Upload</li>
+            <li>Extração IA</li>
+            <li>Avaliação Médica</li>
+            <li>Agendamento</li>
+            <li>Resultado Final</li>
+        </ul>
+    </div>
+
+    <h2>Linha do Tempo</h2>
+    {% if detail.timeline %}
+    <div class="timeline">
+        {% for event in detail.timeline %}
+        <div class="timeline-event">
+            <strong>{{ event.event_type }}</strong>
+            <span class="timestamp">{{ event.timestamp|date:"d/m/Y H:i" }}</span>
+            {% if event.actor %}
+            <span class="actor">· {{ event.actor }}</span>
+            {% endif %}
+            <br>
+            {% if event.content_text %}
+            <span class="content">{{ event.content_text }}</span>
+            {% endif %}
+            <span class="source">[{{ event.source }}]</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>Nenhum evento registrado.</p>
+    {% endif %}
+
+    <p><a href="{% url 'nir_home' %}">← Voltar para Casos</a></p>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">Sair</button>
+    </form>
+</body>
+</html>

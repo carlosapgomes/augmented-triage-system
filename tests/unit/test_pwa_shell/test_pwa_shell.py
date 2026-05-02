@@ -8,8 +8,15 @@ TDD tests for slice 4.1 — validates that:
 - The installed PWA preserves role-aware entry with an active session.
 """
 
+import os
+import tempfile
+from pathlib import Path
+
+from alembic.config import Config
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+
+from alembic import command
 
 User = get_user_model()
 
@@ -228,8 +235,31 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):
 class TestIntranetRolePagesExcludePWAMetadata(TestCase):
     """Validate that intranet-only roles do NOT get PWA metadata."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up SQLAlchemy database with migrations for NIR view tests."""
+        super().setUpClass()
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._db_path = Path(cls._tmp_dir) / "test_pwa_intranet.sqlite"
+        cls._sync_url = f"sqlite+pysqlite:///{cls._db_path}"
+        cls._async_url = f"sqlite+aiosqlite:///{cls._db_path}"
+
+        alembic_config = Config()
+        alembic_config.set_main_option("script_location", "alembic")
+        alembic_config.set_main_option("sqlalchemy.url", cls._sync_url)
+        command.upgrade(alembic_config, "head")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up temp directory."""
+        import shutil
+
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+        super().tearDownClass()
+
     def test_nir_home_excludes_manifest_link(self) -> None:
         """NIR home page must NOT include PWA manifest link."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="nir@example.com", password="testpass123", role="nir",
         )
@@ -250,6 +280,7 @@ class TestIntranetRolePagesExcludePWAMetadata(TestCase):
 
     def test_nir_home_excludes_service_worker(self) -> None:
         """NIR home page must NOT register a service worker."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="nir@example.com", password="testpass123", role="nir",
         )
