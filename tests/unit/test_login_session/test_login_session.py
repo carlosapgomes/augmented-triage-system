@@ -21,7 +21,7 @@ from alembic import command
 User = get_user_model()
 
 
-class TestLoginSession(TestCase):
+class TestLoginSession(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate login authentication and session creation."""
 
     def setUp(self) -> None:
@@ -78,7 +78,7 @@ class TestLoginSession(TestCase):
         assert "password" in content.lower()
 
 
-class TestLogoutSession(TestCase):
+class TestLogoutSession(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate logout destroys the session via POST only."""
 
     def setUp(self) -> None:
@@ -110,7 +110,7 @@ class TestLogoutSession(TestCase):
         assert response.status_code == 405
 
 
-class TestRoleBasedRedirect(TestCase):
+class TestRoleBasedRedirect(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate each role redirects to its correct landing route."""
 
     def _create_and_login(self, role: str) -> None:
@@ -172,7 +172,7 @@ class TestRoleBasedRedirect(TestCase):
         assert response.url == "/admin/"
 
 
-class TestRootRedirect(TestCase):
+class TestRootRedirect(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate anonymous and authenticated redirects at root."""
 
     def test_anonymous_root_redirects_to_login(self) -> None:
@@ -232,7 +232,7 @@ class TestRootRedirect(TestCase):
         assert response.url == "/scheduler/"
 
 
-class TestRolePlaceholderPages(TestCase):
+class TestRolePlaceholderPages(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate role-specific placeholder pages are accessible when logged in."""
 
     @classmethod

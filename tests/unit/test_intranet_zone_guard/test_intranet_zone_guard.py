@@ -34,7 +34,7 @@ def _is_in_intranet(ip: str, cidrs: list[str]) -> bool:
     )
 
 
-class TestNirIntranetAccess(TestCase):
+class TestNirIntranetAccess(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate NIR access policy with IP-based zone enforcement."""
 
     @classmethod
@@ -67,7 +67,7 @@ class TestNirIntranetAccess(TestCase):
             role="nir",
         )
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_nir_inside_intranet_is_authorized(self) -> None:
         """NIR user accessing from an intranet IP must be allowed."""
         os.environ["DATABASE_URL"] = self._async_url
@@ -75,14 +75,14 @@ class TestNirIntranetAccess(TestCase):
         response = self.client.get("/nir/", REMOTE_ADDR="10.0.1.50")
         assert response.status_code == 200
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_nir_outside_intranet_is_denied(self) -> None:
         """NIR user accessing from an external IP must be denied (403)."""
         self.client.login(username="nir@example.com", password="testpass123")
         response = self.client.get("/nir/", REMOTE_ADDR="203.0.113.50")
         assert response.status_code == 403
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_nir_valid_credentials_do_not_bypass_intranet(self) -> None:
         """Valid NIR credentials from outside intranet must still be denied."""
         self.client.login(username="nir@example.com", password="testpass123")
@@ -91,7 +91,7 @@ class TestNirIntranetAccess(TestCase):
         assert response.status_code == 403
 
 
-class TestSchedulerIntranetAccess(TestCase):
+class TestSchedulerIntranetAccess(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate Scheduler access policy with IP-based zone enforcement."""
 
     def setUp(self) -> None:
@@ -102,7 +102,7 @@ class TestSchedulerIntranetAccess(TestCase):
             role="scheduler",
         )
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_scheduler_inside_intranet_is_authorized(self) -> None:
         """Scheduler user accessing from an intranet IP must be allowed."""
         self.client.login(
@@ -111,7 +111,7 @@ class TestSchedulerIntranetAccess(TestCase):
         response = self.client.get("/scheduler/", REMOTE_ADDR="10.0.2.30")
         assert response.status_code == 200
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_scheduler_outside_intranet_is_denied(self) -> None:
         """Scheduler user accessing from an external IP must be denied (403)."""
         self.client.login(
@@ -121,10 +121,10 @@ class TestSchedulerIntranetAccess(TestCase):
         assert response.status_code == 403
 
 
-class TestRemoteRolesAccessibleOutsideIntranet(TestCase):
+class TestRemoteRolesAccessibleOutsideIntranet(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that doctor, manager, and admin remain reachable externally."""
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_doctor_outside_intranet_is_allowed(self) -> None:
         """Doctor user accessing from external IP must be allowed."""
         User.objects.create_user(
@@ -136,7 +136,7 @@ class TestRemoteRolesAccessibleOutsideIntranet(TestCase):
         response = self.client.get("/doctor/", REMOTE_ADDR="203.0.113.50")
         assert response.status_code == 200
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_manager_outside_intranet_is_allowed(self) -> None:
         """Manager user accessing from external IP must be allowed."""
         User.objects.create_user(
@@ -150,7 +150,7 @@ class TestRemoteRolesAccessibleOutsideIntranet(TestCase):
         response = self.client.get("/manager/", REMOTE_ADDR="203.0.113.50")
         assert response.status_code == 200
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_admin_outside_intranet_is_allowed(self) -> None:
         """Admin user accessing from external IP must be allowed."""
         User.objects.create_user(
@@ -162,7 +162,7 @@ class TestRemoteRolesAccessibleOutsideIntranet(TestCase):
         response = self.client.get("/admin/", REMOTE_ADDR="203.0.113.50")
         assert response.status_code == 200
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_doctor_inside_intranet_is_also_allowed(self) -> None:
         """Doctor user accessing from intranet IP must also be allowed."""
         User.objects.create_user(
@@ -175,7 +175,7 @@ class TestRemoteRolesAccessibleOutsideIntranet(TestCase):
         assert response.status_code == 200
 
 
-class TestZoneDenialIsAuditable(TestCase):
+class TestZoneDenialIsAuditable(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that zone denials leave auditable evidence."""
 
     def setUp(self) -> None:
@@ -186,7 +186,7 @@ class TestZoneDenialIsAuditable(TestCase):
             role="nir",
         )
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_denial_logs_audit_evidence(self) -> None:
         """Denied NIR access must produce a log entry with role and IP."""
         self.client.login(username="nir@example.com", password="testpass123")
@@ -207,7 +207,7 @@ class TestZoneDenialIsAuditable(TestCase):
         assert "nir" in log_message.lower()
         assert "203.0.113.50" in log_message
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_scheduler_denial_logs_audit_evidence(self) -> None:
         """Denied scheduler access must produce a log entry with role and IP."""
         User.objects.create_user(
@@ -232,20 +232,20 @@ class TestZoneDenialIsAuditable(TestCase):
         assert "198.51.100.10" in log_message
 
 
-class TestSmokeRouteBypassesZoneGuard(TestCase):
+class TestSmokeRouteBypassesZoneGuard(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that the smoke/health route is not affected by zone guard."""
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_smoke_route_accessible_from_any_ip(self) -> None:
         """The smoke endpoint must be accessible regardless of IP."""
         response = self.client.get("/smoke/", REMOTE_ADDR="203.0.113.50")
         assert response.status_code == 200
 
 
-class TestLoginRouteBypassesZoneGuard(TestCase):
+class TestLoginRouteBypassesZoneGuard(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that login route is not affected by zone guard."""
 
-    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)
+    @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_login_page_accessible_from_any_ip(self) -> None:
         """The login page must be accessible regardless of IP."""
         response = self.client.get("/login/", REMOTE_ADDR="203.0.113.50")

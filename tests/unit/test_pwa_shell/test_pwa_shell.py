@@ -24,7 +24,7 @@ REMOTE_CAPABLE_ROLES: list[str] = ["doctor", "manager", "admin"]
 INTRANET_ONLY_ROLES: list[str] = ["nir", "scheduler"]
 
 
-class TestPWAManifestEndpoint(TestCase):
+class TestPWAManifestEndpoint(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate the PWA manifest resource endpoint."""
 
     def test_manifest_returns_200(self) -> None:
@@ -117,7 +117,7 @@ class TestPWAManifestEndpoint(TestCase):
             assert "type" in icon
 
 
-class TestServiceWorkerEndpoint(TestCase):
+class TestServiceWorkerEndpoint(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate the online-only service worker endpoint."""
 
     def test_service_worker_returns_200(self) -> None:
@@ -157,7 +157,7 @@ class TestServiceWorkerEndpoint(TestCase):
         assert "activate" in content
 
 
-class TestRemoteRolePagesIncludePWAMetadata(TestCase):
+class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that remote-capable roles get PWA installability metadata."""
 
     def test_doctor_home_includes_manifest_link(self) -> None:
@@ -232,7 +232,7 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):
         assert 'theme-color' in content
 
 
-class TestIntranetRolePagesExcludePWAMetadata(TestCase):
+class TestIntranetRolePagesExcludePWAMetadata(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that intranet-only roles do NOT get PWA metadata."""
 
     @classmethod
@@ -300,7 +300,7 @@ class TestIntranetRolePagesExcludePWAMetadata(TestCase):
         assert "serviceWorker" not in content
 
 
-class TestRoleAwareInstalledEntryBehavior(TestCase):
+class TestRoleAwareInstalledEntryBehavior(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that the installed PWA preserves role-aware entry with session."""
 
     def test_authenticated_doctor_root_resumes_role_surface(self) -> None:
@@ -357,7 +357,7 @@ class TestRoleAwareInstalledEntryBehavior(TestCase):
         assert "_auth_user_id" in self.client.session
 
 
-class TestLoginAndSmokePagesExcludePWAMetadata(TestCase):
+class TestLoginAndSmokePagesExcludePWAMetadata(TestCase):  # type: ignore[misc]  # untyped Django base
     """Login and smoke pages must not include PWA metadata."""
 
     def test_login_page_excludes_manifest_link(self) -> None:
