@@ -14,6 +14,11 @@ Depois da decisão médica e da resposta do agendador, o NIR precisa receber o r
 
 **Excluded:** painéis manager/admin.
 
+## Implementation guardrail
+
+- Não acessar atributos protegidos/internos de services a partir de views/adapters (por exemplo: `_case_repository`, `_audit_repository`, `_job_queue`).
+- Se a view precisar de dados adicionais, expor método público explícito no application layer.
+
 ## Tests to write FIRST (TDD)
 
 - resultado final aparece para o NIR;
@@ -41,6 +46,7 @@ Task file: openspec/changes/web-triage-workflow-migration/tasks/08-nir-final-ack
 Implement only this slice.
 Use strict TDD.
 Do not redesign clinical branch semantics, but do implement the approved migration of the canonical human closure checkpoint from Room-1 Matrix reaction to the NIR web confirmation action.
+Do not access protected/internal service attributes from views/adapters; add explicit public application-layer methods if needed.
 Run gates, update checklist, commit, push, and stop.
 Include detailed report with SNP before/after.
 Write the full implementation report to `/tmp/web-triage-workflow-migration-08-nir-final-acknowledgment-report.md`.

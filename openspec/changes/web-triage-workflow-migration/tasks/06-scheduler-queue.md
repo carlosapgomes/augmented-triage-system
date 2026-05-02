@@ -14,6 +14,11 @@ As decisões médicas web já foram concluídas. Agora os casos aceitos que segu
 
 **Excluded:** submissão do formulário de agendamento, ack final NIR.
 
+## Implementation guardrail
+
+- Não acessar atributos protegidos/internos de services a partir de views/adapters (por exemplo: `_case_repository`, `_audit_repository`, `_job_queue`).
+- Se a view precisar de dados adicionais, expor método público explícito no application layer.
+
 ## Tests to write FIRST (TDD)
 
 - casos em `WAIT_APPT` aparecem na fila;
@@ -40,6 +45,7 @@ Implement only this slice.
 Use TDD.
 Do not implement the confirmation form yet.
 Keep UI close to the approved scheduler mock where practical.
+Do not access protected/internal service attributes from views/adapters; add explicit public application-layer methods if needed.
 Run gates, update checklist, commit, push, and stop.
 Report SNP before/after.
 Write the full implementation report to `/tmp/web-triage-workflow-migration-06-scheduler-queue-report.md`.

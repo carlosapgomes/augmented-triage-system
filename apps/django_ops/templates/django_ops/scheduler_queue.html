@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agendador — ATS Operations</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#0b4263">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ATS Ops">
+</head>
+<body>
+    <h1>Fila de Agendamento — Casos Aguardando Confirmação</h1>
+    <p>Olá, {{ user_email }}.</p>
+
+    <h2>Casos Pendentes</h2>
+
+    {% if cases %}
+    <table>
+        <thead>
+            <tr>
+                <th>Caso</th>
+                <th>Paciente / Registro</th>
+                <th>Status</th>
+                <th>Progresso</th>
+                <th>Atividade</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for case in cases %}
+            <tr>
+                <td>{{ case.case_id }}</td>
+                <td>
+                    {% if case.patient_name %}
+                    {{ case.patient_name }}
+                    {% endif %}
+                    {% if case.agency_record_number %}
+                    · {{ case.agency_record_number }}
+                    {% endif %}
+                </td>
+                <td><code>{{ case.status.value }}</code></td>
+                <td>{{ case.compact_summary }}</td>
+                <td>{{ case.latest_activity_at|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Nenhum caso aguardando agendamento no momento.</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">Sair</button>
+    </form>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
+    </script>
+</body>
+</html>

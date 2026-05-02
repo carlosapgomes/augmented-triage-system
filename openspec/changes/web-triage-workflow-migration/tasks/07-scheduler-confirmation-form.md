@@ -14,6 +14,11 @@ A fila do agendador já existe. Agora o perfil `scheduler` precisa confirmar ou 
 
 **Excluded:** confirmação final do NIR, ajustes de manager/admin.
 
+## Implementation guardrail
+
+- Não acessar atributos protegidos/internos de services a partir de views/adapters (por exemplo: `_case_repository`, `_audit_repository`, `_job_queue`).
+- Se a view precisar de dados adicionais, expor método público explícito no application layer.
+
 ## Tests to write FIRST (TDD)
 
 - confirmação válida persiste data/hora e progride o caso;
@@ -40,6 +45,7 @@ Task file: openspec/changes/web-triage-workflow-migration/tasks/07-scheduler-con
 Implement only this slice.
 Use strict TDD.
 Prefer reusing existing scheduler semantics/contracts.
+Do not access protected/internal service attributes from views/adapters; add explicit public application-layer methods if needed.
 Run gates, update checklist, commit, push, and stop.
 Include SNP before/after.
 ```

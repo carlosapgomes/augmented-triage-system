@@ -22,6 +22,7 @@ from triage_automation.application.services.handle_doctor_decision_service impor
 )
 from triage_automation.application.services.nir_dashboard_service import NirDashboardService
 from triage_automation.application.services.nir_web_intake_service import NirWebIntakeService
+from triage_automation.application.services.scheduler_queue_service import SchedulerQueueService
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
@@ -97,6 +98,22 @@ def build_doctor_queue_service() -> DoctorQueueService:
     case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
 
     return DoctorQueueService(
+        case_repository=case_repository,
+    )
+
+
+def build_scheduler_queue_service() -> SchedulerQueueService:
+    """Build the SchedulerQueueService with all dependencies wired.
+
+    Returns:
+        A fully configured ``SchedulerQueueService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
+
+    return SchedulerQueueService(
         case_repository=case_repository,
     )
 

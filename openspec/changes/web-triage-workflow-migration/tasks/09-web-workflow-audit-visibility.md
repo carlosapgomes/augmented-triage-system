@@ -14,6 +14,11 @@ O workflow web já está funcional. Este slice consolida a visibilidade auditáv
 
 **Excluded:** novas features operacionais fora da visibilidade/auditoria.
 
+## Implementation guardrail
+
+- Não acessar atributos protegidos/internos de services a partir de views/adapters (por exemplo: `_case_repository`, `_audit_repository`, `_job_queue`).
+- Se a view precisar de dados adicionais, expor método público explícito no application layer.
+
 ## Tests to write FIRST (TDD)
 
 - timeline mostra ações NIR/doctor/scheduler web em ordem cronológica;
@@ -39,6 +44,7 @@ Task file: openspec/changes/web-triage-workflow-migration/tasks/09-web-workflow-
 Implement only this slice.
 Use TDD where code behavior changes.
 If docs are changed, keep bilingual mirrors in sync and run the doc guards.
+Do not access protected/internal service attributes from views/adapters; add explicit public application-layer methods if needed.
 Run gates, update checklist, commit, push, and stop.
 Report SNP before/after.
 Write the full implementation report to `/tmp/web-triage-workflow-migration-09-web-workflow-audit-visibility-report.md`.

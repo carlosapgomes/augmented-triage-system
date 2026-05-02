@@ -29,7 +29,7 @@ Before writing ANY code, confirm ALL of the following:
 
 After completing ONE task slice, you MUST output EXACTLY this format:
 
-```
+```text
 ---
 ## SLICE COMPLETE
 
@@ -59,6 +59,9 @@ If the user does not explicitly approve (e.g., "continue", "ok", "proceed"), STO
 3. Do not redesign workflow/state machine unless explicitly requested in task/spec.
 4. Do not change LLM schemas/prompts/workflow behavior unless explicitly requested in task/spec.
 5. Keep changes small, deterministic, and reversible.
+6. Do not access protected/internal attributes of application services from adapters or web views (for example: `_case_repository`, `_audit_repository`, `_job_queue`).
+7. If an adapter/view needs additional data or behavior, expose it through an explicit public application-layer method, DTO, or port instead of reaching into internals.
+8. Do not use “temporary” adapter shortcuts that bypass application-layer boundaries, even if tests still pass.
 
 ## TDD and Quality Gates
 

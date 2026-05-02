@@ -504,8 +504,28 @@ def _render_decision_form_error(
 @login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
 def scheduler_home(request: HttpRequest) -> HttpResponse:
-    """Placeholder landing page for Scheduler users."""
-    return _role_home(request, "Scheduler")
+    """Scheduler queue showing cases awaiting scheduling confirmation.
+
+    Shows only cases in ``WAIT_APPT`` status with clinical summaries.
+    Only accessible to authenticated ``scheduler`` role users.
+    Other roles receive a 403 Forbidden response.
+    """
+    if request.user.role != "scheduler":
+        return HttpResponse("Access denied: Scheduler role required.", status=403)
+
+    from apps.django_ops.service_wiring import build_scheduler_queue_service, run_async
+
+    service = build_scheduler_queue_service()
+    cases = run_async(service.list_pending_cases())
+
+    return render(
+        request,
+        "django_ops/scheduler_queue.html",
+        {
+            "cases": cases,
+            "user_email": request.user.email,
+        },
+    )
 
 
 @login_required  # type: ignore[untyped-decorator]
