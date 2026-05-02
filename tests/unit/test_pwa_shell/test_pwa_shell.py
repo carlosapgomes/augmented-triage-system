@@ -160,8 +160,31 @@ class TestServiceWorkerEndpoint(TestCase):  # type: ignore[misc]  # untyped Djan
 class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that remote-capable roles get PWA installability metadata."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up SQLAlchemy database with migrations for doctor view tests."""
+        super().setUpClass()
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._db_path = Path(cls._tmp_dir) / "test_pwa_remote.sqlite"
+        cls._sync_url = f"sqlite+pysqlite:///{cls._db_path}"
+        cls._async_url = f"sqlite+aiosqlite:///{cls._db_path}"
+
+        alembic_config = Config()
+        alembic_config.set_main_option("script_location", "alembic")
+        alembic_config.set_main_option("sqlalchemy.url", cls._sync_url)
+        command.upgrade(alembic_config, "head")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up temp directory."""
+        import shutil
+
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+        super().tearDownClass()
+
     def test_doctor_home_includes_manifest_link(self) -> None:
         """Doctor home page must include a manifest link in the HTML head."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="doctor@example.com", password="testpass123", role="doctor",
         )
@@ -192,6 +215,7 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # 
 
     def test_doctor_home_includes_service_worker_registration(self) -> None:
         """Doctor home must register the service worker via JavaScript."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="doctor@example.com", password="testpass123", role="doctor",
         )
@@ -222,6 +246,7 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # 
 
     def test_doctor_home_includes_mobile_meta_tags(self) -> None:
         """Doctor home must include mobile-capable PWA meta tags."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="doctor@example.com", password="testpass123", role="doctor",
         )
@@ -303,6 +328,28 @@ class TestIntranetRolePagesExcludePWAMetadata(TestCase):  # type: ignore[misc]  
 class TestRoleAwareInstalledEntryBehavior(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that the installed PWA preserves role-aware entry with session."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up SQLAlchemy database with migrations for doctor view tests."""
+        super().setUpClass()
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._db_path = Path(cls._tmp_dir) / "test_pwa_entry.sqlite"
+        cls._sync_url = f"sqlite+pysqlite:///{cls._db_path}"
+        cls._async_url = f"sqlite+aiosqlite:///{cls._db_path}"
+
+        alembic_config = Config()
+        alembic_config.set_main_option("script_location", "alembic")
+        alembic_config.set_main_option("sqlalchemy.url", cls._sync_url)
+        command.upgrade(alembic_config, "head")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up temp directory."""
+        import shutil
+
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+        super().tearDownClass()
+
     def test_authenticated_doctor_root_resumes_role_surface(self) -> None:
         """Authenticated doctor opening the app root lands on /doctor/."""
         User.objects.create_user(
@@ -341,6 +388,7 @@ class TestRoleAwareInstalledEntryBehavior(TestCase):  # type: ignore[misc]  # un
 
     def test_session_persists_across_page_navigation(self) -> None:
         """Doctor session must persist when navigating between pages."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="doctor@example.com", password="testpass123", role="doctor",
         )

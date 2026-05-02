@@ -269,6 +269,7 @@ class TestRolePlaceholderPages(TestCase):  # type: ignore[misc]  # untyped Djang
 
     def test_doctor_page_accessible_when_authenticated(self) -> None:
         """Authenticated doctor user can access /doctor/ page."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="doctor@example.com", password="testpass123", role="doctor"
         )
