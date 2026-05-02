@@ -1,15 +1,16 @@
 """Views for the django_ops operations web application.
 
 Provides login/logout authentication, role-based redirect after login,
-minimal placeholder landing pages for each operational role, and PWA
-installability assets (manifest and online-only service worker).
+minimal placeholder landing pages for each operational role, PWA
+installability assets (manifest and online-only service worker),
+and NIR PDF upload for case creation via web.
 """
 
 from pathlib import Path
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -209,6 +210,111 @@ def smoke(request: HttpRequest) -> HttpResponse:
     Returns a JSON response with status ``ok`` so monitoring and
     deployment checks can confirm the app is healthy.
     """
-    from django.http import JsonResponse
 
     return JsonResponse({"status": "ok"})
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_GET  # type: ignore[untyped-decorator]
+def nir_upload(request: HttpRequest) -> HttpResponse:
+    """Render the NIR PDF upload form.
+
+    Only accessible to authenticated ``nir`` role users.
+    Other roles receive a 403 Forbidden response.
+    """
+    if request.user.role != "nir":
+        return HttpResponse("Access denied: NIR role required.", status=403)
+    return render(request, "django_ops/nir_upload.html", {"error_message": None})
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def nir_upload_submit(request: HttpRequest) -> HttpResponse:
+    """Handle NIR PDF upload submission.
+
+    Validates the uploaded file, creates a case via the shared
+    application service, and renders the result page.
+
+    On validation failure, re-renders the upload form with an error.
+    On unexpected error, renders the result page with an error message.
+    """
+    if request.user.role != "nir":
+        return HttpResponse("Access denied: NIR role required.", status=403)
+
+    uploaded_file = request.FILES.get("pdf_file")
+
+    if uploaded_file is None:
+        return render(
+            request,
+            "django_ops/nir_upload.html",
+            {"error_message": "Selecione um arquivo PDF para enviar."},
+        )
+
+    pdf_bytes = uploaded_file.read()
+    filename = uploaded_file.name or ""
+    content_type = uploaded_file.content_type or None
+
+    user_id = str(request.user.pk)
+    user_email = request.user.email
+
+    from apps.django_ops.service_wiring import build_nir_web_intake_service, run_async
+    from triage_automation.application.services.nir_web_intake_service import (
+        NirWebIntakeResult,
+        NirWebIntakeValidationError,
+    )
+
+    service = build_nir_web_intake_service()
+
+    try:
+        result: NirWebIntakeResult = run_async(  # type: ignore[assignment]
+            service.ingest_web_pdf(
+                pdf_bytes=pdf_bytes,
+                filename=filename,
+                content_type=content_type,
+                uploaded_by_user_id=user_id,
+                uploaded_by_email=user_email,
+            )
+        )
+    except NirWebIntakeValidationError as exc:
+        return render(
+            request,
+            "django_ops/nir_upload.html",
+            {"error_message": str(exc)},
+        )
+    except Exception as exc:
+        return render(
+            request,
+            "django_ops/nir_upload_result.html",
+            {
+                "case_id": "—",
+                "status": "ERRO",
+                "created_at": "—",
+                "error_message": f"Erro ao criar caso: {exc}",
+            },
+        )
+
+    if not result.processed:
+        return render(
+            request,
+            "django_ops/nir_upload_result.html",
+            {
+                "case_id": "—",
+                "status": "REJEITADO",
+                "created_at": "—",
+                "error_message": result.reason or "Upload rejeitado.",
+            },
+        )
+
+    from django.utils import timezone as django_tz
+
+    now = django_tz.now()
+    return render(
+        request,
+        "django_ops/nir_upload_result.html",
+        {
+            "case_id": result.case_id,
+            "status": "Recebido — processando",
+            "created_at": now.strftime("%d/%m/%Y %H:%M"),
+            "error_message": None,
+        },
+    )

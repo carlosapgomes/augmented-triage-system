@@ -33,6 +33,7 @@ from triage_automation.application.ports.case_repository_port import (
     DuplicateCaseOriginEventError,
     Room1FinalReplyReactionSnapshot,
     SchedulerDecisionUpdateInput,
+    WebCaseCreateInput,
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.monitoring_projection import (
@@ -108,9 +109,11 @@ def _to_case_record(row: RowMapping) -> CaseRecord:
     return CaseRecord(
         case_id=cast("Any", row["case_id"]),
         status=CaseStatus(cast(str, row["status"])),
-        room1_origin_room_id=cast(str, row["room1_origin_room_id"]),
-        room1_origin_event_id=cast(str, row["room1_origin_event_id"]),
-        room1_sender_user_id=cast(str, row["room1_sender_user_id"]),
+        origin_source=cast(str, row.get("origin_source", "matrix")),
+        room1_origin_room_id=cast(str | None, row["room1_origin_room_id"]),
+        room1_origin_event_id=cast(str | None, row["room1_origin_event_id"]),
+        room1_sender_user_id=cast(str | None, row["room1_sender_user_id"]),
+        web_pdf_storage_path=cast(str | None, row.get("web_pdf_storage_path")),
         created_at=cast("Any", row["created_at"]),
         updated_at=cast("Any", row["updated_at"]),
     )
@@ -234,6 +237,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             .values(
                 case_id=payload.case_id,
                 status=payload.status.value,
+                origin_source="matrix",
                 room1_origin_room_id=payload.room1_origin_room_id,
                 room1_origin_event_id=payload.room1_origin_event_id,
                 room1_sender_user_id=payload.room1_sender_user_id,
@@ -241,9 +245,11 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             .returning(
                 cases.c.case_id,
                 cases.c.status,
+                cases.c.origin_source,
                 cases.c.room1_origin_room_id,
                 cases.c.room1_origin_event_id,
                 cases.c.room1_sender_user_id,
+                cases.c.web_pdf_storage_path,
                 cases.c.created_at,
                 cases.c.updated_at,
             )
@@ -277,9 +283,11 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
+            cases.c.origin_source,
             cases.c.room1_origin_room_id,
             cases.c.room1_origin_event_id,
             cases.c.room1_sender_user_id,
+            cases.c.web_pdf_storage_path,
             cases.c.created_at,
             cases.c.updated_at,
         ).where(cases.c.room1_origin_event_id == origin_event_id)
@@ -291,6 +299,50 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         if row is None:
             return None
         return _to_case_record(row)
+
+    async def create_web_case(self, payload: WebCaseCreateInput) -> CaseRecord:
+        """Insert a new web-origin case row and return the created case record."""
+
+        statement = (
+            sa.insert(cases)
+            .values(
+                case_id=payload.case_id,
+                status=payload.status.value,
+                origin_source=payload.origin_source,
+                room1_origin_room_id=None,
+                room1_origin_event_id=None,
+                room1_sender_user_id=None,
+                web_pdf_filename=payload.web_pdf_filename,
+                web_pdf_storage_path=payload.web_pdf_storage_path,
+                web_uploaded_by_user_id=payload.web_uploaded_by_user_id,
+            )
+            .returning(
+                cases.c.case_id,
+                cases.c.status,
+                cases.c.origin_source,
+                cases.c.room1_origin_room_id,
+                cases.c.room1_origin_event_id,
+                cases.c.room1_sender_user_id,
+                cases.c.web_pdf_storage_path,
+                cases.c.created_at,
+                cases.c.updated_at,
+            )
+        )
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+            await session.commit()
+
+        row = result.mappings().one()
+        created = _to_case_record(row)
+        logger.info(
+            "web_case_created case_id=%s status=%s origin_source=%s filename=%s",
+            created.case_id,
+            created.status.value,
+            created.origin_source,
+            payload.web_pdf_filename,
+        )
+        return created
 
     async def get_case_room2_widget_snapshot(
         self,

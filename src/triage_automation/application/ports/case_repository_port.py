@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID
 
@@ -40,11 +40,25 @@ class CaseRecord:
 
     case_id: UUID
     status: CaseStatus
-    room1_origin_room_id: str
-    room1_origin_event_id: str
-    room1_sender_user_id: str
-    created_at: datetime
-    updated_at: datetime
+    origin_source: str = "matrix"
+    room1_origin_room_id: str | None = None
+    room1_origin_event_id: str | None = None
+    room1_sender_user_id: str | None = None
+    web_pdf_storage_path: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class WebCaseCreateInput:
+    """Input payload for creating a web-origin case row."""
+
+    case_id: UUID
+    status: CaseStatus
+    origin_source: str
+    web_pdf_filename: str
+    web_pdf_storage_path: str
+    web_uploaded_by_user_id: str
 
 
 @dataclass(frozen=True)
@@ -255,6 +269,9 @@ class CaseRepositoryPort(Protocol):
 
     async def create_case(self, payload: CaseCreateInput) -> CaseRecord:
         """Create a case row or raise DuplicateCaseOriginEventError."""
+
+    async def create_web_case(self, payload: WebCaseCreateInput) -> CaseRecord:
+        """Create a web-origin case row."""
 
     async def get_case_by_origin_event_id(self, origin_event_id: str) -> CaseRecord | None:
         """Retrieve case by Room-1 origin event id."""

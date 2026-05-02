@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Caso Criado — NIR — ATS Operations</title>
+</head>
+<body>
+    <h1>Encaminhamento Recebido</h1>
+
+    <p>O caso foi criado com sucesso.</p>
+
+    <dl>
+        <dt>ID do Caso</dt>
+        <dd>{{ case_id }}</dd>
+        <dt>Status</dt>
+        <dd>{{ status }}</dd>
+        <dt>Horário</dt>
+        <dd>{{ created_at }}</dd>
+    </dl>
+
+    {% if error_message %}
+    <p class="warning">{{ error_message }}</p>
+    {% endif %}
+
+    <p>
+        <a href="{% url 'nir_upload' %}">Enviar outro</a> |
+        <a href="{% url 'nir_home' %}">Voltar</a>
+    </p>
+</body>
+</html>

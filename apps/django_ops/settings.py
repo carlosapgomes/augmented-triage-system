@@ -96,6 +96,10 @@ INTRANET_CIDR_ALLOWLIST: list[str] = ["127.0.0.0/8"]
 LOGIN_URL: str = "/login/"
 LOGOUT_REDIRECT_URL: str = "/login/"
 
+# PDF file storage directory for web uploads.
+# In production, override with a persistent volume path.
+PDF_STORAGE_DIR: str = str(BASE_DIR / "uploads" / "pdfs")
+
 # Authentication backends
 AUTHENTICATION_BACKENDS: list[str] = [
     "apps.django_ops.auth_backends.EmailBackend",
