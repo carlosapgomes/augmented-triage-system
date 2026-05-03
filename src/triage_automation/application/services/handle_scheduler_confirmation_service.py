@@ -22,10 +22,12 @@ from triage_automation.application.ports.audit_repository_port import (
     AuditRepositoryPort,
 )
 from triage_automation.application.ports.case_repository_port import (
+    CaseDoctorDecisionSnapshot,
     CaseRepositoryPort,
     SchedulerDecisionUpdateInput,
 )
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
+from triage_automation.application.services.patient_context import extract_patient_name_age
 from triage_automation.domain.case_status import CaseStatus
 
 logger = logging.getLogger(__name__)
@@ -70,6 +72,20 @@ class SchedulerConfirmationPayload:
     appointment_reason: str | None = None
 
 
+@dataclass(frozen=True)
+class SchedulerFormCase:
+    """Public DTO for scheduler confirmation form rendering.
+
+    Carries the case context needed by the web form adapter without
+    exposing internal repository/snapshot types.
+    """
+
+    case_id: UUID
+    patient_name: str | None
+    patient_age: int | None
+    agency_record_number: str | None
+
+
 class HandleSchedulerConfirmationService:
     """Persist scheduler confirmation/denial and enqueue next workflow job.
 
@@ -95,6 +111,40 @@ class HandleSchedulerConfirmationService:
         self._case_repository = case_repository
         self._audit_repository = audit_repository
         self._job_queue = job_queue
+
+    async def get_form_case(self, *, case_id: UUID) -> SchedulerFormCase | None:
+        """Load case context for scheduler confirmation form rendering.
+
+        Returns ``None`` when the case does not exist or is not in
+        ``WAIT_APPT`` status.
+
+        Args:
+            case_id: The case identifier.
+
+        Returns:
+            A ``SchedulerFormCase`` DTO with patient/record fields, or ``None``.
+        """
+        snapshot: CaseDoctorDecisionSnapshot | None = (
+            await self._case_repository.get_case_doctor_decision_snapshot(
+                case_id=case_id
+            )
+        )
+        if snapshot is None or snapshot.status != CaseStatus.WAIT_APPT:
+            return None
+
+        patient_name: str | None = None
+        patient_age: int | None = None
+        if snapshot.structured_data_json:
+            patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
+                snapshot.structured_data_json
+            )
+
+        return SchedulerFormCase(
+            case_id=case_id,
+            patient_name=patient_name,
+            patient_age=patient_age,
+            agency_record_number=snapshot.agency_record_number,
+        )
 
     async def handle(
         self,
@@ -224,6 +274,57 @@ class HandleSchedulerConfirmationService:
         return HandleSchedulerConfirmationResult(
             outcome=HandleSchedulerConfirmationOutcome.APPLIED
         )
+
+    async def handle_web(
+        self,
+        payload: SchedulerConfirmationPayload,
+        *,
+        actor_email: str,
+    ) -> HandleSchedulerConfirmationResult:
+        """Handle a web-origin scheduler confirmation with web human audit.
+
+        Delegates to the core ``handle`` method and, on success, persists
+        a ``SCHEDULER_CONFIRMATION`` web human event in the audit log.
+
+        Args:
+            payload: The confirmation/denial payload from the web form.
+            actor_email: The authenticated scheduler email for audit.
+
+        Returns:
+            A ``HandleSchedulerConfirmationResult`` with the outcome status.
+        """
+        result = await self.handle(payload)
+        if result.outcome != HandleSchedulerConfirmationOutcome.APPLIED:
+            return result
+
+        from triage_automation.domain.web_event_contract import WebEventOrigin, WebEventType
+
+        await self._audit_repository.append_event(
+            AuditEventCreateInput(
+                case_id=payload.case_id,
+                actor_type="web_human",
+                event_type=WebEventType.SCHEDULER_CONFIRMATION.value,
+                actor_user_id=payload.scheduler_user_id,
+                payload={
+                    "origin": WebEventOrigin.WEB.value,
+                    "actor": actor_email,
+                    "event_type": WebEventType.SCHEDULER_CONFIRMATION.value,
+                    "appointment_status": payload.appointment_status,
+                    "appointment_at": (
+                        payload.appointment_at.isoformat()
+                        if payload.appointment_at is not None
+                        else None
+                    ),
+                    "appointment_location": payload.appointment_location,
+                    "appointment_reason": payload.appointment_reason,
+                    "summary_text": (
+                        f"Scheduler {payload.appointment_status} "
+                        f"by {actor_email}"
+                    ),
+                },
+            )
+        )
+        return result
 
 
 def _next_job_type(*, appointment_status: str) -> str:

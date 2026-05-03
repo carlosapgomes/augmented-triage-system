@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Protocol
+from uuid import UUID
 
 from triage_automation.application.dto.webhook_models import (
     AdmissionFlow,
@@ -17,6 +18,7 @@ from triage_automation.application.ports.audit_repository_port import (
     AuditRepositoryPort,
 )
 from triage_automation.application.ports.case_repository_port import (
+    CaseDoctorDecisionSnapshot,
     CaseRepositoryPort,
     DoctorDecisionUpdateInput,
 )
@@ -55,6 +57,20 @@ class HandleDoctorDecisionResult:
     outcome: HandleDoctorDecisionOutcome
 
 
+@dataclass(frozen=True)
+class DoctorFormCase:
+    """Public DTO for doctor decision form rendering.
+
+    Carries the case context needed by the web form adapter without
+    exposing internal repository/snapshot types.
+    """
+
+    case_id: UUID
+    patient_name: str | None
+    patient_age: int | None
+    agency_record_number: str | None
+
+
 class MatrixRoomDecisionPosterPort(Protocol):
     """Port used to emit Room-2 decision confirmation messages."""
 
@@ -86,6 +102,87 @@ class HandleDoctorDecisionService:
         self._matrix_poster = matrix_poster
         self._room2_id = room2_id
         self._reaction_checkpoint_repository = reaction_checkpoint_repository
+
+    async def get_form_case(self, *, case_id: UUID) -> DoctorFormCase | None:
+        """Load case context for doctor decision form rendering.
+
+        Returns ``None`` when the case does not exist or is not in
+        ``WAIT_DOCTOR`` status.
+
+        Args:
+            case_id: The case identifier.
+
+        Returns:
+            A ``DoctorFormCase`` DTO with patient/record fields, or ``None``.
+        """
+        snapshot: CaseDoctorDecisionSnapshot | None = (
+            await self._case_repository.get_case_doctor_decision_snapshot(
+                case_id=case_id
+            )
+        )
+        if snapshot is None or snapshot.status != CaseStatus.WAIT_DOCTOR:
+            return None
+
+        patient_name: str | None = None
+        patient_age: int | None = None
+        if snapshot.structured_data_json:
+            patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
+                snapshot.structured_data_json
+            )
+
+        return DoctorFormCase(
+            case_id=case_id,
+            patient_name=patient_name,
+            patient_age=patient_age,
+            agency_record_number=snapshot.agency_record_number,
+        )
+
+    async def handle_web(
+        self,
+        payload: TriageDecisionWebhookPayload,
+        *,
+        actor_email: str,
+    ) -> HandleDoctorDecisionResult:
+        """Handle a web-origin doctor decision with web human audit.
+
+        Delegates to the core ``handle`` method and, on success, persists
+        a ``DOCTOR_DECISION`` web human event in the audit log.
+
+        Args:
+            payload: The decision payload from the web form.
+            actor_email: The authenticated doctor email for audit.
+
+        Returns:
+            A ``HandleDoctorDecisionResult`` with the outcome status.
+        """
+        result = await self.handle(payload)
+        if result.outcome != HandleDoctorDecisionOutcome.APPLIED:
+            return result
+
+        from triage_automation.domain.web_event_contract import WebEventOrigin, WebEventType
+
+        await self._audit_repository.append_event(
+            AuditEventCreateInput(
+                case_id=payload.case_id,
+                actor_type="web_human",
+                event_type=WebEventType.DOCTOR_DECISION.value,
+                actor_user_id=payload.doctor_user_id,
+                payload={
+                    "origin": WebEventOrigin.WEB.value,
+                    "actor": actor_email,
+                    "event_type": WebEventType.DOCTOR_DECISION.value,
+                    "decision": payload.decision,
+                    "support_flag": payload.support_flag,
+                    "admission_flow": payload.admission_flow,
+                    "reason": payload.reason,
+                    "summary_text": (
+                        f"Doctor decision '{payload.decision}' "
+                        f"by {actor_email}"
+                    ),
+                },
+            )
+        )
+        return result
 
     async def handle(
         self,

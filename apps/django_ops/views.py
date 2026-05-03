@@ -233,42 +233,25 @@ def doctor_decision_form(request: HttpRequest, case_id: UUID) -> HttpResponse:
         build_handle_doctor_decision_service,
         run_async,
     )
-    from triage_automation.application.ports.case_repository_port import (
-        CaseDoctorDecisionSnapshot,
-    )
-    from triage_automation.application.services.patient_context import (
-        extract_patient_name_age,
-    )
 
     service = build_handle_doctor_decision_service()
-
-    raw = run_async(
-        service._case_repository.get_case_doctor_decision_snapshot(
-            case_id=case_id
-        )
+    raw = run_async(service.get_form_case(case_id=case_id))
+    from triage_automation.application.services.handle_doctor_decision_service import (
+        DoctorFormCase,
     )
-    snapshot: CaseDoctorDecisionSnapshot | None = (
-        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
-    )
+    form_case: DoctorFormCase | None = raw if isinstance(raw, DoctorFormCase) else None
 
-    if snapshot is None or snapshot.status != "WAIT_DOCTOR":
+    if form_case is None:
         return HttpResponse("Case not found or not awaiting decision.", status=404)
-
-    patient_name: str | None = None
-    patient_age: int | None = None
-    if snapshot.structured_data_json:
-        patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
-            snapshot.structured_data_json
-        )
 
     return render(
         request,
         "django_ops/doctor_decision_form.html",
         {
             "case_id": str(case_id),
-            "patient_name": patient_name,
-            "patient_age": patient_age,
-            "agency_record_number": snapshot.agency_record_number,
+            "patient_name": form_case.patient_name,
+            "patient_age": form_case.patient_age,
+            "agency_record_number": form_case.agency_record_number,
             "user_email": request.user.email,
             "error_message": None,
         },
@@ -283,12 +266,12 @@ def doctor_decision_form_submit(
     """Handle doctor decision form submission.
 
     Validates the form data, constructs a structured decision payload,
-    and delegates to the existing ``HandleDoctorDecisionService`` for
-    CAS update, audit persistence, and next-step job enqueue.
+    and delegates to ``HandleDoctorDecisionService.handle_web`` for
+    CAS update, audit persistence (including web human event), and
+    next-step job enqueue.
 
-    On success, persists a web human event audit entry and redirects
-    to the doctor queue. On validation or processing failure, re-renders
-    the form with an error message.
+    On success redirects to the doctor queue. On validation or
+    processing failure, re-renders the form with an error message.
     """
     if request.user.role != "doctor":
         return HttpResponse("Access denied: Doctor role required.", status=403)
@@ -345,7 +328,9 @@ def doctor_decision_form_submit(
 
     service = build_handle_doctor_decision_service()
 
-    raw_result = run_async(service.handle(payload))
+    raw_result = run_async(
+        service.handle_web(payload, actor_email=request.user.email)
+    )
     from triage_automation.application.services.handle_doctor_decision_service import (
         HandleDoctorDecisionResult,
     )
@@ -369,39 +354,6 @@ def doctor_decision_form_submit(
                 result.outcome, "Erro ao processar decisão."
             ),
         )
-
-    # ── Persist web human event audit ──────────────────────────────
-    from triage_automation.application.ports.audit_repository_port import (
-        AuditEventCreateInput,
-    )
-    from triage_automation.domain.web_event_contract import (
-        WebEventOrigin,
-        WebEventType,
-    )
-
-    run_async(
-        service._audit_repository.append_event(
-            AuditEventCreateInput(
-                case_id=case_id,
-                actor_type="web_human",
-                event_type=WebEventType.DOCTOR_DECISION.value,
-                actor_user_id=str(request.user.pk),
-                payload={
-                    "origin": WebEventOrigin.WEB.value,
-                    "actor": request.user.email,
-                    "event_type": WebEventType.DOCTOR_DECISION.value,
-                    "decision": decision,
-                    "support_flag": support_flag,
-                    "admission_flow": admission_flow,
-                    "reason": reason_value,
-                    "summary_text": (
-                        f"Doctor decision '{decision}' "
-                        f"by {request.user.email}"
-                    ),
-                },
-            )
-        )
-    )
 
     return HttpResponseRedirect("/doctor/")
 
@@ -498,39 +450,30 @@ def _render_scheduler_confirmation_form_error(
 ) -> HttpResponse:
     """Re-render the scheduler confirmation form with an error message.
 
-    Loads case details to populate the form context alongside the error.
+    Loads case details via the public service API to populate the form
+    context alongside the error.
     """
     from apps.django_ops.service_wiring import (
         build_handle_scheduler_confirmation_service,
         run_async,
     )
-    from triage_automation.application.ports.case_repository_port import (
-        CaseDoctorDecisionSnapshot,
-    )
 
     service = build_handle_scheduler_confirmation_service()
-
-    raw = run_async(
-        service._case_repository.get_case_doctor_decision_snapshot(
-            case_id=case_id
-        )
+    raw = run_async(service.get_form_case(case_id=case_id))
+    from triage_automation.application.services.handle_scheduler_confirmation_service import (
+        SchedulerFormCase,
     )
-    snapshot: CaseDoctorDecisionSnapshot | None = (
-        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
+    form_case: SchedulerFormCase | None = (
+        raw if isinstance(raw, SchedulerFormCase) else None
     )
 
     patient_name: str | None = None
     patient_age: int | None = None
     agency_record_number: str | None = None
-    if snapshot is not None:
-        agency_record_number = snapshot.agency_record_number
-        if snapshot.structured_data_json:
-            from triage_automation.application.services.patient_context import (
-                extract_patient_name_age,
-            )
-            patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
-                snapshot.structured_data_json
-            )
+    if form_case is not None:
+        agency_record_number = form_case.agency_record_number
+        patient_name = form_case.patient_name
+        patient_age = form_case.patient_age
 
     return render(
         request,
@@ -554,39 +497,28 @@ def _render_decision_form_error(
 ) -> HttpResponse:
     """Re-render the decision form with an error message.
 
-    Loads case details to populate the form context alongside the error.
+    Loads case details via the public service API to populate the form
+    context alongside the error.
     """
     from apps.django_ops.service_wiring import (
         build_handle_doctor_decision_service,
         run_async,
     )
-    from triage_automation.application.ports.case_repository_port import (
-        CaseDoctorDecisionSnapshot,
-    )
 
     service = build_handle_doctor_decision_service()
-
-    raw = run_async(
-        service._case_repository.get_case_doctor_decision_snapshot(
-            case_id=case_id
-        )
+    raw = run_async(service.get_form_case(case_id=case_id))
+    from triage_automation.application.services.handle_doctor_decision_service import (
+        DoctorFormCase,
     )
-    snapshot: CaseDoctorDecisionSnapshot | None = (
-        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
-    )
+    form_case: DoctorFormCase | None = raw if isinstance(raw, DoctorFormCase) else None
 
     patient_name: str | None = None
     patient_age: int | None = None
     agency_record_number: str | None = None
-    if snapshot is not None:
-        agency_record_number = snapshot.agency_record_number
-        if snapshot.structured_data_json:
-            from triage_automation.application.services.patient_context import (
-                extract_patient_name_age,
-            )
-            patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
-                snapshot.structured_data_json
-            )
+    if form_case is not None:
+        agency_record_number = form_case.agency_record_number
+        patient_name = form_case.patient_name
+        patient_age = form_case.patient_age
 
     return render(
         request,
@@ -648,35 +580,20 @@ def scheduler_confirmation_form(
         build_handle_scheduler_confirmation_service,
         run_async,
     )
-    from triage_automation.application.ports.case_repository_port import (
-        CaseDoctorDecisionSnapshot,
-    )
-    from triage_automation.application.services.patient_context import (
-        extract_patient_name_age,
-    )
 
     service = build_handle_scheduler_confirmation_service()
-
-    raw = run_async(
-        service._case_repository.get_case_doctor_decision_snapshot(
-            case_id=case_id
-        )
+    raw = run_async(service.get_form_case(case_id=case_id))
+    from triage_automation.application.services.handle_scheduler_confirmation_service import (
+        SchedulerFormCase,
     )
-    snapshot: CaseDoctorDecisionSnapshot | None = (
-        raw if isinstance(raw, CaseDoctorDecisionSnapshot) else None
+    form_case: SchedulerFormCase | None = (
+        raw if isinstance(raw, SchedulerFormCase) else None
     )
 
-    if snapshot is None or snapshot.status != "WAIT_APPT":
+    if form_case is None:
         return HttpResponse(
             "Case not found or not awaiting scheduling confirmation.",
             status=404,
-        )
-
-    patient_name: str | None = None
-    patient_age: int | None = None
-    if snapshot.structured_data_json:
-        patient_name, patient_age = extract_patient_name_age(  # type: ignore[assignment]
-            snapshot.structured_data_json
         )
 
     return render(
@@ -684,9 +601,9 @@ def scheduler_confirmation_form(
         "django_ops/scheduler_confirmation_form.html",
         {
             "case_id": str(case_id),
-            "patient_name": patient_name,
-            "patient_age": patient_age,
-            "agency_record_number": snapshot.agency_record_number,
+            "patient_name": form_case.patient_name,
+            "patient_age": form_case.patient_age,
+            "agency_record_number": form_case.agency_record_number,
             "user_email": request.user.email,
             "error_message": None,
         },
@@ -773,7 +690,9 @@ def scheduler_confirmation_form_submit(
 
     service = build_handle_scheduler_confirmation_service()
 
-    raw_result = run_async(service.handle(payload))
+    raw_result = run_async(
+        service.handle_web(payload, actor_email=request.user.email)
+    )
     assert isinstance(raw_result, HandleSchedulerConfirmationResult)
     result: HandleSchedulerConfirmationResult = raw_result
 
@@ -796,43 +715,6 @@ def scheduler_confirmation_form_submit(
                 result.outcome, "Erro ao processar confirmação."
             ),
         )
-
-    # ── Persist web human event audit ─────────────────────────────
-    from triage_automation.application.ports.audit_repository_port import (
-        AuditEventCreateInput,
-    )
-    from triage_automation.domain.web_event_contract import (
-        WebEventOrigin,
-        WebEventType,
-    )
-
-    run_async(
-        service._audit_repository.append_event(
-            AuditEventCreateInput(
-                case_id=case_id,
-                actor_type="web_human",
-                event_type=WebEventType.SCHEDULER_CONFIRMATION.value,
-                actor_user_id=str(request.user.pk),
-                payload={
-                    "origin": WebEventOrigin.WEB.value,
-                    "actor": request.user.email,
-                    "event_type": WebEventType.SCHEDULER_CONFIRMATION.value,
-                    "appointment_status": payload.appointment_status,
-                    "appointment_at": (
-                        payload.appointment_at.isoformat()
-                        if payload.appointment_at is not None
-                        else None
-                    ),
-                    "appointment_location": payload.appointment_location,
-                    "appointment_reason": payload.appointment_reason,
-                    "summary_text": (
-                        f"Scheduler {payload.appointment_status} "
-                        f"by {request.user.email}"
-                    ),
-                },
-            )
-        )
-    )
 
     return HttpResponseRedirect("/scheduler/")
 
