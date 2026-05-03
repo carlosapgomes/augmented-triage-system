@@ -320,3 +320,99 @@ class TestAdminRoutesAuthorization(_ShellNavigationTestBase):
         response = self.client.get("/admin/")
 
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(
+    PDF_STORAGE_DIR=os.path.join(tempfile.gettempdir(), "ats_test_pdfs"),
+)
+class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
+    """Admin user-management consolidation tests for slice 3.1."""
+
+    def test_admin_can_access_consolidated_user_management_surface(self) -> None:
+        """Admin gets consolidated user-management HTML page."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        response = self.client.get("/admin/users/")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn("Gestão de Usuários", content)
+        self.assertIn("Criar usuário", content)
+
+    def test_manager_gets_403_on_consolidated_user_management_surface(self) -> None:
+        """Manager is forbidden from admin user management."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        response = self.client.get("/admin/users/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_create_all_supported_roles(self) -> None:
+        """Admin can create users for all supported roles."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        for role in ("nir", "doctor", "scheduler", "manager", "admin"):
+            response = self.client.post(
+                "/admin/users/",
+                {
+                    "email": f"{role}.new@example.com",
+                    "password": "testpass123",
+                    "role": role,
+                },
+            )
+            self.assertEqual(response.status_code, 302)
+
+        created_roles = {
+            user.email: user.role
+            for user in User.objects.filter(
+                email__in=[
+                    "nir.new@example.com",
+                    "doctor.new@example.com",
+                    "scheduler.new@example.com",
+                    "manager.new@example.com",
+                    "admin.new@example.com",
+                ]
+            )
+        }
+
+        self.assertEqual(created_roles["nir.new@example.com"], "nir")
+        self.assertEqual(created_roles["doctor.new@example.com"], "doctor")
+        self.assertEqual(created_roles["scheduler.new@example.com"], "scheduler")
+        self.assertEqual(created_roles["manager.new@example.com"], "manager")
+        self.assertEqual(created_roles["admin.new@example.com"], "admin")
+
+    def test_admin_can_change_user_role_to_supported_role(self) -> None:
+        """Admin can update an existing user's role to another supported role."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="rolechange@example.com",
+            password="testpass123",
+            role="nir",
+        )
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        response = self.client.post(
+            f"/admin/users/{target.pk}/role/",
+            {"role": "doctor"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        target.refresh_from_db()
+        self.assertEqual(target.role, "doctor")
+
+    def test_role_change_preserves_last_active_admin_invariant(self) -> None:
+        """Changing the last active admin to non-admin is rejected."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        response = self.client.post(
+            f"/admin/users/{self.admin_user.pk}/role/",
+            {"role": "manager"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.admin_user.refresh_from_db()
+        self.assertEqual(self.admin_user.role, "admin")

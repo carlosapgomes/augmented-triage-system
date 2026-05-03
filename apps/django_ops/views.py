@@ -17,6 +17,8 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonRes
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
+from apps.django_ops.models import Role, User
+
 # Roles eligible for the installable PWA shell (remote-capable).
 PWA_CAPABLE_ROLES: frozenset[str] = frozenset({"doctor", "manager", "admin"})
 
@@ -934,24 +936,69 @@ def admin_home(request: HttpRequest) -> HttpResponse:
 
 
 @login_required  # type: ignore[untyped-decorator]
-@require_GET  # type: ignore[untyped-decorator]
 def admin_users_home(request: HttpRequest) -> HttpResponse:
-    """Admin users management placeholder page.
-
-    Only accessible to authenticated ``admin`` role users.
-    Other roles receive 403 Forbidden.
-    """
+    """Admin user-management page and create-user action."""
     if request.user.role != "admin":
         return HttpResponse("Access denied: Admin role required.", status=403)
 
+    if request.method == "POST":
+        email = (request.POST.get("email") or "").strip().lower()
+        password = (request.POST.get("password") or "").strip()
+        role_value = (request.POST.get("role") or "").strip().lower()
+
+        supported_roles = {choice for choice, _ in Role.choices}
+        if role_value not in supported_roles:
+            return HttpResponseRedirect("/admin/users/?error=Perfil+de+usuario+invalido.")
+        if not email:
+            return HttpResponseRedirect("/admin/users/?error=Email+nao+pode+ficar+vazio.")
+        if not password:
+            return HttpResponseRedirect("/admin/users/?error=Senha+nao+pode+ficar+vazia.")
+        if User.objects.filter(email__iexact=email).exists():
+            return HttpResponseRedirect("/admin/users/?error=Email+ja+cadastrado.")
+
+        User.objects.create_user(email=email, password=password, role=role_value)
+        return HttpResponseRedirect(f"/admin/users/?created_email={email}")
+
+    users = User.objects.order_by("email")
     return render(
         request,
-        "django_ops/admin_placeholder.html",
+        "django_ops/admin_users.html",
         {
-            "page_title": "Gestão de Usuários",
-            "page_description": "A gestão de usuários será implementada no próximo slice.",
+            "users": users,
+            "supported_roles": [choice for choice, _ in Role.choices],
+            "error_message": request.GET.get("error"),
+            "created_email": request.GET.get("created_email"),
+            "updated_email": request.GET.get("updated_email"),
         },
     )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def admin_user_role_update(request: HttpRequest, user_id: int) -> HttpResponse:
+    """Admin role-change action for an existing user account."""
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    role_value = (request.POST.get("role") or "").strip().lower()
+    supported_roles = {choice for choice, _ in Role.choices}
+    if role_value not in supported_roles:
+        return HttpResponseRedirect("/admin/users/?error=Perfil+de+usuario+invalido.")
+
+    target = User.objects.filter(pk=user_id).first()
+    if target is None:
+        return HttpResponseRedirect("/admin/users/?error=Usuario+alvo+nao+encontrado.")
+
+    if target.role == "admin" and role_value != "admin":
+        active_admins = User.objects.filter(role="admin", is_active=True).count()
+        if active_admins <= 1:
+            return HttpResponseRedirect(
+                "/admin/users/?error=Pelo+menos+um+admin+ativo+deve+permanecer."
+            )
+
+    target.role = role_value
+    target.save(update_fields=["role", "updated_at"])
+    return HttpResponseRedirect(f"/admin/users/?updated_email={target.email}")
 
 
 @login_required  # type: ignore[untyped-decorator]

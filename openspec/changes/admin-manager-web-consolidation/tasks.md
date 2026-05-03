@@ -14,7 +14,7 @@
 
 ## Phase 3 - Admin surfaces
 
-- [ ] 3.1 Consolidar a superfície de gestão de usuários no Django para `admin`.
+- [x] 3.1 Consolidar a superfície de gestão de usuários no Django para `admin`.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/04-admin-user-management-consolidation.md`
 - [ ] 3.2 Consolidar a superfície de gestão de prompts no Django para `admin`.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/05-admin-prompt-management-consolidation.md`
