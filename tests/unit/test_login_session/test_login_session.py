@@ -288,6 +288,7 @@ class TestRolePlaceholderPages(TestCase):  # type: ignore[misc]  # untyped Djang
 
     def test_manager_page_accessible_when_authenticated(self) -> None:
         """Authenticated manager user can access /manager/ page."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="manager@example.com", password="testpass123", role="manager"
         )
@@ -297,6 +298,7 @@ class TestRolePlaceholderPages(TestCase):  # type: ignore[misc]  # untyped Djang
 
     def test_admin_page_accessible_when_authenticated(self) -> None:
         """Authenticated admin user can access /admin/ page."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="admin@example.com", password="testpass123", role="admin"
         )

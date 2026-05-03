@@ -91,8 +91,9 @@
     <p>Nenhum caso encontrado para os filtros selecionados.</p>
     {% endif %}
 
-    <p>
-        <a href="/logout/">Sair</a>
-    </p>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">Sair</button>
+    </form>
 </body>
 </html>
