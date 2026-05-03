@@ -455,7 +455,11 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
         self.assertEqual(payload.get("new_status"), "active")
 
     def test_create_user_audit_sets_top_level_user_id_column(self) -> None:
-        """The auth_events.user_id column is populated for Django admin create actions."""
+        """The auth_events.user_id column is NULL for Django admin actions.
+
+        Django users have no authoritative UUID in the SQLAlchemy users table.
+        All actor/target identity is carried in the payload field.
+        """
         self._set_env_database_url()
         self.client.login(username="admin@example.com", password="testpass123")
 
@@ -473,10 +477,14 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
             ).mappings().first()
 
         self.assertIsNotNone(row)
-        self.assertIsNotNone(row["user_id"])
+        self.assertIsNone(row["user_id"])
 
     def test_block_user_audit_sets_top_level_user_id_column(self) -> None:
-        """The auth_events.user_id column is populated for Django admin block actions."""
+        """The auth_events.user_id column is NULL for Django admin block actions.
+
+        Django users have no authoritative UUID in the SQLAlchemy users table.
+        All actor/target identity is carried in the payload field.
+        """
         self._set_env_database_url()
         target = User.objects.create_user(
             email="userid-block@example.com",
@@ -496,7 +504,7 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
             ).mappings().first()
 
         self.assertIsNotNone(row)
-        self.assertIsNotNone(row["user_id"])
+        self.assertIsNone(row["user_id"])
 
     def test_block_user_audit_records_status_transition(self) -> None:
         """Block audit event records active→blocked transition with proper contract."""
@@ -659,3 +667,66 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
         created = User.objects.get(email="legacy.reader@example.com")
         # Legacy reader is mapped to manager
         self.assertEqual(created.role, "manager")
+
+    def test_create_user_audit_user_id_is_null_with_correct_actor_in_payload(self) -> None:
+        """Create-user auth_events.user_id is NULL and payload identifies the Django actor."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(
+            "/admin/users/",
+            {"email": "null-userid-test@example.com", "password": "testpass123", "role": "doctor"},
+        )
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT user_id, payload FROM auth_events "
+                    "WHERE event_type = 'user_created' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        # user_id must be NULL — no fabricated UUID
+        self.assertIsNone(row["user_id"])
+        payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+        # Payload must carry the correct Django actor identity
+        self.assertEqual(payload["actor_email"], "admin@example.com")
+        self.assertIsNotNone(payload.get("actor_user_id"))
+        # actor_user_id must be the Django PK (integer as string), not a fabricated UUID
+        actor_id_str = str(payload["actor_user_id"])
+        self.assertTrue(actor_id_str.isdigit(), f"Expected Django PK digits, got: {actor_id_str}")
+        # Verify it matches the admin user's actual Django PK
+        self.assertEqual(int(actor_id_str), self.admin_user.pk)
+
+    def test_block_user_audit_user_id_is_null_with_correct_actor_in_payload(self) -> None:
+        """Block-user auth_events.user_id is NULL and payload identifies the Django actor."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="null-block-test@example.com",
+            password="testpass123",
+            role="scheduler",
+        )
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(f"/admin/users/{target.pk}/block/")
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT user_id, payload FROM auth_events "
+                    "WHERE event_type = 'user_blocked' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        # user_id must be NULL — no fabricated UUID
+        self.assertIsNone(row["user_id"])
+        payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+        # Payload must carry the correct Django actor identity
+        self.assertEqual(payload["actor_email"], "admin@example.com")
+        self.assertIsNotNone(payload.get("actor_user_id"))
+        # actor_user_id must be the Django PK (integer as string)
+        actor_id_str = str(payload["actor_user_id"])
+        self.assertTrue(actor_id_str.isdigit(), f"Expected Django PK digits, got: {actor_id_str}")
+        self.assertEqual(int(actor_id_str), self.admin_user.pk)

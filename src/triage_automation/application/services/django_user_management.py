@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from typing import Any
-from uuid import UUID
 
 from triage_automation.application.ports.auth_event_repository_port import (
     AuthEventCreateInput,
@@ -287,10 +286,13 @@ class DjangoUserManagementService:
         new_status: str | None,
         extra: dict[str, Any] | None = None,
     ) -> None:
-        """Write an audit event matching the ``UserManagementService`` contract.
+        """Write an audit event for a Django admin management action.
 
-        Includes actor attribution, target metadata, and status transition
-        fields so the Django surface produces equivalent audit evidence.
+        Sets ``auth_events.user_id`` to ``None`` because Django actors
+        have no authoritative UUID in the SQLAlchemy ``users`` table.
+        All actor/target identity is carried in the ``payload`` field
+        (``actor_user_id`` as Django PK string and ``actor_email``),
+        keeping the audit trail complete without fabricating UUIDs.
         """
         payload: dict[str, Any] = {
             "target_user_id": str(target.pk),
@@ -308,7 +310,7 @@ class DjangoUserManagementService:
             return await self._auth_events.append_event(
                 AuthEventCreateInput(
                     event_type=event_type,
-                    user_id=UUID(int=actor.pk),
+                    user_id=None,
                     payload=payload,
                 )
             )
