@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -70,11 +72,19 @@ class _ShellNavigationTestBase(TestCase):  # type: ignore[misc]
         """Set DATABASE_URL environment variable for service wiring."""
         os.environ["DATABASE_URL"] = self._async_url
 
-    def _get_sync_connection(self) -> sa.Connection:
-        """Create a synchronous SQLAlchemy connection to the test database."""
+    @contextmanager
+    def _sync_connection(self) -> Iterator[sa.Connection]:
+        """Context manager for a synchronous SQLAlchemy connection to the test database.
+
+        Yields a connection and guarantees the engine is disposed after use.
+        """
         engine = sa.create_engine(self._sync_url)
         conn = engine.connect()
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
+            engine.dispose()
 
     def _insert_case(
         self,
@@ -162,8 +172,7 @@ class TestManagerShellNavigation(_ShellNavigationTestBase):
         self._set_env_database_url()
         case_id = uuid4()
         now = datetime.now(tz=UTC)
-        conn = self._get_sync_connection()
-        try:
+        with self._sync_connection() as conn:
             self._insert_case(
                 conn,
                 case_id=case_id.hex,
@@ -171,8 +180,6 @@ class TestManagerShellNavigation(_ShellNavigationTestBase):
                 updated_at=now,
             )
             conn.commit()
-        finally:
-            conn.close()
 
         self.client.login(username="manager@example.com", password="testpass123")
 
@@ -213,8 +220,7 @@ class TestAdminShellNavigation(_ShellNavigationTestBase):
         self._set_env_database_url()
         case_id = uuid4()
         now = datetime.now(tz=UTC)
-        conn = self._get_sync_connection()
-        try:
+        with self._sync_connection() as conn:
             self._insert_case(
                 conn,
                 case_id=case_id.hex,
@@ -222,8 +228,6 @@ class TestAdminShellNavigation(_ShellNavigationTestBase):
                 updated_at=now,
             )
             conn.commit()
-        finally:
-            conn.close()
 
         self.client.login(username="admin@example.com", password="testpass123")
 
