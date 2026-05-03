@@ -56,6 +56,19 @@
     <p>Nenhum evento registrado.</p>
     {% endif %}
 
+    {% if detail.status.value == "WAIT_R1_CLEANUP_THUMBS" %}
+    <h2>Resultado Final</h2>
+    <div class="final-result">
+        <p>O resultado do caso está disponível. Confirme o recebimento para finalizar.</p>
+        <form method="post" action="{% url 'nir_case_acknowledge_submit' detail.case_id %}">
+            {% csrf_token %}
+            <button type="submit" class="acknowledge-btn">
+                Confirmar Recebimento do Resultado
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
     <p><a href="{% url 'nir_home' %}">← Voltar para Casos</a></p>
     <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}

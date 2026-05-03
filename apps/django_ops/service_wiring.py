@@ -24,6 +24,9 @@ from triage_automation.application.services.handle_scheduler_confirmation_servic
     HandleSchedulerConfirmationService,
 )
 from triage_automation.application.services.nir_dashboard_service import NirDashboardService
+from triage_automation.application.services.nir_final_acknowledgment_service import (
+    NirFinalAcknowledgmentService,
+)
 from triage_automation.application.services.nir_web_intake_service import NirWebIntakeService
 from triage_automation.application.services.scheduler_queue_service import SchedulerQueueService
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
@@ -170,6 +173,30 @@ def build_handle_scheduler_confirmation_service() -> HandleSchedulerConfirmation
         job_queue=job_queue,
         # No Matrix poster, message repository, reaction checkpoint
         # repository, or room3_id — web-only path.
+    )
+
+
+def build_nir_final_acknowledgment_service() -> NirFinalAcknowledgmentService:
+    """Build the NirFinalAcknowledgmentService with all dependencies wired.
+
+    Uses the same CAS path (``claim_cleanup_trigger_if_first``) as
+    ``ReactionService``, ensuring identical idempotent closure semantics
+    between the web and Matrix cleanup trigger paths.
+
+    Returns:
+        A fully configured ``NirFinalAcknowledgmentService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
+    audit_repository: AuditRepositoryPort = SqlAlchemyAuditRepository(session_factory)
+    job_queue: JobQueuePort = SqlAlchemyJobQueueRepository(session_factory)
+
+    return NirFinalAcknowledgmentService(
+        case_repository=case_repository,
+        audit_repository=audit_repository,
+        job_queue=job_queue,
     )
 
 

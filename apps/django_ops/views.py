@@ -720,6 +720,59 @@ def scheduler_confirmation_form_submit(
 
 
 @login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def nir_case_acknowledge_submit(
+    request: HttpRequest, case_id: UUID
+) -> HttpResponse:
+    """Handle NIR final acknowledgment submission.
+
+    Processes the confirmation of receipt for the final case result.
+    Uses ``NirFinalAcknowledgmentService.acknowledge`` to call
+    ``claim_cleanup_trigger_if_first`` (idempotent CAS), persist
+    a web human audit event, and enqueue the ``execute_cleanup`` job.
+
+    On success, redirects to the NIR dashboard. On validation or
+    processing failure, redirects to the case detail page.
+
+    This replaces the Room-1 Matrix thumbs-up reaction as the
+    canonical human closure checkpoint.
+    """
+    if request.user.role != "nir":
+        return HttpResponse("Access denied: NIR role required.", status=403)
+
+    from apps.django_ops.service_wiring import (
+        build_nir_final_acknowledgment_service,
+        run_async,
+    )
+    from triage_automation.application.services.nir_final_acknowledgment_service import (
+        NirFinalAcknowledgmentOutcome,
+        NirFinalAcknowledgmentResult,
+    )
+
+    service = build_nir_final_acknowledgment_service()
+
+    raw_result = run_async(
+        service.acknowledge(
+            case_id=case_id,
+            nir_user_id=str(request.user.pk),
+            actor_email=request.user.email,
+        )
+    )
+    assert isinstance(raw_result, NirFinalAcknowledgmentResult)
+    result: NirFinalAcknowledgmentResult = raw_result
+
+    if result.outcome == NirFinalAcknowledgmentOutcome.APPLIED:
+        return HttpResponseRedirect("/nir/")
+
+    if result.outcome == NirFinalAcknowledgmentOutcome.NOT_FOUND:
+        return HttpResponse("Caso não encontrado.", status=404)
+
+    # WRONG_STATE or DUPLICATE_OR_RACE: redirect to case detail
+    # with the result still visible (duplicate is harmless).
+    return HttpResponseRedirect(f"/nir/cases/{case_id}/")
+
+
+@login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
 def manager_home(request: HttpRequest) -> HttpResponse:
     """Placeholder landing page for Manager users."""

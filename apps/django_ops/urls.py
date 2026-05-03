@@ -15,6 +15,7 @@ from apps.django_ops.views import (
     logout_view,
     manager_home,
     manifest_view,
+    nir_case_acknowledge_submit,
     nir_case_detail,
     nir_home,
     nir_upload,
@@ -36,6 +37,11 @@ urlpatterns = [
     path("nir/upload/", nir_upload, name="nir_upload"),
     path("nir/upload/submit/", nir_upload_submit, name="nir_upload_submit"),
     path("nir/cases/<uuid:case_id>/", nir_case_detail, name="nir_case_detail"),
+    path(
+        "nir/cases/<uuid:case_id>/acknowledge/",
+        nir_case_acknowledge_submit,
+        name="nir_case_acknowledge_submit",
+    ),
     path("doctor/", doctor_home, name="doctor_home"),
     path(
         "doctor/cases/<uuid:case_id>/decision/",
