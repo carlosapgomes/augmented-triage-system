@@ -10,10 +10,14 @@ TDD tests for slice 2.1 — validates that:
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
+import sqlalchemy as sa
 from alembic.config import Config
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -66,6 +70,66 @@ class _ShellNavigationTestBase(TestCase):  # type: ignore[misc]
         """Set DATABASE_URL environment variable for service wiring."""
         os.environ["DATABASE_URL"] = self._async_url
 
+    def _get_sync_connection(self) -> sa.Connection:
+        """Create a synchronous SQLAlchemy connection to the test database."""
+        engine = sa.create_engine(self._sync_url)
+        conn = engine.connect()
+        return conn
+
+    def _insert_case(
+        self,
+        connection: sa.Connection,
+        *,
+        case_id: str,
+        status: str,
+        updated_at: datetime,
+        origin_source: str = "matrix",
+        agency_record_number: str | None = None,
+        structured_data_json: dict[str, object] | None = None,
+        doctor_decision: str | None = None,
+        doctor_admission_flow: str | None = None,
+        appointment_status: str | None = None,
+        room1_final_reply_event_id: str | None = None,
+    ) -> None:
+        """Insert a case row for testing."""
+        connection.execute(
+            sa.text(
+                "INSERT INTO cases ("
+                "case_id, status, origin_source, room1_origin_room_id, "
+                "room1_origin_event_id, room1_sender_user_id, "
+                "agency_record_number, structured_data_json, doctor_decision, "
+                "doctor_admission_flow, appointment_status, "
+                "room1_final_reply_event_id, "
+                "created_at, updated_at"
+                ") VALUES ("
+                ":case_id, :status, :origin_source, '!room1:example.org', "
+                ":origin_event_id, '@nir:example.org', "
+                ":agency_record_number, :structured_data_json, :doctor_decision, "
+                ":doctor_admission_flow, :appointment_status, "
+                ":room1_final_reply_event_id, "
+                ":created_at, :updated_at"
+                ")"
+            ),
+            {
+                "case_id": case_id,
+                "status": status,
+                "origin_source": origin_source,
+                "origin_event_id": f"$origin-{case_id}",
+                "agency_record_number": agency_record_number,
+                "structured_data_json": (
+                    json.dumps(structured_data_json, ensure_ascii=False)
+                    if structured_data_json is not None
+                    else None
+                ),
+                "doctor_decision": doctor_decision,
+                "doctor_admission_flow": doctor_admission_flow,
+                "appointment_status": appointment_status,
+                "room1_final_reply_event_id": room1_final_reply_event_id,
+                "created_at": updated_at,
+                "updated_at": updated_at,
+            },
+        )
+
 
 # ── Navigation visibility tests ───────────────────────────────────────
 
@@ -96,17 +160,31 @@ class TestManagerShellNavigation(_ShellNavigationTestBase):
     def test_manager_case_detail_page_shows_only_dashboard_navigation(self) -> None:
         """Manager case detail page MUST not expose admin navigation links."""
         self._set_env_database_url()
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
         self.client.login(username="manager@example.com", password="testpass123")
 
-        # Case detail returns 404 for nonexistent case, but it's rendered
-        # by the same template engine — check that the nav is consistent.
-        # We use manager_home first to verify navigation presence pattern.
-        dash_response = self.client.get("/manager/")
-        self.assertEqual(dash_response.status_code, 200)
-        dash_content = dash_response.content.decode("utf-8")
-        # Confirm admin routes are absent in dashboard
-        self.assertNotIn("/admin/users/", dash_content)
-        self.assertNotIn("/admin/prompts/", dash_content)
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        # Manager sees dashboard link in nav
+        self.assertIn("Dashboard", content)
+        # Manager does NOT see admin user/prompt links
+        self.assertNotIn("/admin/users/", content)
+        self.assertNotIn("/admin/prompts/", content)
 
 
 @override_settings(
@@ -133,14 +211,31 @@ class TestAdminShellNavigation(_ShellNavigationTestBase):
     def test_admin_case_detail_page_shows_admin_navigation(self) -> None:
         """Admin case detail page MUST also include admin navigation links."""
         self._set_env_database_url()
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
         self.client.login(username="admin@example.com", password="testpass123")
 
-        dash_response = self.client.get("/manager/")
-        self.assertEqual(dash_response.status_code, 200)
-        dash_content = dash_response.content.decode("utf-8")
-        # Admin sees admin area links in dashboard too
-        self.assertIn("/admin/users/", dash_content)
-        self.assertIn("/admin/prompts/", dash_content)
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        # Admin sees dashboard link in nav
+        self.assertIn("Dashboard", content)
+        # Admin sees admin area links in nav
+        self.assertIn("/admin/users/", content)
+        self.assertIn("/admin/prompts/", content)
 
 
 # ── Authorization enforcement tests ────────────────────────────────────
