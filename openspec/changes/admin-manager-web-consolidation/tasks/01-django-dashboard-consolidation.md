@@ -27,6 +27,13 @@ Os fluxos operacionais já foram migrados para a web. Este slice só deve começ
 - `manager` permanece read-only;
 - paridade funcional mínima com a visão operacional existente.
 
+## Validation gates
+
+- `uv run pytest <targeted-tests>`
+- `uv run ruff check <changed-python-paths>` (Python files only; Django HTML templates are validated by the test suite, not by ruff)
+- `uv run mypy <changed-python-paths>`
+- `markdownlint-cli2 "<changed-markdown-paths>"`
+
 ## Mandatory report file
 
 - Write the implementation report to: `/tmp/admin-manager-web-consolidation-01-django-dashboard-consolidation-report.md`
