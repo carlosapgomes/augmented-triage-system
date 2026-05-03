@@ -425,3 +425,222 @@ async def test_monitoring_case_detail_includes_ack_and_human_reply_as_distinct_e
         "!room1:example.org",
         "!room2:example.org",
     ]
+
+
+@pytest.mark.asyncio
+async def test_monitoring_case_detail_includes_web_human_events_in_chronological_order(
+    tmp_path: Path,
+) -> None:
+    """Timeline includes web-origin NIR/doctor/scheduler events with distinct source."""
+    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_detail_web_events.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-detail-web-events"
+    case_id = uuid4()
+    base = datetime(2026, 3, 15, 9, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="CLEANED",
+            updated_at=base + timedelta(minutes=40),
+        )
+        # PDF event
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_report_transcripts (case_id, extracted_text, captured_at) "
+                "VALUES (:case_id, 'pdf text', :captured_at)"
+            ),
+            {"case_id": case_id.hex, "captured_at": base},
+        )
+        # Web NIR PDF upload
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_events ("
+                "case_id, actor_type, event_type, actor_user_id, payload, ts"
+                ") VALUES ("
+                ":case_id, 'web_human', 'NIR_PDF_UPLOAD', 'nir-1', "
+                ":payload, :ts"
+                ")"
+            ),
+            {
+                "case_id": case_id.hex,
+                "payload": '{"origin":"web","actor":"nir@example.com",'
+                '"summary_text":"PDF uploaded via web"}',
+                "ts": base + timedelta(minutes=1),
+            },
+        )
+        # Web doctor decision
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_events ("
+                "case_id, actor_type, event_type, actor_user_id, payload, ts"
+                ") VALUES ("
+                ":case_id, 'web_human', 'DOCTOR_DECISION', 'doc-1', "
+                ":payload, :ts"
+                ")"
+            ),
+            {
+                "case_id": case_id.hex,
+                "payload": '{"origin":"web","actor":"doctor@example.com",'
+                '"summary_text":"Decision: accept"}',
+                "ts": base + timedelta(minutes=10),
+            },
+        )
+        # Web scheduler confirmation
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_events ("
+                "case_id, actor_type, event_type, actor_user_id, payload, ts"
+                ") VALUES ("
+                ":case_id, 'web_human', 'SCHEDULER_CONFIRMATION', 'sched-1', "
+                ":payload, :ts"
+                ")"
+            ),
+            {
+                "case_id": case_id.hex,
+                "payload": '{"origin":"web","actor":"scheduler@example.com",'
+                '"summary_text":"Appointment confirmed"}',
+                "ts": base + timedelta(minutes=20),
+            },
+        )
+        # Web NIR final acknowledgment
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_events ("
+                "case_id, actor_type, event_type, actor_user_id, payload, ts"
+                ") VALUES ("
+                ":case_id, 'web_human', 'NIR_FINAL_ACKNOWLEDGMENT', 'nir-1', "
+                ":payload, :ts"
+                ")"
+            ),
+            {
+                "case_id": case_id.hex,
+                "payload": '{"origin":"web","actor":"nir@example.com",'
+                '"summary_text":"Final result acknowledged"}',
+                "ts": base + timedelta(minutes=30),
+            },
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/monitoring/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["case_id"] == str(case_id)
+    timeline = payload["timeline"]
+    # Timeline must include web events alongside PDF
+    assert len(timeline) == 5
+    # Verify chronological order
+    timestamps = [item["timestamp"] for item in timeline]
+    assert timestamps == sorted(timestamps)
+    # Verify sources
+    sources = [item["source"] for item in timeline]
+    assert "web" in sources
+    assert "pdf" in sources
+    # Verify web event types are distinguishable
+    event_types = [item["event_type"] for item in timeline]
+    assert "NIR_PDF_UPLOAD" in event_types
+    assert "DOCTOR_DECISION" in event_types
+    assert "SCHEDULER_CONFIRMATION" in event_types
+    assert "NIR_FINAL_ACKNOWLEDGMENT" in event_types
+    # Verify web events have distinct actor metadata
+    web_items = [item for item in timeline if item["source"] == "web"]
+    assert len(web_items) == 4
+    actors = [item["actor"] for item in web_items]
+    assert "nir@example.com" in actors
+    assert "doctor@example.com" in actors
+    assert "scheduler@example.com" in actors
+
+
+@pytest.mark.asyncio
+async def test_monitoring_case_detail_web_events_distinguishable_from_matrix(
+    tmp_path: Path,
+) -> None:
+    """Web source/actor are distinguishable from matrix events in mixed timeline."""
+    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_detail_mixed_origin.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-detail-mixed-origin"
+    case_id = uuid4()
+    base = datetime(2026, 3, 16, 10, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="CLEANED",
+            updated_at=base + timedelta(minutes=25),
+        )
+        # Matrix event
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_matrix_message_transcripts ("
+                "case_id, room_id, event_id, sender, sender_display_name, "
+                "message_type, message_text, captured_at"
+                ") VALUES ("
+                ":case_id, '!room2:example.org', '$evt-1', '@doctor:matrix.org', "
+                "'Dr. Matrix', 'room2_doctor_reply', 'ok', :captured_at"
+                ")"
+            ),
+            {"case_id": case_id.hex, "captured_at": base + timedelta(minutes=5)},
+        )
+        # Web doctor decision (different origin, same workflow stage)
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_events ("
+                "case_id, actor_type, event_type, actor_user_id, payload, ts"
+                ") VALUES ("
+                ":case_id, 'web_human', 'DOCTOR_DECISION', 'web-doc-1', "
+                ":payload, :ts"
+                ")"
+            ),
+            {
+                "case_id": case_id.hex,
+                "payload": '{"origin":"web","actor":"web-doctor@example.com",'
+                '"summary_text":"Web decision: accept"}',
+                "ts": base + timedelta(minutes=10),
+            },
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/monitoring/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    timeline = payload["timeline"]
+    assert len(timeline) == 2
+    # Matrix event
+    matrix_item = [item for item in timeline if item["source"] == "matrix"][0]
+    assert matrix_item["actor"] == "Dr. Matrix"
+    assert matrix_item["event_type"] == "room2_doctor_reply"
+    # Web event
+    web_item = [item for item in timeline if item["source"] == "web"][0]
+    assert web_item["actor"] == "web-doctor@example.com"
+    assert web_item["event_type"] == "DOCTOR_DECISION"
+    # Both in chronological order
+    assert timeline[0]["source"] == "matrix"
+    assert timeline[1]["source"] == "web"

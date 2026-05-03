@@ -204,10 +204,10 @@ class _NirDashboardTestBase(TestCase):  # type: ignore[misc]
             sa.text(
                 "INSERT INTO case_events ("
                 "case_id, actor_type, event_type, actor_user_id, "
-                "room_id, matrix_event_id, payload, created_at"
+                "room_id, matrix_event_id, payload, ts"
                 ") VALUES ("
                 ":case_id, :actor_type, :event_type, :actor_user_id, "
-                "NULL, NULL, '{}', :created_at"
+                "NULL, NULL, '{}', :ts"
                 ")"
             ),
             {
@@ -215,7 +215,7 @@ class _NirDashboardTestBase(TestCase):  # type: ignore[misc]
                 "actor_type": actor_type,
                 "event_type": event_type,
                 "actor_user_id": actor_user_id,
-                "created_at": captured_at,
+                "ts": captured_at,
             },
         )
 
@@ -720,3 +720,45 @@ class TestNirCaseDetail(_NirDashboardTestBase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "FAILED")
+
+    def test_case_detail_shows_web_events_in_timeline(self) -> None:
+        """NIR case detail timeline shows web-origin events with source label."""
+        self._set_env_database_url()
+        self.client.login(username="nir@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+                agency_record_number="REG-WEB-001",
+                origin_source="web",
+            )
+            self._insert_report_transcript(
+                conn,
+                case_id=case_id.hex,
+                captured_at=now - timedelta(minutes=10),
+            )
+            self._insert_audit_event(
+                conn,
+                case_id=case_id.hex,
+                actor_type="web_human",
+                event_type="NIR_PDF_UPLOAD",
+                actor_user_id="nir-1",
+                captured_at=now - timedelta(minutes=5),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/nir/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        # Timeline section exists
+        self.assertContains(response, "timeline")
+        # Web events should appear with their source label
+        self.assertContains(response, "NIR_PDF_UPLOAD")

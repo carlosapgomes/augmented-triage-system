@@ -98,6 +98,18 @@ case_reaction_checkpoints = sa.table(
     sa.column("reaction_key", sa.Text()),
     sa.column("reacted_at", sa.DateTime(timezone=True)),
 )
+case_events = sa.table(
+    "case_events",
+    sa.column("id", sa.BigInteger()),
+    sa.column("case_id", sa.Uuid()),
+    sa.column("ts", sa.DateTime(timezone=True)),
+    sa.column("actor_type", sa.Text()),
+    sa.column("actor_user_id", sa.Text()),
+    sa.column("room_id", sa.Text()),
+    sa.column("matrix_event_id", sa.Text()),
+    sa.column("event_type", sa.Text()),
+    sa.column("payload", sa.JSON()),
+)
 
 
 def _is_duplicate_origin_error(error: IntegrityError) -> bool:
@@ -979,6 +991,24 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 case_reaction_checkpoints.c.id.asc(),
             )
         )
+        web_events_statement = (
+            sa.select(
+                case_events.c.id,
+                case_events.c.ts,
+                case_events.c.actor_type,
+                case_events.c.actor_user_id,
+                case_events.c.event_type,
+                case_events.c.payload,
+            )
+            .where(
+                case_events.c.case_id == case_id,
+                case_events.c.actor_type == "web_human",
+            )
+            .order_by(
+                case_events.c.ts.asc(),
+                case_events.c.id.asc(),
+            )
+        )
 
         async with self._session_factory() as session:
             case_result = await session.execute(case_statement)
@@ -991,6 +1021,9 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             matrix_rows = (await session.execute(matrix_statement)).mappings().all()
             reaction_checkpoint_rows = (
                 await session.execute(reaction_checkpoints_statement)
+            ).mappings().all()
+            web_events_rows = (
+                await session.execute(web_events_statement)
             ).mappings().all()
 
         sortable_events: list[tuple[datetime, int, int, CaseMonitoringTimelineItem]] = []
@@ -1115,6 +1148,35 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                             "reaction_event_id": cast(str | None, row["reaction_event_id"]),
                             "reaction_key": cast(str | None, row["reaction_key"]),
                             "expected_at": expected_at.isoformat(),
+                        },
+                    ),
+                )
+            )
+
+        for row in web_events_rows:
+            event_ts = cast(datetime, row["ts"])
+            event_payload = cast(dict[str, Any], row["payload"])
+            event_type = cast(str, row["event_type"])
+            actor = event_payload.get("actor") or cast(str | None, row["actor_user_id"]) or "web"
+            summary_text = event_payload.get("summary_text", "")
+
+            sortable_events.append(
+                (
+                    event_ts,
+                    5,
+                    int(row["id"]),
+                    CaseMonitoringTimelineItem(
+                        source="web",
+                        channel="web",
+                        timestamp=event_ts,
+                        room_id=None,
+                        actor=actor,
+                        event_type=event_type,
+                        content_text=summary_text if summary_text else None,
+                        payload={
+                            "origin": event_payload.get("origin", "web"),
+                            "actor": actor,
+                            "event_type": event_type,
                         },
                     ),
                 )

@@ -693,6 +693,12 @@ def _translate_event_type(event_type: str) -> str:
     """Translate technical event type to user-friendly Portuguese label."""
 
     translations = {
+        # Web human events
+        "NIR_PDF_UPLOAD": "upload de pdf (nir)",
+        "DOCTOR_DECISION": "decisão médica (web)",
+        "SCHEDULER_CONFIRMATION": "confirmação de agendamento (web)",
+        "NIR_FINAL_ACKNOWLEDGMENT": "confirmação de recebimento (nir)",
+        # Matrix events
         "room1_origin": "recepção",
         "bot_processing": "bot processando",
         "pdf_report_extracted": "relatório pdf extraído",
@@ -726,6 +732,7 @@ def _source_badge_class(source: str) -> str:
         "pdf": "text-bg-secondary",
         "llm": "text-bg-info",
         "matrix": "text-bg-primary",
+        "web": "text-bg-success",
     }.get(source, "text-bg-secondary")
 
 
@@ -742,12 +749,21 @@ def _channel_badge_class(channel: str) -> str:
         return "text-bg-info"
     if channel == "pdf":
         return "text-bg-secondary"
+    if channel == "web":
+        return "text-bg-success"
     return "text-bg-secondary"
 
 
 def _event_badge_class(event_type: str) -> str:
     """Map event type into a Bootstrap badge class for timeline differentiation."""
 
+    if event_type in (
+        "NIR_PDF_UPLOAD",
+        "DOCTOR_DECISION",
+        "SCHEDULER_CONFIRMATION",
+        "NIR_FINAL_ACKNOWLEDGMENT",
+    ):
+        return "text-bg-success"
     if event_type.endswith("_POSITIVE_RECEIVED"):
         return "text-bg-success"
     if event_type.endswith("_POSITIVE_EXPECTED"):

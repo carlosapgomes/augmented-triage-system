@@ -2,9 +2,9 @@
 
 Language: [Portugues (BR)](../manual_e2e_runbook.md) | **English**
 
-This runbook validates the Matrix flow end-to-end in a controlled/deterministic
-local environment, focusing on the most important manual expectations for
-Room-2 after the EDA rulebook rewrite.
+This runbook validates the full operational workflow end-to-end in a
+controlled/deterministic local environment, covering both the operational web
+interface (NIR, doctor, scheduler) and the monitoring/audit dashboard.
 
 Run `docs/en/runtime-smoke.md` first to confirm process startup and callback
 reachability.
@@ -15,13 +15,30 @@ reachability.
    `docs/en/runtime-smoke.md`:
 
 ```bash
+# Monitoring API (FastAPI)
 uv run uvicorn apps.bot_api.main:create_app --factory --host 0.0.0.0 --port 8000
+
+# Operational web app (Django) — port 8001
+uv run apps/django_ops/manage.py runserver 0.0.0.0:8001
+
+# Matrix bot (for downstream jobs and transcripts)
 uv run python -m apps.bot_matrix.main
+
+# Job worker
 uv run python -m apps.worker.main
 ```
 
-1. Use a test case already moved to `WAIT_DOCTOR` with the case context posted
-   by the bot in Room-2.
+1. The database must be migrated (`alembic upgrade head`).
+
+1. Create test users for each operational role if they don't exist yet:
+
+```bash
+uv run apps/django_ops/manage.py create_user nir@test.com test123 nir
+uv run apps/django_ops/manage.py create_user doctor@test.com test123 doctor
+uv run apps/django_ops/manage.py create_user scheduler@test.com test123 scheduler
+uv run apps/django_ops/manage.py create_user reader@test.com test123 reader
+uv run apps/django_ops/manage.py create_user admin@test.com test123 admin
+```
 
 ## Web Login and Role Menu Checks
 
@@ -52,7 +69,132 @@ uv run python -m apps.worker.main
 - expected: redirect to `/login`
 - verify that a new `GET /` request redirects to `/login`
 
-## Room-2 Structured Reply Positive Path
+## Web Operational Workflow
+
+The main human operational flow (NIR → Doctor → Scheduler → NIR) is executed
+exclusively through the Django web app on port 8001.
+
+### NIR — PDF Upload and Case Creation
+
+1. Go to `/login/` on port 8001 and authenticate as `nir@test.com`.
+
+1. After login, verify redirect to `/nir/` with:
+   - a "New Case" link pointing to `/nir/upload/`
+   - listing of active cases (if any)
+
+1. Click the upload link and verify:
+   - form with file upload field
+   - submit button
+
+1. Select a valid PDF file and submit:
+   - expected: result page showing `case_id` and status "Recebido — processando"
+   - the worker should enqueue the `process_pdf_case` job automatically
+
+1. Verify auditable creation:
+   - go back to `/nir/` and confirm the new case appears in the listing
+   - open the case detail at `/nir/cases/{case_id}/`
+   - verify the "Linha do Tempo" (Timeline) section contains
+     a `NIR_PDF_UPLOAD` event with source `[web]`
+   - verify the event actor is the logged-in NIR email
+
+1. Negative checks:
+   - submit a non-PDF file (e.g. `.txt`): must reject with error message
+   - submit without selecting a file: must reject with error message
+   - access `/nir/upload/` as `doctor@test.com`: must return 403
+
+### Doctor — Web Queue and Decision
+
+1. After the case is processed by the worker and reaches `WAIT_DOCTOR` status,
+   go to `/login/` and authenticate as `doctor@test.com`.
+
+1. Verify redirect to `/doctor/` with:
+   - listing of cases awaiting decision (`WAIT_DOCTOR` status)
+   - each card shows clinical summary and decision link
+
+1. Click the decision link and verify the form at
+   `/doctor/cases/{case_id}/decision/`:
+   - fields: decision (accept/deny), support, admission flow, reason
+   - patient data visible (name, age, record number)
+
+1. Submit an acceptance decision with scheduling:
+   - `decision: accept`
+   - `admission flow: scheduled`
+   - expected: redirect to `/doctor/` and the case disappears from the queue
+   - verify in the case detail (via `/monitoring/cases/{case_id}`)
+     that the `DOCTOR_DECISION` event appears in the timeline with
+     source `web` and actor `doctor@test.com`
+
+1. Submit a denial decision (another case):
+   - `decision: deny`
+   - `reason: insufficient documentation`
+   - expected: redirect and case leaves the doctor queue
+
+1. Negative checks:
+   - submit accept without admission flow: must reject with error
+   - submit deny without reason: must reject with error
+   - submit with invalid `support_flag`: must reject
+   - access `/doctor/` as `nir@test.com`: must return 403
+
+### Scheduler — Web Queue and Confirmation
+
+1. After a doctor acceptance with scheduling, the case advances to
+   `WAIT_APPT`. Go to `/login/` and authenticate as `scheduler@test.com`.
+
+1. Verify redirect to `/scheduler/` with:
+   - listing of cases awaiting confirmation (`WAIT_APPT` status)
+   - each card shows summary and confirmation link
+
+1. Click the link and verify the form at
+   `/scheduler/cases/{case_id}/confirm/`:
+   - fields: action (confirm/deny), date, time, location,
+     instructions (optional)
+   - patient data visible
+
+1. Submit a confirmation:
+   - `action: confirm`
+   - fill in date (DD/MM/YYYY), time (HH:MM), location
+   - expected: redirect to `/scheduler/` and case disappears from queue
+   - verify in timeline (via `/monitoring/cases/{case_id}`)
+     that the `SCHEDULER_CONFIRMATION` event appears with
+     source `web` and actor `scheduler@test.com`
+
+1. Submit a denial (another case):
+   - `action: deny`
+   - `reason: no slots available`
+   - expected: redirect, case leaves queue
+
+1. Negative checks:
+   - confirm without date: must reject with error
+   - confirm without time: must reject with error
+   - confirm without location: must reject with error
+   - invalid date/time format: must reject with error
+   - deny without reason: must reject with error
+   - access `/scheduler/` as `doctor@test.com`: must return 403
+
+### NIR — Final Result and Acknowledgment
+
+1. After scheduler confirmation, the worker processes the
+   `post_room1_final_appt` job and the case advances to
+   `WAIT_R1_CLEANUP_THUMBS`.
+
+1. Access the case detail as NIR at `/nir/cases/{case_id}/`.
+
+1. Verify the "Resultado Final" (Final Result) section:
+   - must display a "Confirmar Recebimento do Resultado" button
+   - case status must be `WAIT_R1_CLEANUP_THUMBS`
+
+1. Click the confirmation button:
+   - expected: redirect to `/nir/`
+   - the case should disappear from the NIR listing
+     (status changes to `CLEANED` after the `execute_cleanup` job)
+   - verify in timeline (via `/monitoring/cases/{case_id}`)
+     that the `NIR_FINAL_ACKNOWLEDGMENT` event appears with
+     source `web` and actor `nir@test.com`
+
+1. This step replaces the thumbs-up reaction in Room-1 (Matrix) as the
+   canonical human closure checkpoint.
+
+## Room-2 Structured Reply Positive Path (Matrix — legacy reference)
 
 1. Validate the three-message Room-2 combo for the target case in desktop and
    mobile clients:
@@ -401,7 +543,11 @@ Recommended example:
 - `GET /monitoring/cases/{case_id}`
 - expected: `200` with a chronological timeline ordered by `timestamp`
 - timeline must include `source`, `channel`, `actor`, `event_type`
-- when applicable, validate the presence of ACK and human reply events
+- when applicable, validate the presence of ACK, human reply, and **web human events**
+  (`NIR_PDF_UPLOAD`, `DOCTOR_DECISION`, `SCHEDULER_CONFIRMATION`,
+  `NIR_FINAL_ACKNOWLEDGMENT`) with `source="web"`
+- verify that web and matrix events coexist in the same timeline with
+  distinct origins
 
 1. Cross-check API with dashboard detail:
 

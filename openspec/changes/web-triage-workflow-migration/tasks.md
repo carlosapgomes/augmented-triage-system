@@ -30,7 +30,7 @@
 
 - [x] 5.1 Implementar visualização do resultado final no NIR e confirmação explícita de recebimento/fechamento, com migração formal do checkpoint humano canônico de Matrix para web.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/08-nir-final-acknowledgment.md`
-- [ ] 5.2 Atualizar timeline/dashboard/runbook manual para refletir ações web humanas no fluxo completo.
+- [x] 5.2 Atualizar timeline/dashboard/runbook manual para refletir ações web humanas no fluxo completo.
   - Slice file: `openspec/changes/web-triage-workflow-migration/tasks/09-web-workflow-audit-visibility.md`
 
 ## Execution rules for every slice

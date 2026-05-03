@@ -238,7 +238,7 @@ class CaseMonitoringListPage:
 class CaseMonitoringTimelineItem:
     """Unified timeline event projection for monitoring case detail."""
 
-    source: Literal["pdf", "llm", "matrix"]
+    source: Literal["pdf", "llm", "matrix", "web"]
     channel: str
     timestamp: datetime
     room_id: str | None

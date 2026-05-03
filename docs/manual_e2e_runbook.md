@@ -2,9 +2,9 @@
 
 Idioma: **Português (BR)** | [English](en/manual_e2e_runbook.md)
 
-Este runbook valida ponta a ponta o fluxo Matrix em ambiente local
-controlado/determinístico, com foco nas expectativas manuais mais importantes
-para a Room-2 após a reescrita do rulebook EDA.
+Este runbook valida ponta a ponta o fluxo operacional completo em ambiente
+local controlado/determinístico, cobrindo tanto a interface web operacional
+(NIR, médico, agendador) quanto o dashboard de monitoramento e auditoria.
 
 Execute `docs/runtime-smoke.md` antes para confirmar startup dos processos e
 alcance de callback.
@@ -15,13 +15,30 @@ alcance de callback.
    `docs/runtime-smoke.md`:
 
 ```bash
+# API de monitoramento (FastAPI)
 uv run uvicorn apps.bot_api.main:create_app --factory --host 0.0.0.0 --port 8000
+
+# App operacional web (Django) — porta 8001
+uv run apps/django_ops/manage.py runserver 0.0.0.0:8001
+
+# Bot Matrix (para jobs downstream e transcrições)
 uv run python -m apps.bot_matrix.main
+
+# Worker de jobs
 uv run python -m apps.worker.main
 ```
 
-1. Use um caso de teste já movido para `WAIT_DOCTOR` com contexto do caso na
-   Sala 2 postado pelo bot.
+1. O banco de dados deve estar migrado (`alembic upgrade head`).
+
+1. Crie usuários de teste para cada papel operacional, se ainda não existirem:
+
+```bash
+uv run apps/django_ops/manage.py create_user nir@teste.com senha123 nir
+uv run apps/django_ops/manage.py create_user medico@teste.com senha123 doctor
+uv run apps/django_ops/manage.py create_user agenda@teste.com senha123 scheduler
+uv run apps/django_ops/manage.py create_user leitor@teste.com senha123 reader
+uv run apps/django_ops/manage.py create_user admin@teste.com senha123 admin
+```
 
 ## Checagens de login web e menu por papel
 
@@ -52,7 +69,136 @@ uv run python -m apps.worker.main
 - esperado: redirect para `/login`
 - verificar que um novo `GET /` redireciona para `/login`
 
-## Caminho positivo de resposta estruturada da Sala 2
+## Fluxo Operacional Web
+
+O fluxo operacional humano principal (NIR → Médico → Agendador → NIR)
+é executado exclusivamente pela app web Django na porta 8001.
+
+### NIR — Upload de PDF e Criação de Caso
+
+1. Acessar `/login/` na porta 8001 e autenticar como `nir@teste.com`.
+
+1. Após login, verificar redirect para `/nir/` com:
+   - link "Novo Caso" ou similar apontando para `/nir/upload/`
+   - listagem de casos ativos (se houver)
+
+1. Clicar no link de upload e verificar:
+   - formulário com campo de upload de arquivo
+   - botão de envio
+
+1. Selecionar um arquivo PDF válido e enviar:
+   - esperado: página de resultado com `case_id` e status
+     "Recebido — processando"
+   - o worker deve enfileirar o job `process_pdf_case` automaticamente
+
+1. Verificar criação auditável:
+   - voltar para `/nir/` e confirmar que o novo caso aparece na listagem
+   - abrir o detalhe do caso em `/nir/cases/{case_id}/`
+   - verificar seção "Linha do Tempo" contém evento `NIR_PDF_UPLOAD` com
+     source `[web]`
+   - verificar se o ator do evento é o email do NIR logado
+
+1. Checagens negativas:
+   - enviar arquivo não-PDF (ex: `.txt`): deve rejeitar com mensagem de erro
+   - enviar sem selecionar arquivo: deve rejeitar com mensagem de erro
+   - acessar `/nir/upload/` como `medico@teste.com`: deve retornar 403
+
+### Médico — Fila e Decisão Web
+
+1. Após o caso ser processado pelo worker e chegar ao status `WAIT_DOCTOR`,
+   acessar `/login/` e autenticar como `medico@teste.com`.
+
+1. Verificar redirect para `/doctor/` com:
+   - listagem de casos aguardando decisão (status `WAIT_DOCTOR`)
+   - cada card mostra resumo clínico e link para decidir
+
+1. Clicar no link de decisão e verificar formulário em
+   `/doctor/cases/{case_id}/decision/`:
+   - campos: decisão (aceitar/negar), suporte, fluxo de admissão,
+     motivo
+   - dados do paciente visíveis (nome, idade, registro)
+
+1. Submeter decisão de aceite com agendamento:
+   - `decisao: aceitar`
+   - `fluxo de admissão: scheduled`
+   - esperado: redirect para `/doctor/` e o caso some da fila
+   - verificar no detalhe do caso (via `/monitoring/cases/{case_id}`)
+     que o evento `DOCTOR_DECISION` aparece na timeline com
+     source `web` e ator `medico@teste.com`
+
+1. Submeter decisão de negativa (outro caso):
+   - `decisao: negar`
+   - `motivo: documentação insuficiente`
+   - esperado: redirect e o caso some da fila médica
+
+1. Checagens negativas:
+   - submeter sem selecionar fluxo de admissão no aceite:
+     deve rejeitar com mensagem de erro
+   - submeter negativa sem motivo: deve rejeitar com mensagem de erro
+   - submeter com `support_flag` inválido: deve rejeitar
+   - acessar `/doctor/` como `nir@teste.com`: deve retornar 403
+
+### Agendador — Fila e Confirmação Web
+
+1. Após decisão médica de aceite com agendamento, o caso avança para
+   `WAIT_APPT`. Acessar `/login/` e autenticar como `agenda@teste.com`.
+
+1. Verificar redirect para `/scheduler/` com:
+   - listagem de casos aguardando confirmação (status `WAIT_APPT`)
+   - cada card mostra resumo e link para confirmar
+
+1. Clicar no link e verificar formulário em
+   `/scheduler/cases/{case_id}/confirm/`:
+   - campos: ação (confirmar/negar), data, horário, local,
+     instruções (opcional)
+   - dados do paciente visíveis
+
+1. Submeter confirmação:
+   - `ação: confirmar`
+   - preencher data (DD/MM/AAAA), horário (HH:MM), local
+   - esperado: redirect para `/scheduler/` e o caso some da fila
+   - verificar na timeline (via `/monitoring/cases/{case_id}`)
+     que o evento `SCHEDULER_CONFIRMATION` aparece com
+     source `web` e ator `agenda@teste.com`
+
+1. Submeter negativa (outro caso):
+   - `ação: negar`
+   - `motivo: vaga indisponível`
+   - esperado: redirect, caso sai da fila
+
+1. Checagens negativas:
+   - confirmar sem preencher data: deve rejeitar com erro
+   - confirmar sem horário: deve rejeitar com erro
+   - confirmar sem local: deve rejeitar com erro
+   - data/hora em formato inválido: deve rejeitar com erro
+   - negar sem motivo: deve rejeitar com erro
+   - acessar `/scheduler/` como `medico@teste.com`: deve retornar 403
+
+### NIR — Resultado Final e Confirmação de Recebimento
+
+1. Após a confirmação do agendador, o worker processa o job
+   `post_room1_final_appt` e o caso avança para
+   `WAIT_R1_CLEANUP_THUMBS`.
+
+1. Acessar o detalhe do caso como NIR em
+   `/nir/cases/{case_id}/`.
+
+1. Verificar seção "Resultado Final":
+   - deve exibir botão "Confirmar Recebimento do Resultado"
+   - o status do caso deve ser `WAIT_R1_CLEANUP_THUMBS`
+
+1. Clicar no botão de confirmação:
+   - esperado: redirect para `/nir/`
+   - o caso deve desaparecer da listagem NIR (status muda para `CLEANED`
+     após o job `execute_cleanup`)
+   - verificar na timeline (via `/monitoring/cases/{case_id}`)
+     que o evento `NIR_FINAL_ACKNOWLEDGMENT` aparece com
+     source `web` e ator `nir@teste.com`
+
+1. Este passo substitui a reação thumbs-up na Room-1 do Matrix como
+   checkpoint canônico de fechamento humano.
+
+## Caminho positivo de resposta estruturada da Sala 2 (Matrix — referência legada)
 
 1. Validar o combo de três mensagens da Sala 2 para o caso alvo em clientes
    desktop e mobile:
@@ -399,7 +545,11 @@ Exemplo recomendado:
 - `GET /monitoring/cases/{case_id}`
 - esperado: `200` com timeline cronológica (`chronological timeline`) ordenada por `timestamp`
 - timeline deve incluir `source`, `channel`, `actor`, `event_type`
-- quando aplicável, validar presença de eventos ACK e human reply
+- quando aplicável, validar presença de eventos ACK, human reply e **eventos web humanos**
+  (`NIR_PDF_UPLOAD`, `DOCTOR_DECISION`, `SCHEDULER_CONFIRMATION`,
+  `NIR_FINAL_ACKNOWLEDGMENT`) com `source="web"`
+- verificar que eventos web e matrix coexistem na mesma timeline com
+  origens distintas
 
 1. Cruzar API com detalhe do dashboard:
 
