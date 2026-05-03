@@ -946,8 +946,11 @@ def admin_users_home(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Access denied: Admin role required.", status=403)
 
     from apps.django_ops.service_wiring import build_django_user_management_service
-    from triage_automation.application.services.django_user_management import (
+    from triage_automation.application.ports.django_user_store_port import (
         DjangoCreateUserRequest,
+    )
+    from triage_automation.application.services.django_user_management import (
+        DjangoActor,
         DjangoEmailAlreadyExistsError,
         DjangoInvalidEmailError,
         DjangoInvalidPasswordError,
@@ -960,10 +963,15 @@ def admin_users_home(request: HttpRequest) -> HttpResponse:
         password = request.POST.get("password", "")
         role_value = request.POST.get("role", "")
 
+        actor = DjangoActor(
+            pk=request.user.pk,
+            email=request.user.email,
+            role=request.user.role,
+        )
         service = build_django_user_management_service()
         try:
             created = service.create_user(
-                actor=request.user,
+                actor=actor,
                 payload=DjangoCreateUserRequest(
                     email=email,
                     password=password,
@@ -1017,6 +1025,7 @@ def admin_user_role_update(request: HttpRequest, user_id: int) -> HttpResponse:
 
     from apps.django_ops.service_wiring import build_django_user_management_service
     from triage_automation.application.services.django_user_management import (
+        DjangoActor,
         DjangoInvalidRoleError,
         DjangoLastActiveAdminError,
         DjangoUserManagementAuthorizationError,
@@ -1024,10 +1033,15 @@ def admin_user_role_update(request: HttpRequest, user_id: int) -> HttpResponse:
     )
 
     role_value = request.POST.get("role", "")
+    actor = DjangoActor(
+        pk=request.user.pk,
+        email=request.user.email,
+        role=request.user.role,
+    )
     service = build_django_user_management_service()
     try:
         updated = service.update_user_role(
-            actor=request.user,
+            actor=actor,
             target_pk=user_id,
             new_role=role_value,
         )
@@ -1060,15 +1074,21 @@ def admin_user_block(request: HttpRequest, user_id: int) -> HttpResponse:
 
     from apps.django_ops.service_wiring import build_django_user_management_service
     from triage_automation.application.services.django_user_management import (
+        DjangoActor,
         DjangoLastActiveAdminError,
         DjangoSelfUserManagementError,
         DjangoUserManagementAuthorizationError,
         DjangoUserNotFoundError,
     )
 
+    actor = DjangoActor(
+        pk=request.user.pk,
+        email=request.user.email,
+        role=request.user.role,
+    )
     service = build_django_user_management_service()
     try:
-        service.block_user(actor=request.user, target_pk=user_id)
+        service.block_user(actor=actor, target_pk=user_id)
     except DjangoUserNotFoundError:
         return HttpResponseRedirect(
             "/admin/users/?error=Usuario+alvo+nao+encontrado."
@@ -1098,13 +1118,19 @@ def admin_user_activate(request: HttpRequest, user_id: int) -> HttpResponse:
 
     from apps.django_ops.service_wiring import build_django_user_management_service
     from triage_automation.application.services.django_user_management import (
+        DjangoActor,
         DjangoUserManagementAuthorizationError,
         DjangoUserNotFoundError,
     )
 
+    actor = DjangoActor(
+        pk=request.user.pk,
+        email=request.user.email,
+        role=request.user.role,
+    )
     service = build_django_user_management_service()
     try:
-        service.activate_user(actor=request.user, target_pk=user_id)
+        service.activate_user(actor=actor, target_pk=user_id)
     except DjangoUserNotFoundError:
         return HttpResponseRedirect(
             "/admin/users/?error=Usuario+alvo+nao+encontrado."

@@ -417,8 +417,9 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
         self.admin_user.refresh_from_db()
         self.assertEqual(self.admin_user.role, "admin")
 
-    def test_create_user_writes_audit_event(self) -> None:
-        """Creating a user via admin surface writes an audit event."""
+    def test_create_user_audit_contract_matches_user_management_pattern(self) -> None:
+        """Create-user audit payload includes actor attribution and target metadata
+        matching the UserManagementService audit contract."""
         self._set_env_database_url()
         self.client.login(username="admin@example.com", password="testpass123")
 
@@ -438,31 +439,107 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
         self.assertIsNotNone(row)
         self.assertEqual(row["event_type"], "user_created")
         payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+        # Contract: target metadata
+        self.assertIn("target_user_id", payload)
         self.assertIn("target_email", payload)
+        self.assertIn("target_role", payload)
         self.assertEqual(payload["target_email"], "audit.test@example.com")
+        self.assertEqual(payload["target_role"], "doctor")
+        # Contract: actor attribution
+        self.assertIn("actor_email", payload)
+        self.assertEqual(payload["actor_email"], "admin@example.com")
+        self.assertIn("actor_user_id", payload)
+        self.assertIsNotNone(payload["actor_user_id"])
+        # Contract: status fields (user_created starts active)
+        self.assertIsNone(payload.get("previous_status"))
+        self.assertEqual(payload.get("new_status"), "active")
 
-    def test_create_user_audit_references_actor(self) -> None:
-        """The audit event for user creation references the admin actor."""
+    def test_block_user_audit_records_status_transition(self) -> None:
+        """Block audit event records active→blocked transition with proper contract."""
         self._set_env_database_url()
+        target = User.objects.create_user(
+            email="block-audit@example.com",
+            password="testpass123",
+            role="scheduler",
+        )
         self.client.login(username="admin@example.com", password="testpass123")
 
-        self.client.post(
-            "/admin/users/",
-            {"email": "actor.test@example.com", "password": "testpass123", "role": "nir"},
-        )
+        self.client.post(f"/admin/users/{target.pk}/block/")
 
         with self._sync_connection() as conn:
             row = conn.execute(
                 sa.text(
-                    "SELECT user_id, payload FROM auth_events "
-                    "WHERE event_type = 'user_created' ORDER BY id DESC LIMIT 1"
+                    "SELECT event_type, payload FROM auth_events "
+                    "WHERE event_type = 'user_blocked' ORDER BY id DESC LIMIT 1"
                 )
             ).mappings().first()
 
         self.assertIsNotNone(row)
-        # The actor email should appear in the event (from the admin who performed the action)
         payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
-        self.assertEqual(payload["target_email"], "actor.test@example.com")
+        self.assertEqual(payload["target_email"], "block-audit@example.com")
+        self.assertEqual(payload["previous_status"], "active")
+        self.assertEqual(payload["new_status"], "blocked")
+        self.assertEqual(payload["actor_email"], "admin@example.com")
+        self.assertIn("target_user_id", payload)
+        self.assertIsNotNone(payload["target_user_id"])
+
+    def test_activate_user_audit_records_status_transition(self) -> None:
+        """Activate audit event records blocked→active transition."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="activate-audit@example.com",
+            password="testpass123",
+            role="doctor",
+        )
+        target.is_active = False
+        target.save()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(f"/admin/users/{target.pk}/activate/")
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT event_type, payload FROM auth_events "
+                    "WHERE event_type = 'user_reactivated' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+        self.assertEqual(payload["target_email"], "activate-audit@example.com")
+        self.assertEqual(payload["previous_status"], "blocked")
+        self.assertEqual(payload["new_status"], "active")
+        self.assertEqual(payload["actor_email"], "admin@example.com")
+
+    def test_role_change_audit_records_old_and_new_role(self) -> None:
+        """Role change audit event records old_role→new_role transition."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="role-audit@example.com",
+            password="testpass123",
+            role="nir",
+        )
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(f"/admin/users/{target.pk}/role/", {"role": "doctor"})
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT event_type, payload FROM auth_events "
+                    "WHERE event_type = 'user_role_changed' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+        self.assertEqual(payload["target_email"], "role-audit@example.com")
+        self.assertEqual(payload["actor_email"], "admin@example.com")
+        self.assertEqual(payload["old_role"], "nir")
+        self.assertEqual(payload["new_role"], "doctor")
+        self.assertIn("target_user_id", payload)
+        self.assertIsNotNone(payload["target_user_id"])
 
     def test_admin_can_block_user(self) -> None:
         """Admin can block an existing user."""

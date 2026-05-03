@@ -232,11 +232,14 @@ def build_django_user_management_service() -> DjangoUserManagementService:
     database_url = _get_database_url()
     session_factory = create_session_factory(database_url)
 
+    from apps.django_ops.django_user_store_adapter import DjangoOrmUserStoreAdapter
+
+    store = DjangoOrmUserStoreAdapter()
     auth_event_repo = SqlAlchemyAuthEventRepository(session_factory)
 
     return DjangoUserManagementService(
+        store=store,
         auth_events=auth_event_repo,
-        sqlalchemy_session_factory=session_factory,
     )
 
 

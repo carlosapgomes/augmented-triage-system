@@ -1,13 +1,10 @@
 """Application service for Django-backed user management.
 
-Reuses the same business logic patterns as ``UserManagementService``
-but operates on the Django User model while writing audit events to
-the SQLAlchemy ``auth_events`` table.
+Depends only on application-layer ports (``DjangoUserStorePort``,
+``AuthEventRepositoryPort``) — never imports Django ORM directly.
 
-The service is the single source of truth for the Django admin
-user-management surface: create, role update, block, activate, and
-removal actions flow through this service so the consolidated view
-can delegate without embedding business logic in the adapter.
+Uses the same audit payload structure as ``UserManagementService``
+so both surfaces produce equivalent administrative audit evidence.
 """
 
 from __future__ import annotations
@@ -16,15 +13,15 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from django.contrib.auth import get_user_model
-
 from triage_automation.application.ports.auth_event_repository_port import (
     AuthEventCreateInput,
     AuthEventRepositoryPort,
 )
-
-User = get_user_model()
-
+from triage_automation.application.ports.django_user_store_port import (
+    DjangoCreateUserRequest,
+    DjangoUserItem,
+    DjangoUserStorePort,
+)
 
 # ── Domain errors (same semantics as UserManagementService) ──────────
 
@@ -61,26 +58,16 @@ class DjangoInvalidPasswordError(ValueError):
     """Raised when password is blank."""
 
 
-# ── Input DTOs ───────────────────────────────────────────────────────
+# ── Actor DTO (carried through views → service) ──────────────────────
 
 
 @dataclass(frozen=True)
-class DjangoUserItem:
-    """Flat user representation for admin listing."""
+class DjangoActor:
+    """Minimal actor representation passed from Django views."""
 
     pk: int
     email: str
     role: str
-    is_active: bool
-
-
-@dataclass(frozen=True)
-class DjangoCreateUserRequest:
-    """Application-layer create-user payload for the Django surface."""
-
-    email: str
-    password: str
-    role: str  # raw role value (may be "reader" → mapped to "manager")
 
 
 # ── Legacy mapping ───────────────────────────────────────────────────
@@ -107,46 +94,43 @@ def _to_operational_role(raw_role: str) -> str:
     return mapped
 
 
+def _status_from_active(is_active: bool) -> str:
+    """Translate is_active boolean to a human-readable status label."""
+    return "active" if is_active else "blocked"
+
+
 # ── Service ──────────────────────────────────────────────────────────
 
 
 class DjangoUserManagementService:
     """User management for the consolidated Django admin surface.
 
-    Delegates persistence to Django's ORM and audit to the shared
-    SQLAlchemy ``auth_events`` table (via ``AuthEventRepositoryPort``).
+    Depends on ``DjangoUserStorePort`` for persistence and
+    ``AuthEventRepositoryPort`` for audit — no Django ORM imports.
     """
 
     def __init__(
         self,
         *,
+        store: DjangoUserStorePort,
         auth_events: AuthEventRepositoryPort,
-        sqlalchemy_session_factory: object,
     ) -> None:
+        self._store = store
         self._auth_events = auth_events
-        self._sa_session_factory = sqlalchemy_session_factory
 
     # ── list ─────────────────────────────────────────────────────────
 
     def list_users(self) -> list[DjangoUserItem]:
         """Return deterministic user listing for admin pages."""
 
-        return [
-            DjangoUserItem(
-                pk=user.pk,
-                email=user.email,
-                role=user.role,
-                is_active=user.is_active,
-            )
-            for user in User.objects.order_by("email")
-        ]
+        return self._store.list_users()
 
     # ── create ───────────────────────────────────────────────────────
 
     def create_user(
         self,
         *,
-        actor: Any,  # Django User instance
+        actor: DjangoActor,
         payload: DjangoCreateUserRequest,
     ) -> DjangoUserItem:
         """Create one user and persist a ``user_created`` audit event."""
@@ -161,10 +145,10 @@ class DjangoUserManagementService:
 
         role_value = _to_operational_role(payload.role)
 
-        if User.objects.filter(email__iexact=email).exists():
+        if self._store.email_exists(email=email):
             raise DjangoEmailAlreadyExistsError()
 
-        created = User.objects.create_user(
+        created = self._store.create_user(
             email=email,
             password=password,
             role=role_value,
@@ -174,21 +158,18 @@ class DjangoUserManagementService:
             actor=actor,
             event_type="user_created",
             target=created,
+            previous_status=None,
+            new_status="active",
         )
 
-        return DjangoUserItem(
-            pk=created.pk,
-            email=created.email,
-            role=created.role,
-            is_active=created.is_active,
-        )
+        return created
 
     # ── update_role ──────────────────────────────────────────────────
 
     def update_user_role(
         self,
         *,
-        actor: Any,  # Django User instance
+        actor: DjangoActor,
         target_pk: int,
         new_role: str,
     ) -> DjangoUserItem:
@@ -201,36 +182,29 @@ class DjangoUserManagementService:
 
         # Preserve last-active-admin invariant.
         if target.role == "admin" and role_value != "admin":
-            active_admin_count = User.objects.filter(
-                role="admin", is_active=True
-            ).count()
-            if active_admin_count <= 1:
+            if self._store.count_active_by_role(role="admin") <= 1:
                 raise DjangoLastActiveAdminError()
 
         old_role = target.role
-        target.role = role_value
-        target.save(update_fields=["role", "updated_at"])
+        updated = self._store.update_role(pk=target_pk, role=role_value)
 
         self._write_audit_event(
             actor=actor,
             event_type="user_role_changed",
-            target=target,
+            target=updated,
+            previous_status=None,
+            new_status=None,
             extra={"old_role": old_role, "new_role": role_value},
         )
 
-        return DjangoUserItem(
-            pk=target.pk,
-            email=target.email,
-            role=target.role,
-            is_active=target.is_active,
-        )
+        return updated
 
     # ── block ────────────────────────────────────────────────────────
 
     def block_user(
         self,
         *,
-        actor: Any,  # Django User instance
+        actor: DjangoActor,
         target_pk: int,
     ) -> DjangoUserItem:
         """Transition a user to blocked (is_active=False)."""
@@ -242,34 +216,29 @@ class DjangoUserManagementService:
             raise DjangoSelfUserManagementError()
 
         if target.role == "admin" and target.is_active:
-            active_admin_count = User.objects.filter(
-                role="admin", is_active=True
-            ).count()
-            if active_admin_count <= 1:
+            if self._store.count_active_by_role(role="admin") <= 1:
                 raise DjangoLastActiveAdminError()
 
-        target.is_active = False
-        target.save(update_fields=["is_active", "updated_at"])
+        previous_status = _status_from_active(target.is_active)
+        updated = self._store.set_active(pk=target_pk, is_active=False)
+        new_status = _status_from_active(updated.is_active)
 
         self._write_audit_event(
             actor=actor,
             event_type="user_blocked",
-            target=target,
+            target=updated,
+            previous_status=previous_status,
+            new_status=new_status,
         )
 
-        return DjangoUserItem(
-            pk=target.pk,
-            email=target.email,
-            role=target.role,
-            is_active=target.is_active,
-        )
+        return updated
 
     # ── activate ─────────────────────────────────────────────────────
 
     def activate_user(
         self,
         *,
-        actor: Any,  # Django User instance
+        actor: DjangoActor,
         target_pk: int,
     ) -> DjangoUserItem:
         """Transition a user to active (is_active=True)."""
@@ -277,34 +246,32 @@ class DjangoUserManagementService:
         self._require_admin_actor(actor=actor)
         target = self._get_user_or_raise(pk=target_pk)
 
-        target.is_active = True
-        target.save(update_fields=["is_active", "updated_at"])
+        previous_status = _status_from_active(target.is_active)
+        updated = self._store.set_active(pk=target_pk, is_active=True)
+        new_status = _status_from_active(updated.is_active)
 
         self._write_audit_event(
             actor=actor,
             event_type="user_reactivated",
-            target=target,
+            target=updated,
+            previous_status=previous_status,
+            new_status=new_status,
         )
 
-        return DjangoUserItem(
-            pk=target.pk,
-            email=target.email,
-            role=target.role,
-            is_active=target.is_active,
-        )
+        return updated
 
     # ── helpers ──────────────────────────────────────────────────────
 
-    def _require_admin_actor(self, *, actor: Any) -> None:
-        """Raise if the actor is not an active admin."""
+    def _require_admin_actor(self, *, actor: DjangoActor) -> None:
+        """Raise if the actor is not an admin."""
 
-        if not hasattr(actor, "role") or getattr(actor, "role") != "admin":
+        if actor.role != "admin":
             raise DjangoUserManagementAuthorizationError()
 
-    def _get_user_or_raise(self, *, pk: int) -> Any:
-        """Return Django User or raise ``DjangoUserNotFoundError``."""
+    def _get_user_or_raise(self, *, pk: int) -> DjangoUserItem:
+        """Return user or raise ``DjangoUserNotFoundError``."""
 
-        user = User.objects.filter(pk=pk).first()
+        user = self._store.get_by_pk(pk=pk)
         if user is None:
             raise DjangoUserNotFoundError(f"user not found: {pk}")
         return user
@@ -312,20 +279,26 @@ class DjangoUserManagementService:
     def _write_audit_event(
         self,
         *,
-        actor: Any,
+        actor: DjangoActor,
         event_type: str,
-        target: Any,
+        target: DjangoUserItem,
+        previous_status: str | None,
+        new_status: str | None,
         extra: dict[str, Any] | None = None,
     ) -> None:
-        """Write an audit event synchronously to the SQLAlchemy auth_events table.
+        """Write an audit event matching the ``UserManagementService`` contract.
 
-        This uses ``asyncio.run`` because it is called from
-        synchronous Django view context. The ``auth_events`` table is
-        the shared audit log also used by the FastAPI surface.
+        Includes actor attribution, target metadata, and status transition
+        fields so the Django surface produces equivalent audit evidence.
         """
         payload: dict[str, Any] = {
+            "target_user_id": str(target.pk),
             "target_email": target.email,
             "target_role": target.role,
+            "actor_user_id": str(actor.pk),
+            "actor_email": actor.email,
+            "previous_status": previous_status,
+            "new_status": new_status,
         }
         if extra:
             payload.update(extra)
