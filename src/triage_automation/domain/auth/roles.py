@@ -10,10 +10,18 @@ class UnknownRoleError(ValueError):
 
 
 class Role(StrEnum):
-    """Supported user roles."""
+    """Supported user roles.
+
+    Includes legacy roles (reader, admin) and the full operational set
+    (nir, doctor, scheduler, manager, admin) for the consolidated model.
+    """
 
     ADMIN = "admin"
     READER = "reader"
+    NIR = "nir"
+    DOCTOR = "doctor"
+    SCHEDULER = "scheduler"
+    MANAGER = "manager"
 
     @classmethod
     def from_value(cls, value: Role | str) -> Role:

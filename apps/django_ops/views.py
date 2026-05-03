@@ -17,7 +17,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonRes
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.django_ops.models import Role, User
+from apps.django_ops.models import Role
 
 # Roles eligible for the installable PWA shell (remote-capable).
 PWA_CAPABLE_ROLES: frozenset[str] = frozenset({"doctor", "manager", "admin"})
@@ -937,34 +937,69 @@ def admin_home(request: HttpRequest) -> HttpResponse:
 
 @login_required  # type: ignore[untyped-decorator]
 def admin_users_home(request: HttpRequest) -> HttpResponse:
-    """Admin user-management page and create-user action."""
+    """Admin user-management page and create-user action.
+
+    GET: renders the user listing with create/role-change forms.
+    POST: creates a new user via the application-layer service.
+    """
     if request.user.role != "admin":
         return HttpResponse("Access denied: Admin role required.", status=403)
 
+    from apps.django_ops.service_wiring import build_django_user_management_service
+    from triage_automation.application.services.django_user_management import (
+        DjangoCreateUserRequest,
+        DjangoEmailAlreadyExistsError,
+        DjangoInvalidEmailError,
+        DjangoInvalidPasswordError,
+        DjangoInvalidRoleError,
+        DjangoUserManagementAuthorizationError,
+    )
+
     if request.method == "POST":
-        email = (request.POST.get("email") or "").strip().lower()
-        password = (request.POST.get("password") or "").strip()
-        role_value = (request.POST.get("role") or "").strip().lower()
+        email = request.POST.get("email", "")
+        password = request.POST.get("password", "")
+        role_value = request.POST.get("role", "")
 
-        supported_roles = {choice for choice, _ in Role.choices}
-        if role_value not in supported_roles:
-            return HttpResponseRedirect("/admin/users/?error=Perfil+de+usuario+invalido.")
-        if not email:
-            return HttpResponseRedirect("/admin/users/?error=Email+nao+pode+ficar+vazio.")
-        if not password:
-            return HttpResponseRedirect("/admin/users/?error=Senha+nao+pode+ficar+vazia.")
-        if User.objects.filter(email__iexact=email).exists():
-            return HttpResponseRedirect("/admin/users/?error=Email+ja+cadastrado.")
+        service = build_django_user_management_service()
+        try:
+            created = service.create_user(
+                actor=request.user,
+                payload=DjangoCreateUserRequest(
+                    email=email,
+                    password=password,
+                    role=role_value,
+                ),
+            )
+        except DjangoInvalidRoleError:
+            return HttpResponseRedirect(
+                "/admin/users/?error=Perfil+de+usuario+invalido."
+            )
+        except DjangoInvalidEmailError:
+            return HttpResponseRedirect(
+                "/admin/users/?error=Email+nao+pode+ficar+vazio."
+            )
+        except DjangoInvalidPasswordError:
+            return HttpResponseRedirect(
+                "/admin/users/?error=Senha+nao+pode+ficar+vazia."
+            )
+        except DjangoEmailAlreadyExistsError:
+            return HttpResponseRedirect(
+                "/admin/users/?error=Email+ja+cadastrado."
+            )
+        except DjangoUserManagementAuthorizationError:
+            return HttpResponse(
+                "Access denied: Admin role required.", status=403
+            )
 
-        User.objects.create_user(email=email, password=password, role=role_value)
-        return HttpResponseRedirect(f"/admin/users/?created_email={email}")
+        return HttpResponseRedirect(f"/admin/users/?created_email={created.email}")
 
-    users = User.objects.order_by("email")
+    service = build_django_user_management_service()
+    user_items = service.list_users()
     return render(
         request,
         "django_ops/admin_users.html",
         {
-            "users": users,
+            "users": user_items,
             "supported_roles": [choice for choice, _ in Role.choices],
             "error_message": request.GET.get("error"),
             "created_email": request.GET.get("created_email"),
@@ -980,25 +1015,106 @@ def admin_user_role_update(request: HttpRequest, user_id: int) -> HttpResponse:
     if request.user.role != "admin":
         return HttpResponse("Access denied: Admin role required.", status=403)
 
-    role_value = (request.POST.get("role") or "").strip().lower()
-    supported_roles = {choice for choice, _ in Role.choices}
-    if role_value not in supported_roles:
-        return HttpResponseRedirect("/admin/users/?error=Perfil+de+usuario+invalido.")
+    from apps.django_ops.service_wiring import build_django_user_management_service
+    from triage_automation.application.services.django_user_management import (
+        DjangoInvalidRoleError,
+        DjangoLastActiveAdminError,
+        DjangoUserManagementAuthorizationError,
+        DjangoUserNotFoundError,
+    )
 
-    target = User.objects.filter(pk=user_id).first()
-    if target is None:
-        return HttpResponseRedirect("/admin/users/?error=Usuario+alvo+nao+encontrado.")
+    role_value = request.POST.get("role", "")
+    service = build_django_user_management_service()
+    try:
+        updated = service.update_user_role(
+            actor=request.user,
+            target_pk=user_id,
+            new_role=role_value,
+        )
+    except DjangoInvalidRoleError:
+        return HttpResponseRedirect(
+            "/admin/users/?error=Perfil+de+usuario+invalido."
+        )
+    except DjangoUserNotFoundError:
+        return HttpResponseRedirect(
+            "/admin/users/?error=Usuario+alvo+nao+encontrado."
+        )
+    except DjangoLastActiveAdminError:
+        return HttpResponseRedirect(
+            "/admin/users/?error=Pelo+menos+um+admin+ativo+deve+permanecer."
+        )
+    except DjangoUserManagementAuthorizationError:
+        return HttpResponse(
+            "Access denied: Admin role required.", status=403
+        )
 
-    if target.role == "admin" and role_value != "admin":
-        active_admins = User.objects.filter(role="admin", is_active=True).count()
-        if active_admins <= 1:
-            return HttpResponseRedirect(
-                "/admin/users/?error=Pelo+menos+um+admin+ativo+deve+permanecer."
-            )
+    return HttpResponseRedirect(f"/admin/users/?updated_email={updated.email}")
 
-    target.role = role_value
-    target.save(update_fields=["role", "updated_at"])
-    return HttpResponseRedirect(f"/admin/users/?updated_email={target.email}")
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def admin_user_block(request: HttpRequest, user_id: int) -> HttpResponse:
+    """Admin block action for an existing user account."""
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    from apps.django_ops.service_wiring import build_django_user_management_service
+    from triage_automation.application.services.django_user_management import (
+        DjangoLastActiveAdminError,
+        DjangoSelfUserManagementError,
+        DjangoUserManagementAuthorizationError,
+        DjangoUserNotFoundError,
+    )
+
+    service = build_django_user_management_service()
+    try:
+        service.block_user(actor=request.user, target_pk=user_id)
+    except DjangoUserNotFoundError:
+        return HttpResponseRedirect(
+            "/admin/users/?error=Usuario+alvo+nao+encontrado."
+        )
+    except DjangoSelfUserManagementError:
+        return HttpResponseRedirect(
+            "/admin/users/?error=Nao+e+permitido+bloquear+a+propria+conta."
+        )
+    except DjangoLastActiveAdminError:
+        return HttpResponseRedirect(
+            "/admin/users/?error=Pelo+menos+um+admin+ativo+deve+permanecer."
+        )
+    except DjangoUserManagementAuthorizationError:
+        return HttpResponse(
+            "Access denied: Admin role required.", status=403
+        )
+
+    return HttpResponseRedirect("/admin/users/")
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def admin_user_activate(request: HttpRequest, user_id: int) -> HttpResponse:
+    """Admin activate/reactivate action for an existing user account."""
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    from apps.django_ops.service_wiring import build_django_user_management_service
+    from triage_automation.application.services.django_user_management import (
+        DjangoUserManagementAuthorizationError,
+        DjangoUserNotFoundError,
+    )
+
+    service = build_django_user_management_service()
+    try:
+        service.activate_user(actor=request.user, target_pk=user_id)
+    except DjangoUserNotFoundError:
+        return HttpResponseRedirect(
+            "/admin/users/?error=Usuario+alvo+nao+encontrado."
+        )
+    except DjangoUserManagementAuthorizationError:
+        return HttpResponse(
+            "Access denied: Admin role required.", status=403
+        )
+
+    return HttpResponseRedirect("/admin/users/")
 
 
 @login_required  # type: ignore[untyped-decorator]

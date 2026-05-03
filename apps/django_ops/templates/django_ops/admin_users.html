@@ -39,8 +39,8 @@
     <ul>
         {% for user_item in users %}
         <li>
-            {{ user_item.email }} ({{ user_item.role }})
-            <form method="post" action="/admin/users/{{ user_item.pk }}/role/">
+            {{ user_item.email }} ({{ user_item.role }}) {% if not user_item.is_active %}[bloqueado]{% endif %}
+            <form method="post" action="/admin/users/{{ user_item.pk }}/role/" style="display:inline">
                 {% csrf_token %}
                 <select name="role" required>
                     {% for role in supported_roles %}
@@ -48,6 +48,14 @@
                     {% endfor %}
                 </select>
                 <button type="submit">Atualizar role</button>
+            </form>
+            <form method="post" action="/admin/users/{{ user_item.pk }}/block/" style="display:inline">
+                {% csrf_token %}
+                <button type="submit">Bloquear</button>
+            </form>
+            <form method="post" action="/admin/users/{{ user_item.pk }}/activate/" style="display:inline">
+                {% csrf_token %}
+                <button type="submit">Ativar</button>
             </form>
         </li>
         {% endfor %}

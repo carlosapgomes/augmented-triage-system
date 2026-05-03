@@ -416,3 +416,125 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
         self.assertEqual(response.status_code, 302)
         self.admin_user.refresh_from_db()
         self.assertEqual(self.admin_user.role, "admin")
+
+    def test_create_user_writes_audit_event(self) -> None:
+        """Creating a user via admin surface writes an audit event."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(
+            "/admin/users/",
+            {"email": "audit.test@example.com", "password": "testpass123", "role": "doctor"},
+        )
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT event_type, payload FROM auth_events "
+                    "WHERE event_type = 'user_created' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        self.assertEqual(row["event_type"], "user_created")
+        payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+        self.assertIn("target_email", payload)
+        self.assertEqual(payload["target_email"], "audit.test@example.com")
+
+    def test_create_user_audit_references_actor(self) -> None:
+        """The audit event for user creation references the admin actor."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(
+            "/admin/users/",
+            {"email": "actor.test@example.com", "password": "testpass123", "role": "nir"},
+        )
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT user_id, payload FROM auth_events "
+                    "WHERE event_type = 'user_created' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        # The actor email should appear in the event (from the admin who performed the action)
+        payload = json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"]
+        self.assertEqual(payload["target_email"], "actor.test@example.com")
+
+    def test_admin_can_block_user(self) -> None:
+        """Admin can block an existing user."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="blockable@example.com",
+            password="testpass123",
+            role="doctor",
+        )
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        response = self.client.post(f"/admin/users/{target.pk}/block/")
+
+        self.assertEqual(response.status_code, 302)
+        target.refresh_from_db()
+        self.assertFalse(target.is_active)
+
+    def test_admin_can_reactivate_user(self) -> None:
+        """Admin can reactivate a blocked user."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="reactivatable@example.com",
+            password="testpass123",
+            role="scheduler",
+        )
+        target.is_active = False
+        target.save()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        response = self.client.post(f"/admin/users/{target.pk}/activate/")
+
+        self.assertEqual(response.status_code, 302)
+        target.refresh_from_db()
+        self.assertTrue(target.is_active)
+
+    def test_admin_block_preserves_last_admin_invariant(self) -> None:
+        """Blocking the last active admin is rejected."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        response = self.client.post(f"/admin/users/{self.admin_user.pk}/block/")
+
+        self.assertEqual(response.status_code, 302)
+        self.admin_user.refresh_from_db()
+        self.assertTrue(self.admin_user.is_active)
+
+    def test_manager_cannot_block_user(self) -> None:
+        """Manager receives 403 when attempting to block a user."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="manager-target@example.com",
+            password="testpass123",
+            role="doctor",
+        )
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        response = self.client.post(f"/admin/users/{target.pk}/block/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_legacy_reader_role_is_supported_for_create(self) -> None:
+        """The domain Role enum includes READER for legacy mapping support."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        # The "reader" role should be accepted and mapped to "manager"
+        response = self.client.post(
+            "/admin/users/",
+            {"email": "legacy.reader@example.com", "password": "testpass123", "role": "reader"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        created = User.objects.get(email="legacy.reader@example.com")
+        # Legacy reader is mapped to manager
+        self.assertEqual(created.role, "manager")

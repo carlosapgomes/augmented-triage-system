@@ -16,6 +16,9 @@ from triage_automation.application.ports.audit_repository_port import AuditRepos
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
 from triage_automation.application.ports.job_queue_port import JobQueuePort
 from triage_automation.application.ports.pdf_storage_port import PdfFileStoragePort
+from triage_automation.application.services.django_user_management import (
+    DjangoUserManagementService,
+)
 from triage_automation.application.services.doctor_queue_service import DoctorQueueService
 from triage_automation.application.services.handle_doctor_decision_service import (
     HandleDoctorDecisionService,
@@ -33,6 +36,7 @@ from triage_automation.application.services.nir_final_acknowledgment_service imp
 from triage_automation.application.services.nir_web_intake_service import NirWebIntakeService
 from triage_automation.application.services.scheduler_queue_service import SchedulerQueueService
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
+from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.session import create_session_factory
@@ -216,6 +220,23 @@ def build_nir_final_acknowledgment_service() -> NirFinalAcknowledgmentService:
         case_repository=case_repository,
         audit_repository=audit_repository,
         job_queue=job_queue,
+    )
+
+
+def build_django_user_management_service() -> DjangoUserManagementService:
+    """Build the DjangoUserManagementService with all dependencies wired.
+
+    Returns:
+        A fully configured ``DjangoUserManagementService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    auth_event_repo = SqlAlchemyAuthEventRepository(session_factory)
+
+    return DjangoUserManagementService(
+        auth_events=auth_event_repo,
+        sqlalchemy_session_factory=session_factory,
     )
 
 

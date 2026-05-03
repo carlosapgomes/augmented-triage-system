@@ -9,6 +9,8 @@ from django.urls import path
 from apps.django_ops.views import (
     admin_home,
     admin_prompts_home,
+    admin_user_activate,
+    admin_user_block,
     admin_user_role_update,
     admin_users_home,
     doctor_decision_form,
@@ -80,6 +82,16 @@ urlpatterns = [
         "admin/users/<int:user_id>/role/",
         admin_user_role_update,
         name="admin_user_role_update",
+    ),
+    path(
+        "admin/users/<int:user_id>/block/",
+        admin_user_block,
+        name="admin_user_block",
+    ),
+    path(
+        "admin/users/<int:user_id>/activate/",
+        admin_user_activate,
+        name="admin_user_activate",
     ),
     path("admin/prompts/", admin_prompts_home, name="admin_prompts"),
     path("manifest.webmanifest", manifest_view, name="manifest"),
