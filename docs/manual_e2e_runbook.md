@@ -36,7 +36,7 @@ uv run python -m apps.worker.main
 uv run apps/django_ops/manage.py create_user nir@teste.com senha123 nir
 uv run apps/django_ops/manage.py create_user medico@teste.com senha123 doctor
 uv run apps/django_ops/manage.py create_user agenda@teste.com senha123 scheduler
-uv run apps/django_ops/manage.py create_user leitor@teste.com senha123 reader
+uv run apps/django_ops/manage.py create_user gestor@teste.com senha123 manager
 uv run apps/django_ops/manage.py create_user admin@teste.com senha123 admin
 ```
 
@@ -47,9 +47,9 @@ uv run apps/django_ops/manage.py create_user admin@teste.com senha123 admin
 - abrir `GET /`
 - esperado: redirect para `/login`
 
-1. Checagens de sessão `reader`:
+1. Checagens de sessão `manager`:
 
-- login como usuário `reader` via formulário `POST /login`
+- login como usuário `manager` via formulário `POST /login`
 - verificar `GET /dashboard/cases` retorna `200`
 - verificar shell nav contém `Dashboard`
 - verificar shell nav não contém `Prompts`
@@ -486,7 +486,7 @@ Exemplo recomendado:
 - `POST /widget/room2/submit`
 - esperado: `401`
 
-1. Enviar com token de papel `reader` (`reader role token`):
+1. Enviar com token de papel `manager` (`manager role token`):
 
 - `POST /widget/room2/submit`
 - esperado: `403`
@@ -562,7 +562,7 @@ Exemplo recomendado:
 
 ## Fluxo de autorização de gerenciamento de prompts
 
-1. Usando `reader token`, verificar comportamento read-only:
+1. Usando `manager token`, verificar comportamento read-only:
 
 - `GET /monitoring/cases` retorna `200`
 - `GET /admin/prompts/versions` retorna `403`
@@ -590,7 +590,7 @@ Exemplo recomendado:
 
 ## Fluxo de autorização de gerenciamento de usuários
 
-1. Usando `reader token`, validar bloqueio de acesso:
+1. Usando `manager token`, validar bloqueio de acesso:
 
 - `GET /admin/users` retorna `403`
 - `POST /admin/users` retorna `403`
@@ -602,7 +602,7 @@ Exemplo recomendado:
 1. Usando sessão `admin`, validar criação de conta:
 
 - abrir `GET /admin/users`
-- enviar formulário `POST /admin/users` para criar um `reader`
+- enviar formulário `POST /admin/users` para criar um `manager`
 - esperado: redirect para `/admin/users` com feedback `Usuario criado`
 - validar que o novo usuário aparece na listagem com estado `active`
 - validar auditoria em `auth_events`:

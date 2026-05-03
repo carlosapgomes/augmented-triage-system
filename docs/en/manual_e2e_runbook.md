@@ -36,7 +36,7 @@ uv run python -m apps.worker.main
 uv run apps/django_ops/manage.py create_user nir@test.com test123 nir
 uv run apps/django_ops/manage.py create_user doctor@test.com test123 doctor
 uv run apps/django_ops/manage.py create_user scheduler@test.com test123 scheduler
-uv run apps/django_ops/manage.py create_user reader@test.com test123 reader
+uv run apps/django_ops/manage.py create_user manager@test.com test123 manager
 uv run apps/django_ops/manage.py create_user admin@test.com test123 admin
 ```
 
@@ -47,9 +47,9 @@ uv run apps/django_ops/manage.py create_user admin@test.com test123 admin
 - open `GET /`
 - expected: redirect to `/login`
 
-1. `reader` session checks:
+1. `manager` session checks:
 
-- log in as the `reader` user via the `POST /login` form
+- log in as the `manager` user via the `POST /login` form
 - verify `GET /dashboard/cases` returns `200`
 - verify the shell nav contains `Dashboard`
 - verify the shell nav does not contain `Prompts`
@@ -483,7 +483,7 @@ Recommended example:
 - `POST /widget/room2/submit`
 - expected: `401`
 
-1. Send with a `reader` role token:
+1. Send with a `manager` role token:
 
 - `POST /widget/room2/submit`
 - expected: `403`
@@ -560,7 +560,7 @@ Recommended example:
 
 ## Prompt Management Authorization Flow
 
-1. Using a reader token, verify read-only behavior:
+1. Using a manager token, verify read-only behavior:
 
 - `GET /monitoring/cases` returns `200`
 - `GET /admin/prompts/versions` returns `403`
@@ -589,7 +589,7 @@ Recommended example:
 
 ## User Management Authorization Flow
 
-1. Using a reader token, validate access blocking:
+1. Using a manager token, validate access blocking:
 
 - `GET /admin/users` returns `403`
 - `POST /admin/users` returns `403`
@@ -601,7 +601,7 @@ Recommended example:
 1. Using an `admin` session, validate account creation:
 
 - open `GET /admin/users`
-- submit form `POST /admin/users` to create a `reader`
+- submit form `POST /admin/users` to create a `manager`
 - expected: redirect to `/admin/users` with `Usuario criado` feedback
 - validate that the new user appears in the listing with `active` state
 - validate audit in `auth_events`:
