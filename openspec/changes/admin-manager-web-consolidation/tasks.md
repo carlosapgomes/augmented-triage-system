@@ -2,7 +2,7 @@
 
 ## Phase 1 - Dashboard consolidation
 
-- [ ] 1.1 Consolidar o dashboard operacional no Django para `manager` e `admin`.
+- [x] 1.1 Consolidar o dashboard operacional no Django para `manager` e `admin`.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/01-django-dashboard-consolidation.md`
 - [ ] 1.2 Consolidar o detalhe de caso no Django com timeline auditável para `manager` e `admin`.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/02-django-case-detail-consolidation.md`

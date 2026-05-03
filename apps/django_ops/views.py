@@ -775,15 +775,121 @@ def nir_case_acknowledge_submit(
 @login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
 def manager_home(request: HttpRequest) -> HttpResponse:
-    """Placeholder landing page for Manager users."""
-    return _role_home(request, "Manager")
+    """Manager dashboard showing consolidated operational case listing.
+
+    Shows all cases with filters, pagination, and operational totals.
+    Accessible to authenticated ``manager`` and ``admin`` role users.
+    Other roles receive a 403 Forbidden response.
+    """
+    if request.user.role not in ("manager", "admin"):
+        return HttpResponse(
+            "Access denied: Manager or Admin role required.", status=403
+        )
+
+    from datetime import date, datetime
+
+    from apps.django_ops.service_wiring import build_manager_dashboard_service, run_async
+    from triage_automation.domain.case_status import CaseStatus
+
+    # Parse query parameters
+    page_str = request.GET.get("page", "1")
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
+
+    page_size_str = request.GET.get("page_size", "25")
+    try:
+        page_size = int(page_size_str)
+    except ValueError:
+        page_size = 25
+    if page_size < 1:
+        page_size = 25
+
+    status_str = request.GET.get("status", "")
+    status_filter: CaseStatus | None = None
+    if status_str:
+        try:
+            status_filter = CaseStatus(status_str)
+        except ValueError:
+            pass
+
+    from_date_str = request.GET.get("from_date", "")
+    from_date: date | None = None
+    if from_date_str:
+        try:
+            from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    to_date_str = request.GET.get("to_date", "")
+    to_date: date | None = None
+    if to_date_str:
+        try:
+            to_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    service = build_manager_dashboard_service()
+    raw_dashboard = run_async(
+        service.list_cases(
+            page=page,
+            page_size=page_size,
+            status=status_filter,
+            from_date=from_date,
+            to_date=to_date,
+            tz_offset_minutes=-180,
+        )
+    )
+    from triage_automation.application.services.manager_dashboard_service import (
+        ManagerDashboardPage,
+    )
+    assert isinstance(raw_dashboard, ManagerDashboardPage)
+    dashboard: ManagerDashboardPage = raw_dashboard
+
+    total_cases = dashboard.total
+    total_pages = (
+        max(1, (total_cases + page_size - 1) // page_size)
+        if total_cases > 0
+        else 1
+    )
+    has_next = page < total_pages
+    has_prev = page > 1
+
+    return render(
+        request,
+        "django_ops/manager_dashboard.html",
+        {
+            "cases": dashboard.cases,
+            "page": dashboard.page,
+            "page_size": dashboard.page_size,
+            "total": dashboard.total,
+            "totals": dashboard.totals,
+            "user_email": request.user.email,
+            "status_filter": status_str,
+            "from_date": from_date_str,
+            "to_date": to_date_str,
+            "has_prev": has_prev,
+            "has_next": has_next,
+            "prev_page": page - 1,
+            "next_page": page + 1,
+        },
+    )
 
 
 @login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
 def admin_home(request: HttpRequest) -> HttpResponse:
-    """Placeholder landing page for Admin users."""
-    return _role_home(request, "Admin")
+    """Admin landing page showing consolidated operational dashboard.
+
+    Shows the same dashboard as manager but will later include
+    additional administrative controls. Accessible to authenticated
+    ``manager`` and ``admin`` role users. Other roles receive 403.
+    """
+    # Delegate to manager_home for the consolidated dashboard view.
+    return manager_home(request)
 
 
 @require_GET  # type: ignore[untyped-decorator]

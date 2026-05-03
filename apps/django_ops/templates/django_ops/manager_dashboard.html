@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard de Supervisão — ATS Operations</title>
+</head>
+<body>
+    <h1>Dashboard de Supervisão</h1>
+    <p>Olá, {{ user_email }}.</p>
+
+    <h2>Filtros</h2>
+    <form method="get">
+        <label for="status">Status:</label>
+        <select name="status" id="status">
+            <option value="" {% if not status_filter %}selected{% endif %}>Todos</option>
+            <option value="WAIT_DOCTOR" {% if status_filter == "WAIT_DOCTOR" %}selected{% endif %}>Aguardando Médico</option>
+            <option value="WAIT_APPT" {% if status_filter == "WAIT_APPT" %}selected{% endif %}>Aguardando Agendamento</option>
+            <option value="APPT_CONFIRMED" {% if status_filter == "APPT_CONFIRMED" %}selected{% endif %}>Agendamento Confirmado</option>
+            <option value="APPT_DENIED" {% if status_filter == "APPT_DENIED" %}selected{% endif %}>Agendamento Negado</option>
+            <option value="CLEANED" {% if status_filter == "CLEANED" %}selected{% endif %}>Finalizado</option>
+            <option value="FAILED" {% if status_filter == "FAILED" %}selected{% endif %}>Falhou</option>
+        </select>
+
+        <label for="from_date">De:</label>
+        <input type="date" name="from_date" id="from_date" value="{{ from_date }}">
+
+        <label for="to_date">Até:</label>
+        <input type="date" name="to_date" id="to_date" value="{{ to_date }}">
+
+        <button type="submit">Filtrar</button>
+    </form>
+
+    <h2>Totalização da Busca</h2>
+    <p>
+        <strong>Total de casos:</strong> {{ totals.total }}
+        {% if totals.in_progress %} · <strong>Em processamento:</strong> {{ totals.in_progress }}{% endif %}
+        {% if totals.pending_room2 %} · <strong>Aguardando Sala 2:</strong> {{ totals.pending_room2 }}{% endif %}
+        {% if totals.pending_room3 %} · <strong>Aguardando Sala 3:</strong> {{ totals.pending_room3 }}{% endif %}
+        {% if totals.pending_room1 %} · <strong>Aguardando Sala 1:</strong> {{ totals.pending_room1 }}{% endif %}
+        {% if totals.pending_immediate_branch %} · <strong>Pendentes no ramo vinda imediata:</strong> {{ totals.pending_immediate_branch }}{% endif %}
+        {% if totals.accepted %} · <strong>Aceitos:</strong> {{ totals.accepted }}{% endif %}
+        {% if totals.immediate_admission %} · <strong>Vinda imediata:</strong> {{ totals.immediate_admission }}{% endif %}
+        {% if totals.denied %} · <strong>Negados:</strong> {{ totals.denied }}{% endif %}
+    </p>
+
+    <h2>Casos</h2>
+
+    {% if cases %}
+    <table>
+        <thead>
+            <tr>
+                <th>Caso</th>
+                <th>Paciente / Registro</th>
+                <th>Status</th>
+                <th>Progresso</th>
+                <th>Atividade</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for case in cases %}
+            <tr>
+                <td>{{ case.case_id }}</td>
+                <td>
+                    {% if case.patient_name %}
+                    {{ case.patient_name }}
+                    {% endif %}
+                    {% if case.agency_record_number %}
+                    · {{ case.agency_record_number }}
+                    {% endif %}
+                </td>
+                <td><code>{{ case.status.value }}</code></td>
+                <td>{{ case.compact_summary }}</td>
+                <td>{{ case.latest_activity_at|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p>Página {{ page }} — Mostrando {{ cases|length }} de {{ total }} casos.</p>
+
+    {% if has_prev %}
+    <a href="?page={{ prev_page }}&page_size={{ page_size }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}">← Anterior</a>
+    {% endif %}
+
+    {% if has_next %}
+    <a href="?page={{ next_page }}&page_size={{ page_size }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}">Próximo →</a>
+    {% endif %}
+
+    {% else %}
+    <p>Nenhum caso encontrado para os filtros selecionados.</p>
+    {% endif %}
+
+    <p>
+        <a href="/logout/">Sair</a>
+    </p>
+</body>
+</html>

@@ -23,6 +23,9 @@ from triage_automation.application.services.handle_doctor_decision_service impor
 from triage_automation.application.services.handle_scheduler_confirmation_service import (
     HandleSchedulerConfirmationService,
 )
+from triage_automation.application.services.manager_dashboard_service import (
+    ManagerDashboardService,
+)
 from triage_automation.application.services.nir_dashboard_service import NirDashboardService
 from triage_automation.application.services.nir_final_acknowledgment_service import (
     NirFinalAcknowledgmentService,
@@ -173,6 +176,22 @@ def build_handle_scheduler_confirmation_service() -> HandleSchedulerConfirmation
         job_queue=job_queue,
         # No Matrix poster, message repository, reaction checkpoint
         # repository, or room3_id — web-only path.
+    )
+
+
+def build_manager_dashboard_service() -> ManagerDashboardService:
+    """Build the ManagerDashboardService with all dependencies wired.
+
+    Returns:
+        A fully configured ``ManagerDashboardService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    case_repository: CaseRepositoryPort = SqlAlchemyCaseRepository(session_factory)
+
+    return ManagerDashboardService(
+        case_repository=case_repository,
     )
 
 
