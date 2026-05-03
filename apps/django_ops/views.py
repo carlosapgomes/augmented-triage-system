@@ -881,6 +881,42 @@ def manager_home(request: HttpRequest) -> HttpResponse:
 
 @login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
+def manager_case_detail(request: HttpRequest, case_id: UUID) -> HttpResponse:
+    """Manager case detail with audit timeline and operational summary.
+
+    Shows the full case detail including chronological timeline events,
+    operational summary, and current status. Accessible to authenticated
+    ``manager`` and ``admin`` role users. Other roles receive 403 Forbidden.
+    Returns 404 if the case does not exist.
+
+    The view is intentionally read-only — no mutation or acknowledgment
+    controls are exposed.
+    """
+    if request.user.role not in ("manager", "admin"):
+        return HttpResponse(
+            "Access denied: Manager or Admin role required.", status=403
+        )
+
+    from apps.django_ops.service_wiring import build_manager_dashboard_service, run_async
+
+    service = build_manager_dashboard_service()
+    detail = run_async(service.get_case_detail(case_id=case_id))
+
+    if detail is None:
+        return HttpResponse("Case not found.", status=404)
+
+    return render(
+        request,
+        "django_ops/manager_case_detail.html",
+        {
+            "detail": detail,
+            "user_email": request.user.email,
+        },
+    )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_GET  # type: ignore[untyped-decorator]
 def admin_home(request: HttpRequest) -> HttpResponse:
     """Admin landing page showing consolidated operational dashboard.
 

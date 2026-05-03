@@ -177,6 +177,37 @@ class _ManagerDashboardTestBase(TestCase):  # type: ignore[misc]
             },
         )
 
+    def _insert_case_event(
+        self,
+        connection: sa.Connection,
+        *,
+        case_id: str,
+        event_type: str,
+        actor_user_id: str,
+        payload: str,
+        ts: datetime,
+        actor_type: str = "web_human",
+    ) -> None:
+        """Insert a case_events row for timeline testing."""
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_events ("
+                "case_id, actor_type, event_type, actor_user_id, payload, ts"
+                ") VALUES ("
+                ":case_id, :actor_type, :event_type, :actor_user_id, "
+                ":payload, :ts"
+                ")"
+            ),
+            {
+                "case_id": case_id,
+                "actor_type": actor_type,
+                "event_type": event_type,
+                "actor_user_id": actor_user_id,
+                "payload": payload,
+                "ts": ts,
+            },
+        )
+
 
 # ── Access Control ─────────────────────────────────────────────────────
 
@@ -563,3 +594,450 @@ class TestAdminDashboardAccess(_ManagerDashboardTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, str(case_id))
         self.assertContains(response, "REG-ADMIN-001")
+
+
+# ── Case Detail Access Control ─────────────────────────────────────────
+
+
+@override_settings(
+    PDF_STORAGE_DIR=os.path.join(tempfile.gettempdir(), "ats_test_pdfs"),
+)
+class TestManagerCaseDetailAccessControl(_ManagerDashboardTestBase):
+    """Access control for manager case detail view."""
+
+    def test_manager_can_access_case_detail(self) -> None:
+        """Manager user can access the case detail page."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_can_access_case_detail(self) -> None:
+        """Admin user can access the case detail page."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_case_detail_rejects_nir_role(self) -> None:
+        """NIR role receives 403 Forbidden on manager case detail."""
+        self._set_env_database_url()
+        self.client.login(username="nir@example.com", password="testpass123")
+
+        case_id = uuid4()
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_case_detail_rejects_doctor_role(self) -> None:
+        """Doctor role receives 403 Forbidden on manager case detail."""
+        self._set_env_database_url()
+        self.client.login(username="doctor@example.com", password="testpass123")
+
+        case_id = uuid4()
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_case_detail_rejects_scheduler_role(self) -> None:
+        """Scheduler role receives 403 Forbidden on manager case detail."""
+        self._set_env_database_url()
+        self.client.login(username="scheduler@example.com", password="testpass123")
+
+        case_id = uuid4()
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_case_detail_requires_authentication(self) -> None:
+        """Anonymous users are redirected to login."""
+        case_id = uuid4()
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response.url)
+
+    def test_case_detail_returns_404_for_nonexistent_case(self) -> None:
+        """Requesting a non-existent case returns 404."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        nonexistent_id = uuid4()
+        response = self.client.get(f"/manager/cases/{nonexistent_id}/")
+
+        self.assertEqual(response.status_code, 404)
+
+
+# ── Case Detail Content ────────────────────────────────────────────────
+
+
+@override_settings(
+    PDF_STORAGE_DIR=os.path.join(tempfile.gettempdir(), "ats_test_pdfs"),
+)
+class TestManagerCaseDetailContent(_ManagerDashboardTestBase):
+    """Manager case detail shows consolidated case information."""
+
+    def test_case_detail_shows_case_id(self) -> None:
+        """Case detail page shows the case id."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(case_id))
+
+    def test_case_detail_shows_status(self) -> None:
+        """Case detail page shows the current status."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_APPT",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "WAIT_APPT")
+
+    def test_case_detail_shows_patient_name(self) -> None:
+        """Case detail page shows patient name."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+                agency_record_number="REG-001",
+                structured_data_json={
+                    "patient": {"name": "João Silva", "age": 45},
+                },
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "João Silva")
+
+    def test_case_detail_shows_record_number(self) -> None:
+        """Case detail page shows agency record number."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+                agency_record_number="2026-REC-001",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2026-REC-001")
+
+
+# ── Case Detail Timeline (Auditability) ────────────────────────────────
+
+
+@override_settings(
+    PDF_STORAGE_DIR=os.path.join(tempfile.gettempdir(), "ats_test_pdfs"),
+)
+class TestManagerCaseDetailTimeline(_ManagerDashboardTestBase):
+    """Manager case detail preserves full audit timeline."""
+
+    def test_case_detail_shows_timeline(self) -> None:
+        """Case detail shows chronological timeline of events."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            self._insert_matrix_transcript(
+                conn,
+                case_id=case_id.hex,
+                event_id="$evt-timeline",
+                captured_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Linha do Tempo")
+
+    def test_case_detail_shows_matrix_events(self) -> None:
+        """Timeline includes matrix message transcript events."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            self._insert_matrix_transcript(
+                conn,
+                case_id=case_id.hex,
+                event_id="$evt-matrix",
+                message_type="room2_doctor_reply",
+                captured_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "room2_doctor_reply")
+
+    def test_case_detail_shows_web_events(self) -> None:
+        """Timeline includes web human events."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            self._insert_case_event(
+                conn,
+                case_id=case_id.hex,
+                event_type="NIR_PDF_UPLOAD",
+                actor_user_id="nir-1",
+                payload='{"origin":"web","actor":"nir@example.com",'
+                '"summary_text":"PDF uploaded via web"}',
+                ts=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "NIR_PDF_UPLOAD")
+
+
+# ── Case Detail Read-Only (No Admin Controls for Manager) ──────────────
+
+
+@override_settings(
+    PDF_STORAGE_DIR=os.path.join(tempfile.gettempdir(), "ats_test_pdfs"),
+)
+class TestManagerCaseDetailReadOnly(_ManagerDashboardTestBase):
+    """Manager case detail does not expose admin-only mutation controls."""
+
+    def test_case_detail_no_acknowledge_button_for_manager(self) -> None:
+        """Manager does not see the NIR acknowledge/finalize button."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_R1_CLEANUP_THUMBS",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # Manager should NOT see the acknowledge/finalize button
+        self.assertNotIn("Confirmar Recebimento", content)
+        self.assertNotIn("acknowledge", content.lower())
+
+    def test_case_detail_no_mutation_actions_for_manager(self) -> None:
+        """Manager detail view does not contain case-mutation forms."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # No case mutation forms (acknowledge, decision, upload, confirmation)
+        self.assertNotIn("acknowledge", content.lower())
+        self.assertNotIn("Confirmar Recebimento", content)
+        self.assertNotIn('action="/nir/', content.lower())
+        self.assertNotIn('action="/doctor/', content.lower())
+        self.assertNotIn('action="/scheduler/', content.lower())
+
+    def test_case_detail_no_admin_controls_for_manager(self) -> None:
+        """Manager detail view does not contain admin management links."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # No admin-specific controls like user management, prompt management
+        self.assertNotIn("/admin/users", content.lower())
+        self.assertNotIn("/admin/prompts", content.lower())
+
+
+# ── Case Detail Dashboard Link ─────────────────────────────────────────
+
+
+@override_settings(
+    PDF_STORAGE_DIR=os.path.join(tempfile.gettempdir(), "ats_test_pdfs"),
+)
+class TestManagerCaseDetailNavigation(_ManagerDashboardTestBase):
+    """Manager case detail includes navigation back to dashboard."""
+
+    def test_case_detail_has_back_link_to_dashboard(self) -> None:
+        """Case detail page has a link back to the manager dashboard."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        case_id = uuid4()
+        now = datetime.now(tz=UTC)
+        conn = self._get_sync_connection()
+        try:
+            self._insert_case(
+                conn,
+                case_id=case_id.hex,
+                status="WAIT_DOCTOR",
+                updated_at=now,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/manager/cases/{case_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/manager/")
