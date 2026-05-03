@@ -918,14 +918,18 @@ def manager_case_detail(request: HttpRequest, case_id: UUID) -> HttpResponse:
 @login_required  # type: ignore[untyped-decorator]
 @require_GET  # type: ignore[untyped-decorator]
 def admin_home(request: HttpRequest) -> HttpResponse:
-    """Admin landing page showing consolidated operational dashboard.
+    """Admin system console landing page.
 
-    Shows the same dashboard as manager but with admin navigation
-    links (users, prompts) included when the user has the ``admin`` role.
-    Accessible to authenticated ``manager`` and ``admin`` role users.
-    Other roles receive 403.
+    Shows the consolidated operational dashboard with admin navigation
+    links (users, prompts). Only accessible to authenticated ``admin``
+    role users. Other roles receive 403 Forbidden.
+
+    ``manager`` users should use ``/manager/`` for read-only supervisory
+    dashboard access.
     """
-    # Delegate to manager_home for the consolidated dashboard view.
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
     return manager_home(request)
 
 

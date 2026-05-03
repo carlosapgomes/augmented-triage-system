@@ -3,8 +3,9 @@
 TDD tests for slice 2.1 — validates that:
 - Manager sees only dashboard/reporting links in the shell navigation;
 - Admin sees dashboard + administrative areas (users, prompts) in the shell;
-- Manager receives 403 when requesting admin-only routes (/admin/users/, /admin/prompts/);
-- Admin can access admin placeholder pages.
+- Manager receives 403 on /admin/, /admin/users/, and /admin/prompts/;
+- Admin receives 200 on /admin/, /admin/users/, and /admin/prompts/;
+- Anonymous users are redirected to login for admin routes.
 """
 
 from __future__ import annotations
@@ -202,3 +203,21 @@ class TestAdminRoutesAuthorization(_ShellNavigationTestBase):
         response = self.client.get("/admin/prompts/", follow=False)
 
         self.assertIn(response.status_code, (302, 303))
+
+    def test_manager_receives_403_on_admin_landing(self) -> None:
+        """Manager requesting /admin/ MUST receive 403 Forbidden."""
+        self._set_env_database_url()
+        self.client.login(username="manager@example.com", password="testpass123")
+
+        response = self.client.get("/admin/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_receives_200_on_admin_landing(self) -> None:
+        """Admin requesting /admin/ MUST receive 200 (dashboard with admin nav)."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        response = self.client.get("/admin/")
+
+        self.assertEqual(response.status_code, 200)
