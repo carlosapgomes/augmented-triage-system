@@ -454,6 +454,50 @@ class TestAdminUserManagementConsolidation(_ShellNavigationTestBase):
         self.assertIsNone(payload.get("previous_status"))
         self.assertEqual(payload.get("new_status"), "active")
 
+    def test_create_user_audit_sets_top_level_user_id_column(self) -> None:
+        """The auth_events.user_id column is populated for Django admin create actions."""
+        self._set_env_database_url()
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(
+            "/admin/users/",
+            {"email": "userid.test@example.com", "password": "testpass123", "role": "doctor"},
+        )
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT user_id FROM auth_events "
+                    "WHERE event_type = 'user_created' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        self.assertIsNotNone(row["user_id"])
+
+    def test_block_user_audit_sets_top_level_user_id_column(self) -> None:
+        """The auth_events.user_id column is populated for Django admin block actions."""
+        self._set_env_database_url()
+        target = User.objects.create_user(
+            email="userid-block@example.com",
+            password="testpass123",
+            role="scheduler",
+        )
+        self.client.login(username="admin@example.com", password="testpass123")
+
+        self.client.post(f"/admin/users/{target.pk}/block/")
+
+        with self._sync_connection() as conn:
+            row = conn.execute(
+                sa.text(
+                    "SELECT user_id FROM auth_events "
+                    "WHERE event_type = 'user_blocked' ORDER BY id DESC LIMIT 1"
+                )
+            ).mappings().first()
+
+        self.assertIsNotNone(row)
+        self.assertIsNotNone(row["user_id"])
+
     def test_block_user_audit_records_status_transition(self) -> None:
         """Block audit event records active→blocked transition with proper contract."""
         self._set_env_database_url()

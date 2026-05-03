@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 from triage_automation.application.ports.auth_event_repository_port import (
     AuthEventCreateInput,
@@ -307,6 +308,7 @@ class DjangoUserManagementService:
             return await self._auth_events.append_event(
                 AuthEventCreateInput(
                     event_type=event_type,
+                    user_id=UUID(int=actor.pk),
                     payload=payload,
                 )
             )
