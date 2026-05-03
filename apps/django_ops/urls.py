@@ -8,6 +8,8 @@ from django.urls import path
 
 from apps.django_ops.views import (
     admin_home,
+    admin_prompts_home,
+    admin_users_home,
     doctor_decision_form,
     doctor_decision_form_submit,
     doctor_home,
@@ -72,6 +74,8 @@ urlpatterns = [
         name="manager_case_detail",
     ),
     path("admin/", admin_home, name="admin_home"),
+    path("admin/users/", admin_users_home, name="admin_users"),
+    path("admin/prompts/", admin_prompts_home, name="admin_prompts"),
     path("manifest.webmanifest", manifest_view, name="manifest"),
     path("service-worker.js", service_worker_view, name="service_worker"),
 ]

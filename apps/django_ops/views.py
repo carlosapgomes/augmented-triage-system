@@ -920,12 +920,55 @@ def manager_case_detail(request: HttpRequest, case_id: UUID) -> HttpResponse:
 def admin_home(request: HttpRequest) -> HttpResponse:
     """Admin landing page showing consolidated operational dashboard.
 
-    Shows the same dashboard as manager but will later include
-    additional administrative controls. Accessible to authenticated
-    ``manager`` and ``admin`` role users. Other roles receive 403.
+    Shows the same dashboard as manager but with admin navigation
+    links (users, prompts) included when the user has the ``admin`` role.
+    Accessible to authenticated ``manager`` and ``admin`` role users.
+    Other roles receive 403.
     """
     # Delegate to manager_home for the consolidated dashboard view.
     return manager_home(request)
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_GET  # type: ignore[untyped-decorator]
+def admin_users_home(request: HttpRequest) -> HttpResponse:
+    """Admin users management placeholder page.
+
+    Only accessible to authenticated ``admin`` role users.
+    Other roles receive 403 Forbidden.
+    """
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    return render(
+        request,
+        "django_ops/admin_placeholder.html",
+        {
+            "page_title": "Gestão de Usuários",
+            "page_description": "A gestão de usuários será implementada no próximo slice.",
+        },
+    )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_GET  # type: ignore[untyped-decorator]
+def admin_prompts_home(request: HttpRequest) -> HttpResponse:
+    """Admin prompts management placeholder page.
+
+    Only accessible to authenticated ``admin`` role users.
+    Other roles receive 403 Forbidden.
+    """
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    return render(
+        request,
+        "django_ops/admin_placeholder.html",
+        {
+            "page_title": "Gestão de Prompts",
+            "page_description": "A gestão de prompts será implementada no próximo slice.",
+        },
+    )
 
 
 @require_GET  # type: ignore[untyped-decorator]

@@ -6,8 +6,9 @@
     <title>Dashboard de Supervisão — ATS Operations</title>
 </head>
 <body>
+    {% include "django_ops/_shell_nav.html" %}
+
     <h1>Dashboard de Supervisão</h1>
-    <p>Olá, {{ user_email }}.</p>
 
     <h2>Filtros</h2>
     <form method="get">
@@ -91,9 +92,5 @@
     <p>Nenhum caso encontrado para os filtros selecionados.</p>
     {% endif %}
 
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit">Sair</button>
-    </form>
 </body>
 </html>

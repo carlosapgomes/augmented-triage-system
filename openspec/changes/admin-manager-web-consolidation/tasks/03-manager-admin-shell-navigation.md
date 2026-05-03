@@ -16,9 +16,9 @@ Dashboard e detalhe já estão consolidados. Agora o shell precisa refletir visu
 
 ## Tests to write FIRST (TDD)
 
-- `manager` vê apenas dashboard/relatórios;
-- `admin` vê dashboard + áreas administrativas;
-- links/admin routes permanecem negados para `manager`.
+- [x] `manager` vê apenas dashboard/relatórios;
+- [x] `admin` vê dashboard + áreas administrativas;
+- [x] links/admin routes permanecem negados para `manager`.
 
 ## Success criteria
 

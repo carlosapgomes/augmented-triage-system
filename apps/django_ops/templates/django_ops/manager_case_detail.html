@@ -6,6 +6,8 @@
     <title>Caso {{ detail.case_id }} — Supervisão — ATS Operations</title>
 </head>
 <body>
+    {% include "django_ops/_shell_nav.html" %}
+
     <h1>Caso {{ detail.case_id }}</h1>
     <p>
         {% if detail.patient_name %}
@@ -46,9 +48,6 @@
     {% endif %}
 
     <p><a href="{% url 'manager_home' %}">← Voltar para Casos</a></p>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit">Sair</button>
-    </form>
+
 </body>
 </html>

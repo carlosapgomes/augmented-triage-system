@@ -9,7 +9,7 @@
 
 ## Phase 2 - Role-aware shell consolidation
 
-- [ ] 2.1 Ajustar o shell final para separar claramente navegação de `manager` e `admin`.
+- [x] 2.1 Ajustar o shell final para separar claramente navegação de `manager` e `admin`.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/03-manager-admin-shell-navigation.md`
 
 ## Phase 3 - Admin surfaces

@@ -1,0 +1,23 @@
+<nav class="shell-nav">
+  <ul class="nav-links">
+    <li class="nav-dashboard">
+      <a href="{% url 'manager_home' %}">Dashboard</a>
+    </li>
+    {% if user.role == 'admin' %}
+    <li class="nav-admin-users">
+      <a href="{% url 'admin_users' %}">Usuários</a>
+    </li>
+    <li class="nav-admin-prompts">
+      <a href="{% url 'admin_prompts' %}">Prompts</a>
+    </li>
+    {% endif %}
+  </ul>
+  <div class="nav-user">
+    <span class="nav-email">{{ user.email }}</span>
+    <span class="nav-role">{{ user.get_role_display }}</span>
+    <form method="post" action="{% url 'logout' %}" class="nav-logout-form">
+      {% csrf_token %}
+      <button type="submit" class="nav-logout-btn">Sair</button>
+    </form>
+  </div>
+</nav>
