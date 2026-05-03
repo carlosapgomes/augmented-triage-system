@@ -44,7 +44,7 @@ The system SHALL provide a dashboard case list view for authenticated operationa
 
 ### Requirement: Dashboard SHALL Show Chronological Case Thread Across Rooms
 
-The system SHALL provide a per-case detail view with both `Fluxo por Etapas` and `Histórico Completo`, including the chronological sequence of messages/events across Room-1, Room-2, and Room-3 with visual room identification for authenticated operational users.
+The system SHALL provide a per-case detail view with both `Fluxo por Etapas` and `Histórico Completo`, including the chronological sequence of messages/events across Room-1, Room-2, and Room-3 with visual room identification for authenticated operational users, even when human workflow actions originate from the web app.
 
 #### Scenario: Reader opens a case timeline
 
@@ -57,6 +57,12 @@ The system SHALL provide a per-case detail view with both `Fluxo por Etapas` and
 - **WHEN** an authenticated `admin` opens the detail view for a case
 - **THEN** the system MUST return events ordered chronologically for that case
 - **AND** each event MUST include room identifier, timestamp, actor/sender, and event type
+
+#### Scenario: Operator opens a case timeline containing web-origin actions
+
+- **WHEN** an authenticated operational user opens the detail view for a case containing NIR, doctor, or scheduler actions submitted through the web app
+- **THEN** the system MUST return those events in chronological order together with existing PDF, LLM, and system events
+- **AND** each event MUST include actor identity, timestamp, origin/source metadata, and event type
 
 #### Scenario: Reader accesses full event content in Histórico Completo
 
@@ -78,12 +84,18 @@ The system SHALL provide a per-case detail view with both `Fluxo por Etapas` and
 
 ### Requirement: Timeline SHALL Include ACKs And Human Replies
 
-The timeline view SHALL include bot acknowledgments and user replies as first-class events to preserve end-to-end auditability.
+The timeline view SHALL include bot acknowledgments and human actions as first-class events to preserve end-to-end auditability.
 
 #### Scenario: Case contains ACK and human response events
 
 - **WHEN** a case includes acknowledgments and human replies in its flow
 - **THEN** those events MUST appear in the same timeline sequence
+- **AND** they MUST remain distinguishable by event type and actor metadata
+
+#### Scenario: Case contains web-human actions and acknowledgments
+
+- **WHEN** a case includes web-origin human actions together with automated acknowledgments or downstream events
+- **THEN** those records MUST appear in the same timeline sequence
 - **AND** they MUST remain distinguishable by event type and actor metadata
 
 ### Requirement: Dashboard Pages SHALL Be Accessible Through Web Session Authentication

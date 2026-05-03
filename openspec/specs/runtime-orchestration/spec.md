@@ -8,13 +8,13 @@ Define runtime process startup requirements and parity constraints for local and
 
 ### Requirement: Bot API Runtime Serving
 
-The system SHALL run `bot-api` as a long-lived ASGI process that supports runtime HTTP needs outside medical decision submission, while standard Room-2 doctor decisions are executed through Matrix structured replies.
+The system SHALL run the supported runtime processes required for HTTP/web workflow needs while medical workflow progression remains orchestrated by the backend services.
 
-#### Scenario: Bot API process starts in runtime mode
+#### Scenario: Runtime processes start in web-workflow mode
 
-- **WHEN** the `bot-api` runtime entrypoint is launched with valid settings
-- **THEN** the process MUST remain running and serve non-decision runtime routes required by the current product scope
-- **AND** medical decisions MUST remain driven by Matrix structured reply flow
+- **WHEN** the supported runtime entrypoints are launched with valid settings
+- **THEN** the system MUST remain running and serve the web workflow surfaces required by the current product scope
+- **AND** workflow progression MUST remain orchestrated by backend services rather than by manual message handling
 
 ### Requirement: Compose and UV Runtime Parity
 
@@ -39,6 +39,12 @@ Runtime orchestration changes SHALL NOT alter authoritative triage workflow beha
 
 - **WHEN** runtime-serving and startup wiring are implemented
 - **THEN** state-machine semantics, decision contract, and cleanup trigger behavior MUST remain unchanged
+
+#### Scenario: Human workflow surfaces migrate from messages to web
+
+- **WHEN** the system replaces human message interactions with web interactions
+- **THEN** the backend MUST preserve the existing state-machine semantics and branch behavior
+- **AND** only the human interaction surface MUST change
 
 ### Requirement: Matrix Structured Reply SHALL Be The Single Standard Room-2 Decision Path
 

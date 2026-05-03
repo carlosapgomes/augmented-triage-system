@@ -44,11 +44,20 @@ for operations and support teams before production usage.
 - **AND** language navigation MUST provide Portuguese default and English
   mirror to support mixed-language teams
 
+#### Scenario: Operator performs manual E2E checks for the web workflow
+
+- **WHEN** a team member follows the manual runbook after the migration to
+  operational web flows
+- **THEN** the runbook MUST cover NIR upload, doctor decision, scheduler
+  confirmation, and final NIR acknowledgment through the web surfaces
+- **AND** each step MUST remain concrete enough to execute without code
+  changes
+
 #### Scenario: Role, prompt, and user governance checks are reviewed
 
 - **WHEN** manual validation reaches authorization, prompt-management, and
   user-management checks
-- **THEN** the runbook MUST include role matrix expectations (`reader` vs
+- **THEN** the runbook MUST include role matrix expectations (`manager` vs
   `admin`)
 - **AND** the runbook MUST include prompt activation/create verification points
   consistent with current admin surface
@@ -58,35 +67,37 @@ for operations and support teams before production usage.
 - **AND** the runbook MUST include expected audit-event verification points for
   user-management actions
 
-### Requirement: Manual E2E SHALL Validate Single Room-2 Structured Reply Decision Path
+### Requirement: Manual E2E SHALL Validate Single Web-Based Doctor Decision Path
 
-Manual runbooks SHALL validate the three-message Room-2 combo protocol and
-structured doctor replies as the only standard decision path, including
-explicit physician choice of admission flow for accepted decisions.
+Manual runbooks SHALL validate the doctor web form as the standard human
+decision path.
 
-#### Scenario: Operator validates accepted scheduled workflow in mobile-capable client
+#### Scenario: Operator validates accepted scheduled workflow through web surfaces
 
-- **WHEN** operator follows the documented Room-2 decision runbook for an
-  accepted case routed to scheduling
-- **THEN** they MUST verify message I + II + III publication, grouped
-  relations for II/III to I, and structured reply submission to message I
-- **AND** they MUST verify message III includes the explicit
-  `fluxo de admissão` line
-- **AND** they MUST verify the accepted reply with `agendamento` produces the
-  expected Room-3 scheduling progression
-- **AND** they MUST verify a Room-2 decision confirmation message is posted by
-  the bot after successful decision handling
+- **WHEN** operator follows the documented web workflow for an accepted case
+  routed to scheduling
+- **THEN** they MUST verify NIR upload, doctor web decision submission,
+  scheduler web confirmation, and final NIR acknowledgment
+- **AND** they MUST verify the expected backend workflow progression between
+  those steps
 
-#### Scenario: Operator validates accepted immediate-admission workflow in mobile-capable client
+#### Scenario: Operator validates invalid doctor form submission
 
-- **WHEN** operator follows the documented Room-2 decision runbook for an
-  accepted case routed to immediate admission
-- **THEN** they MUST verify the physician can submit the structured reply using
-  `vinda_imediata` or equivalent accepted alias
-- **AND** they MUST verify the Room-2 decision confirmation echoes the
-  normalized immediate-admission flow
-- **AND** they MUST verify positive acknowledgment reaction in Room-2 remains
-  optional and non-blocking for workflow progression
+- **WHEN** operator submits an invalid doctor decision payload through the web
+  form
+- **THEN** the decision MUST be rejected
+- **AND** no invalid workflow mutation MUST occur
+
+### Requirement: Manual E2E SHALL Validate Web-Based Scheduler Decision Path
+
+Manual runbooks SHALL validate the scheduler web form as the standard human
+scheduling path.
+
+#### Scenario: Operator validates invalid scheduler form submission
+
+- **WHEN** operator submits an invalid scheduler payload through the web form
+- **THEN** the scheduling action MUST be rejected
+- **AND** no invalid workflow mutation MUST occur
 
 ### Requirement: Manual E2E SHALL Validate Structured Reply Rejection Cases
 
@@ -130,12 +141,12 @@ records across rooms with actor, timestamp, and ACK visibility.
 Manual runbooks SHALL validate role-based authorization for prompt-management
 operations.
 
-#### Scenario: Admin and reader execute prompt-management actions
+#### Scenario: Admin and manager execute prompt-management actions
 
-- **WHEN** an `admin` performs prompt activation and a `reader` attempts the
+- **WHEN** an `admin` performs prompt activation and a `manager` attempts the
   same action
 - **THEN** admin action MUST succeed and produce an audit event
-- **AND** reader action MUST be rejected with no mutation of active prompt
+- **AND** manager action MUST be rejected with no mutation of active prompt
   version
 
 ### Requirement: Manual E2E SHALL Validate EDA Scope-Gating Manual Review Path
