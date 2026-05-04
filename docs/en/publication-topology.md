@@ -68,8 +68,8 @@ the existing app-level blocking.
     ├── /nir/*       ← blocked on external path
     ├── /doctor/*    ← allowed externally
     ├── /scheduler/* ← blocked on external path
-    ├── /dashboard/* ← allowed externally (manager)
-    └── /admin/*     ← allowed externally (admin)
+    ├── /manager/*   ← allowed externally
+    └── /admin/*     ← allowed externally
 ```
 
 ## Access Matrix by Role and Zone

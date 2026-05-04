@@ -68,8 +68,8 @@ app-level já existente.
     ├── /nir/*       ← bloqueado no caminho externo
     ├── /doctor/*    ← permitido externamente
     ├── /scheduler/* ← bloqueado no caminho externo
-    ├── /dashboard/* ← permitido externamente (manager)
-    └── /admin/*     ← permitido externamente (admin)
+    ├── /manager/*   ← permitido externamente
+    └── /admin/*     ← permitido externamente
 ```
 
 ## Matriz de Acesso por Papel e Zona

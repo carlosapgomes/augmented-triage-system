@@ -75,6 +75,13 @@ def test_publication_topology_defines_role_access_matrix_for_internal_access() -
     assert "scheduler" in doc
     assert "manager" in doc
     assert "admin" in doc
+    # Verify diagram uses role-prefixed Django paths, not legacy /dashboard/*
+    assert "/manager/*" in doc
+    assert "/admin/*" in doc
+    assert "/nir/*" in doc
+    assert "/doctor/*" in doc
+    assert "/scheduler/*" in doc
+    assert "/dashboard/*" not in doc
 
 
 def test_publication_topology_blocks_nir_on_external_path() -> None:
@@ -182,6 +189,13 @@ def test_publication_topology_english_defines_access_matrix() -> None:
     assert "scheduler" in doc
     assert "manager" in doc
     assert "admin" in doc
+    # Verify diagram uses role-prefixed Django paths, not legacy /dashboard/*
+    assert "/manager/*" in doc
+    assert "/admin/*" in doc
+    assert "/nir/*" in doc
+    assert "/doctor/*" in doc
+    assert "/scheduler/*" in doc
+    assert "/dashboard/*" not in doc
 
 
 def test_publication_topology_english_blocks_nir_and_scheduler_externally() -> None:

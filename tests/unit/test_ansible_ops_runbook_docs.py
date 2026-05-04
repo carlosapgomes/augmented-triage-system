@@ -31,6 +31,9 @@ def test_ansible_ops_runbook_documents_initial_installation_in_portuguese() -> N
     assert "django-ops" in runbook
     assert "127.0.0.1:8001" in runbook
     assert "127.0.0.1:8000" not in runbook
+    # PWA section uses role-prefixed Django paths
+    assert "/manager/" in runbook
+    assert "/dashboard/cases" not in runbook
 
 
 def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_portuguese() -> None:

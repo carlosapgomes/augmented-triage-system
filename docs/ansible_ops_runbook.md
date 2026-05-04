@@ -40,25 +40,25 @@ Recomendação operacional:
 Pré-requisitos para instalação em dispositivo:
 
 - dashboard publicado em domínio HTTPS válido;
-- rota inicial funcional em `/dashboard/cases`;
+- rota inicial funcional em `/manager/` (superfície de monitoramento/gestão);
 - autenticação web por sessão ativa para abertura direta no dashboard.
 
 ### Android (Chrome)
 
-1. Abrir `https://<dominio>/dashboard/cases` e autenticar quando necessário.
+1. Abrir `https://<dominio>/manager/` e autenticar quando necessário.
 2. No Chrome, usar o prompt de instalação (quando exibido) ou menu `Instalar app`.
 3. Confirmar nome e ícone do app na tela inicial do Android.
 4. Abrir o app instalado e validar execução em modo `standalone` (sem barra de URL).
-5. Confirmar abertura inicial em `/dashboard/cases`.
+5. Confirmar abertura inicial em `/manager/`.
 6. Com sessão expirada/ausente, validar redirecionamento para `/login`.
 
 ### iOS (Safari)
 
-1. Abrir `https://<dominio>/dashboard/cases` no Safari.
+1. Abrir `https://<dominio>/manager/` no Safari.
 2. Usar `Compartilhar` -> `Adicionar à Tela de Início`.
 3. Confirmar nome e ícone do atalho criado.
 4. Abrir pela tela inicial e validar contexto standalone do Safari.
-5. Confirmar abertura inicial em `/dashboard/cases`.
+5. Confirmar abertura inicial em `/manager/`.
 6. Com sessão expirada/ausente, validar redirecionamento para `/login`.
 
 ### Limitação operacional explícita
