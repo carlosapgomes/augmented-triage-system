@@ -14,8 +14,8 @@ Language: [Portugues (BR)](../security.md) | **English**
 - Webhook callback auth: HMAC signature verification.
 - Login foundation: opaque token issuance with persisted token hash.
 - Password storage: bcrypt hash only (no plaintext).
-- Role model consolidated (Django): `nir`, `doctor`, `scheduler`,
-  `manager` and `admin` (operational) with legacy `reader` role retained.
+- Role model (Django): `nir`, `doctor`, `scheduler`, `manager` and
+  `admin`.
 
 ## Public repository safety checklist
 
