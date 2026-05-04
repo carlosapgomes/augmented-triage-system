@@ -195,6 +195,7 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # 
 
     def test_manager_home_includes_manifest_link(self) -> None:
         """Manager home page must include a manifest link in the HTML head."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="manager@example.com", password="testpass123", role="manager",
         )
@@ -205,6 +206,7 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # 
 
     def test_admin_home_includes_manifest_link(self) -> None:
         """Admin home page must include a manifest link in the HTML head."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="admin@example.com", password="testpass123", role="admin",
         )
@@ -226,6 +228,7 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # 
 
     def test_manager_home_includes_service_worker_registration(self) -> None:
         """Manager home must register the service worker via JavaScript."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="manager@example.com", password="testpass123", role="manager",
         )
@@ -236,6 +239,7 @@ class TestRemoteRolePagesIncludePWAMetadata(TestCase):  # type: ignore[misc]  # 
 
     def test_admin_home_includes_service_worker_registration(self) -> None:
         """Admin home must register the service worker via JavaScript."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="admin@example.com", password="testpass123", role="admin",
         )

@@ -26,7 +26,7 @@
 
 ## Phase 5 - Verification and handoff
 
-- [ ] 5.1 Executar verificação integrada da fundação Django, atualizar documentação afetada e preparar handoff para o change de migração do fluxo operacional.
+- [x] 5.1 Executar verificação integrada da fundação Django, atualizar documentação afetada e preparar handoff para o change de migração do fluxo operacional.
   - Slice file: `openspec/changes/django-web-foundation-and-access-zones/tasks/07-foundation-verification-and-handoff.md`
 
 ## Execution rules for every slice

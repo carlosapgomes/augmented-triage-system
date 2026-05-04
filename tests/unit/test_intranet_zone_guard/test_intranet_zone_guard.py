@@ -94,6 +94,28 @@ class TestNirIntranetAccess(TestCase):  # type: ignore[misc]  # untyped Django b
 class TestSchedulerIntranetAccess(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate Scheduler access policy with IP-based zone enforcement."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up SQLAlchemy database with migrations for scheduler view tests."""
+        super().setUpClass()
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._db_path = Path(cls._tmp_dir) / "test_intranet_scheduler.sqlite"
+        cls._sync_url = f"sqlite+pysqlite:///{cls._db_path}"
+        cls._async_url = f"sqlite+aiosqlite:///{cls._db_path}"
+
+        alembic_config = Config()
+        alembic_config.set_main_option("script_location", "alembic")
+        alembic_config.set_main_option("sqlalchemy.url", cls._sync_url)
+        command.upgrade(alembic_config, "head")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up temp directory."""
+        import shutil
+
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+        super().tearDownClass()
+
     def setUp(self) -> None:
         """Create a Scheduler test user."""
         self.user = User.objects.create_user(
@@ -105,6 +127,7 @@ class TestSchedulerIntranetAccess(TestCase):  # type: ignore[misc]  # untyped Dj
     @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_scheduler_inside_intranet_is_authorized(self) -> None:
         """Scheduler user accessing from an intranet IP must be allowed."""
+        os.environ["DATABASE_URL"] = self._async_url
         self.client.login(
             username="scheduler@example.com", password="testpass123"
         )
@@ -124,9 +147,32 @@ class TestSchedulerIntranetAccess(TestCase):  # type: ignore[misc]  # untyped Dj
 class TestRemoteRolesAccessibleOutsideIntranet(TestCase):  # type: ignore[misc]  # untyped Django base
     """Validate that doctor, manager, and admin remain reachable externally."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up SQLAlchemy database with migrations for remote role tests."""
+        super().setUpClass()
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._db_path = Path(cls._tmp_dir) / "test_intranet_remote.sqlite"
+        cls._sync_url = f"sqlite+pysqlite:///{cls._db_path}"
+        cls._async_url = f"sqlite+aiosqlite:///{cls._db_path}"
+
+        alembic_config = Config()
+        alembic_config.set_main_option("script_location", "alembic")
+        alembic_config.set_main_option("sqlalchemy.url", cls._sync_url)
+        command.upgrade(alembic_config, "head")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up temp directory."""
+        import shutil
+
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
+        super().tearDownClass()
+
     @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_doctor_outside_intranet_is_allowed(self) -> None:
         """Doctor user accessing from external IP must be allowed."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="doctor@example.com",
             password="testpass123",
@@ -139,6 +185,7 @@ class TestRemoteRolesAccessibleOutsideIntranet(TestCase):  # type: ignore[misc] 
     @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_manager_outside_intranet_is_allowed(self) -> None:
         """Manager user accessing from external IP must be allowed."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="manager@example.com",
             password="testpass123",
@@ -153,6 +200,7 @@ class TestRemoteRolesAccessibleOutsideIntranet(TestCase):  # type: ignore[misc] 
     @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_admin_outside_intranet_is_allowed(self) -> None:
         """Admin user accessing from external IP must be allowed."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="admin@example.com",
             password="testpass123",
@@ -165,6 +213,7 @@ class TestRemoteRolesAccessibleOutsideIntranet(TestCase):  # type: ignore[misc] 
     @override_settings(INTRANET_CIDR_ALLOWLIST=TEST_INTRANET_CIDRS)  # type: ignore[untyped-decorator]
     def test_doctor_inside_intranet_is_also_allowed(self) -> None:
         """Doctor user accessing from intranet IP must also be allowed."""
+        os.environ["DATABASE_URL"] = self._async_url
         User.objects.create_user(
             email="doctor@example.com",
             password="testpass123",

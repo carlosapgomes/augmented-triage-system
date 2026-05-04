@@ -10,14 +10,13 @@ before manual end-to-end testing.
 ### Requirement: Deterministic Manual Runtime Validation
 
 The project SHALL define deterministic smoke checks for validating live runtime
-readiness before full manual end-to-end testing using the single structured-
-reply Room-2 decision path.
+readiness before full manual end-to-end testing using the consolidated
+same-host stack.
 
-#### Scenario: Pre-E2E smoke execution
+#### Scenario: Pre-E2E smoke execution for consolidated stack
 
-- **WHEN** operators prepare for manual end-to-end testing
-- **THEN** they MUST be able to verify service startup, database readiness, and
-  Room-2 structured reply readiness with documented deterministic checks
+- **WHEN** operators prepare for manual end-to-end testing after the web consolidation
+- **THEN** they MUST be able to verify service startup, database readiness, consolidated web availability, and role-zone publication expectations with documented deterministic checks
 
 ### Requirement: Configurable External Dependency Test Modes
 
@@ -53,6 +52,12 @@ for operations and support teams before production usage.
 - **AND** each step MUST remain concrete enough to execute without code
   changes
 
+#### Scenario: Operator validates remote and intranet access behavior
+
+- **WHEN** a team member follows the runbook for the consolidated same-host topology
+- **THEN** the runbook MUST include explicit checks that remote-capable roles can access the approved external path
+- **AND** it MUST include explicit checks that intranet-only roles are validated through the correct internal path and denied through the wrong path
+
 #### Scenario: Role, prompt, and user governance checks are reviewed
 
 - **WHEN** manual validation reaches authorization, prompt-management, and
@@ -66,6 +71,12 @@ for operations and support teams before production usage.
   outcomes
 - **AND** the runbook MUST include expected audit-event verification points for
   user-management actions
+
+#### Scenario: Role matrix is validated for manager and admin in the consolidated Django app
+
+- **WHEN** manual validation reaches dashboard and administrative surfaces after consolidation
+- **THEN** the runbook MUST include explicit checks that `manager` has read-only dashboard/reporting access
+- **AND** it MUST include explicit checks that only `admin` can access user-management and prompt-management surfaces
 
 ### Requirement: Manual E2E SHALL Validate Single Web-Based Doctor Decision Path
 
@@ -144,7 +155,7 @@ operations.
 #### Scenario: Admin and manager execute prompt-management actions
 
 - **WHEN** an `admin` performs prompt activation and a `manager` attempts the
-  same action
+  same action in the consolidated Django surface
 - **THEN** admin action MUST succeed and produce an audit event
 - **AND** manager action MUST be rejected with no mutation of active prompt
   version

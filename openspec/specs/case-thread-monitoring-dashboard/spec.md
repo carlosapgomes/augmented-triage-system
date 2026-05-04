@@ -10,16 +10,16 @@ TBD - created by archiving change build-automation-monitoring-dashboard. Update 
 
 The system SHALL provide a dashboard case list view for authenticated operational users, including at minimum case identifier, a compact operational summary, current status, pending stage when the case is still in progress, final outcome when the case is concluded, latest update timestamp, and pagination/filter controls for daily monitoring.
 
-#### Scenario: Reader lists cases processed in a period
+#### Scenario: Manager lists cases processed in a period
 
-- **WHEN** an authenticated `reader` requests the case list filtered by date range
+- **WHEN** an authenticated `manager` requests the case list filtered by date range in the consolidated Django dashboard
 - **THEN** the system MUST return paginated case entries ordered by most recent activity
 - **AND** each entry MUST include case id, compact operational summary, and latest activity timestamp
 
-#### Scenario: Admin lists cases processed in a period
+#### Scenario: Admin lists cases processed in a period from the consolidated dashboard
 
-- **WHEN** an authenticated `admin` requests the case list filtered by date range
-- **THEN** the system MUST return the same paginated monitoring list behavior available to `reader`
+- **WHEN** an authenticated `admin` requests the case list in the consolidated Django dashboard
+- **THEN** the system MUST return the same monitoring behavior available to `manager`
 - **AND** each entry MUST include case id, compact operational summary, and latest activity timestamp
 
 #### Scenario: Case row reflects pending immediate-admission branch without concluding the case
@@ -46,9 +46,9 @@ The system SHALL provide a dashboard case list view for authenticated operationa
 
 The system SHALL provide a per-case detail view with both `Fluxo por Etapas` and `Histórico Completo`, including the chronological sequence of messages/events across Room-1, Room-2, and Room-3 with visual room identification for authenticated operational users, even when human workflow actions originate from the web app.
 
-#### Scenario: Reader opens a case timeline
+#### Scenario: Manager opens a case timeline in the consolidated dashboard
 
-- **WHEN** an authenticated `reader` opens the detail view for a case
+- **WHEN** an authenticated `manager` opens the detail view for a case
 - **THEN** the system MUST return events ordered chronologically for that case
 - **AND** each event MUST include room identifier, timestamp, actor/sender, and event type
 

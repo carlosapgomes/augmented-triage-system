@@ -17,25 +17,24 @@ at `GET /admin/users` for users with role `admin`.
 - **THEN** the system MUST return the user-management HTML page
 - **AND** the page MUST include user listing and management controls
 
-#### Scenario: Reader requests user management page
+#### Scenario: Manager requests user management page
 
-- **WHEN** an authenticated `reader` requests `GET /admin/users`
+- **WHEN** an authenticated `manager` requests the user-management page
 - **THEN** the system MUST reject access with authorization failure
 
-### Requirement: Admin SHALL Create Reader And Admin Accounts
+### Requirement: Admin SHALL Manage All Supported Operational Roles
 
-The system SHALL allow an authenticated `admin` to create new users with role
-`reader` or `admin` using normalized unique email and a valid password.
+The system SHALL allow an authenticated `admin` to create and maintain user accounts with roles `nir`, `doctor`, `scheduler`, `manager`, and `admin`.
 
-#### Scenario: Admin creates reader account
+#### Scenario: Admin creates an operational account with any supported role
 
-- **WHEN** an authenticated `admin` submits a valid create-user request with role `reader`
-- **THEN** the system MUST persist a new active user account with role `reader`
+- **WHEN** an authenticated `admin` submits a valid create-user request for `nir`, `doctor`, `scheduler`, `manager`, or `admin`
+- **THEN** the system MUST persist the user with the selected supported role
 
-#### Scenario: Admin creates admin account
+#### Scenario: Admin changes the role of an existing user
 
-- **WHEN** an authenticated `admin` submits a valid create-user request with role `admin`
-- **THEN** the system MUST persist a new active user account with role `admin`
+- **WHEN** an authenticated `admin` updates the role of an existing user to another supported role
+- **THEN** the system MUST persist the new supported role deterministically
 
 #### Scenario: Duplicate email is submitted
 
@@ -91,7 +90,21 @@ target metadata.
 
 #### Scenario: User-management action succeeds
 
-- **WHEN** an authenticated `admin` successfully creates, blocks, reactivates, or removes a user
+- **WHEN** an authenticated `admin` successfully creates, blocks, reactivates, removes, or role-changes a user
 - **THEN** the system MUST append an audit event
 - **AND** the event MUST include actor identity and target user metadata
-- **AND** the event MUST include action type and resulting state
+- **AND** the event MUST include action type and resulting state when applicable
+
+### Requirement: Legacy Supervisory Role Mapping SHALL Migrate Deterministically
+
+The system SHALL treat the legacy role mapping as `reader -> manager` and `admin -> admin` during the consolidated administrative model.
+
+#### Scenario: Legacy reader account is represented in the new role model
+
+- **WHEN** the consolidated user-management model resolves a legacy `reader` account
+- **THEN** the account MUST be treated as `manager`
+
+#### Scenario: Legacy admin account is represented in the new role model
+
+- **WHEN** the consolidated user-management model resolves a legacy `admin` account
+- **THEN** the account MUST remain `admin`

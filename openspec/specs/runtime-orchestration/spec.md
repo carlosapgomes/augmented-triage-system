@@ -18,12 +18,13 @@ The system SHALL run the supported runtime processes required for HTTP/web workf
 
 ### Requirement: Compose and UV Runtime Parity
 
-The system SHALL provide behaviorally equivalent runtime startup paths for local `uv` execution and Docker Compose execution, and production runtime commands SHALL remain compatible with Ansible-managed deployment automation.
+The system SHALL provide behaviorally equivalent runtime startup paths for local execution and Docker Compose execution for the consolidated same-host stack.
 
-#### Scenario: Runtime command parity
+#### Scenario: Consolidated runtime command parity
 
-- **WHEN** operators launch services via `uv` entrypoints or via Compose commands
-- **THEN** both paths MUST execute the same application startup composition and dependency wiring
+- **WHEN** operators launch the supported consolidated services via local entrypoints or via Compose commands
+- **THEN** both paths MUST execute the same supported startup composition
+- **AND** that composition MUST include the Django web application where required by the consolidated product scope
 
 #### Scenario: Production deploy automation executes runtime commands
 

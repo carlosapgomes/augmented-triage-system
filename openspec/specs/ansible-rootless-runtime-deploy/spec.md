@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change ansible-rootless-docker-deploy. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Ansible SHALL Provision Rootless Runtime Host Baseline
 
 The deployment automation SHALL provision a compatible host baseline for runtime execution, including required system packages, dedicated service user, and rootless Docker prerequisites.
@@ -16,21 +18,21 @@ The deployment automation SHALL provision a compatible host baseline for runtime
 
 ### Requirement: Deploy Automation SHALL Run Application Services As Dedicated User
 
-The deploy automation SHALL start and manage `bot-api`, `bot-matrix`, and `worker` under the dedicated service user context using rootless Docker runtime.
+The deploy automation SHALL start and manage the supported consolidated runtime services under the dedicated service user context using rootless Docker runtime.
 
-#### Scenario: Runtime services start after deploy
+#### Scenario: Consolidated runtime services start after deploy
 
-- **WHEN** operators execute the deploy playbook with valid configuration
-- **THEN** all application services MUST start under the dedicated non-root service user
-- **AND** runtime execution MUST NOT require root privileges for application process lifecycle
+- **WHEN** operators execute the deploy playbook with valid configuration for the consolidated stack
+- **THEN** all supported application services MUST start under the dedicated non-root service user
+- **AND** the deployment model MUST include the new Django web application in the supported runtime composition
 
 ### Requirement: Deploy Playbooks SHALL Be Idempotent
 
-The deploy automation SHALL be idempotent so repeated runs with unchanged inputs do not produce unintended configuration drift or duplicate resources.
+The deploy automation SHALL remain idempotent for the consolidated same-host stack.
 
-#### Scenario: Re-run deploy with same version and variables
+#### Scenario: Re-run deploy with same version and variables for consolidated stack
 
-- **WHEN** operators execute the same deploy playbook twice with identical inputs
+- **WHEN** operators execute the same deploy playbook twice with identical inputs for the consolidated runtime composition
 - **THEN** the second run MUST complete without destructive side effects
 - **AND** resulting runtime state MUST remain equivalent to the first successful run
 
@@ -99,4 +101,3 @@ When scheduler cron is enabled, the automation SHALL validate required Room-4 su
 - **WHEN** scheduler cron is enabled and required summary variables are missing or empty
 - **THEN** automation MUST fail fast with actionable validation feedback
 - **AND** it MUST prevent leaving a configured cron that cannot execute the scheduler correctly
-

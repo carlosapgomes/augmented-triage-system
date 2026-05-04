@@ -3,15 +3,17 @@
 ## Purpose
 
 TBD - created by archiving change ansible-rootless-docker-deploy. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Operations Runbook SHALL Define End-To-End Deploy Procedure
 
-The project SHALL provide an operations runbook that defines the complete procedure for initial install, upgrade, and rollback using the official Ansible playbooks.
+The project SHALL provide an operations runbook that defines the complete procedure for the consolidated same-host stack.
 
-#### Scenario: TI executes initial installation procedure
+#### Scenario: IT executes initial installation procedure for consolidated stack
 
-- **WHEN** hospital IT follows the documented initial installation runbook
-- **THEN** the runbook MUST provide ordered commands and required preconditions for successful execution
+- **WHEN** hospital IT follows the documented initial installation runbook after the Django consolidation
+- **THEN** the runbook MUST provide ordered commands and required preconditions for the consolidated same-host stack
 - **AND** the documented flow MUST map directly to the maintained Ansible playbooks
 
 ### Requirement: Runbook SHALL Declare Mandatory Inventory And Variables
@@ -26,23 +28,23 @@ The operations documentation SHALL explicitly define required inventory structur
 
 ### Requirement: Runbook SHALL Provide Post-Deploy Validation Checklist
 
-The operations runbook SHALL include deterministic post-deploy checks for service health and runtime readiness.
+The operations runbook SHALL include deterministic post-deploy checks for service health, runtime readiness, and role-zone publication behavior.
 
-#### Scenario: Operator validates deployment outcome
+#### Scenario: Operator validates consolidated deployment outcome
 
-- **WHEN** deployment playbook execution completes
+- **WHEN** deployment playbook execution completes for the consolidated stack
 - **THEN** the runbook MUST provide objective verification steps for process/runtime health
-- **AND** expected success criteria MUST be clearly defined for first-level support
+- **AND** it MUST include checks for internal vs remote access-path behavior by role
 
 ### Requirement: Runbook SHALL Include First-Level Troubleshooting Guidance
 
-The operations runbook SHALL include troubleshooting guidance for common deployment and startup failures, including escalation boundaries.
+The operations runbook SHALL include troubleshooting guidance for common consolidated-stack publication and startup failures.
 
-#### Scenario: Operator encounters deployment failure
+#### Scenario: Operator encounters access-publication failure
 
-- **WHEN** a known failure condition occurs during bootstrap or deploy
+- **WHEN** a known publication or zone-hardening failure occurs
 - **THEN** the runbook MUST provide immediate corrective actions for first-level support
-- **AND** the runbook MUST indicate when escalation to development is required
+- **AND** it MUST indicate when escalation to development is required
 
 ### Requirement: Operations Runbook SHALL Document Three-Cutoff Summary Schedule
 
@@ -103,4 +105,3 @@ The runbook SHALL include first-level troubleshooting for rootless Docker cron e
 - **WHEN** operators observe cron-trigger errors for scheduler execution
 - **THEN** the runbook MUST provide immediate checks for `XDG_RUNTIME_DIR`, `DOCKER_HOST`, and compose command reachability
 - **AND** it MUST define escalation criteria when first-level remediation does not restore periodic execution
-

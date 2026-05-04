@@ -21,19 +21,19 @@ The system SHALL provide prompt-management operations for authenticated `admin` 
 - **THEN** the system MUST set that version as active
 - **AND** the system MUST preserve the invariant of a single active version per prompt name
 
-### Requirement: Reader SHALL Have Read-Only Monitoring Access
+### Requirement: Non-Admin Supervisory Roles SHALL Not Access Prompt Management
 
-The system SHALL restrict prompt-management operations to `admin` and MUST reject prompt-management page/API access attempts by `reader`.
+The system SHALL restrict prompt-management operations to `admin` and MUST reject prompt-management page/API access attempts by non-admin supervisory roles as well.
 
-#### Scenario: Reader attempts prompt activation
+#### Scenario: Manager attempts prompt activation
 
-- **WHEN** an authenticated `reader` submits a prompt activation request
+- **WHEN** an authenticated `manager` submits a prompt activation request
 - **THEN** the system MUST reject the operation with authorization failure
 - **AND** no prompt active-version state MUST change
 
-#### Scenario: Reader requests prompt admin page
+#### Scenario: Manager requests prompt admin page
 
-- **WHEN** an authenticated `reader` requests the prompt-management HTML page
+- **WHEN** an authenticated `manager` requests the prompt-management HTML page
 - **THEN** the system MUST reject access with authorization failure
 
 ### Requirement: Prompt Management Actions SHALL Be Auditable
@@ -48,9 +48,9 @@ The system SHALL create audit records for prompt-management actions containing a
 
 ### Requirement: Prompt Management SHALL Have An Authenticated HTML Admin Surface
 
-The system SHALL provide server-rendered prompt-management pages for `admin` users inside the operations web shell.
+The system SHALL provide the prompt-management HTML surface inside the consolidated Django administrative area for `admin` users.
 
-#### Scenario: Admin opens prompt management page
+#### Scenario: Admin opens prompt management page in the consolidated Django app
 
-- **WHEN** an authenticated `admin` requests the prompt-management page
+- **WHEN** an authenticated `admin` requests the prompt-management page inside the Django admin area
 - **THEN** the system MUST render prompt names, versions, active state, and activation controls

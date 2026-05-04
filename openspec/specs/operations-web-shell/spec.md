@@ -26,32 +26,32 @@ The system SHALL render dashboard and admin pages within one shared shell contai
 
 ### Requirement: Shell Navigation SHALL Be Role-Aware
 
-The system SHALL render navigation options according to role permissions.
+The system SHALL render navigation options according to the final consolidated Django role permissions.
 
-#### Scenario: Reader navigates authenticated shell
+#### Scenario: Manager navigates authenticated shell
 
-- **WHEN** an authenticated `reader` renders any shell page
-- **THEN** the shell MUST include dashboard navigation
+- **WHEN** an authenticated `manager` renders any shell page
+- **THEN** the shell MUST include dashboard/reporting navigation
 - **AND** the shell MUST NOT include prompt-admin navigation
 - **AND** the shell MUST NOT include user-admin navigation
 
 #### Scenario: Admin navigates authenticated shell
 
 - **WHEN** an authenticated `admin` renders any shell page
-- **THEN** the shell MUST include dashboard, prompt-admin, and user-admin navigation
+- **THEN** the shell MUST include dashboard/reporting, prompt-admin, and user-admin navigation
 
 ### Requirement: Unauthorized Shell Access SHALL Be Rejected Deterministically
 
-The system SHALL enforce authorization for all shell pages using server-side checks.
+The system SHALL enforce authorization for consolidated shell pages using server-side checks.
 
-#### Scenario: Reader requests admin prompts HTML page
+#### Scenario: Manager requests admin prompts HTML page in the consolidated shell
 
-- **WHEN** an authenticated `reader` requests an admin prompts page
+- **WHEN** an authenticated `manager` requests an admin prompts page
 - **THEN** the system MUST deny access with authorization failure
 - **AND** no prompt state MUST change
 
-#### Scenario: Reader requests admin users HTML page
+#### Scenario: Manager requests admin users HTML page in the consolidated shell
 
-- **WHEN** an authenticated `reader` requests an admin users page
+- **WHEN** an authenticated `manager` requests an admin users page
 - **THEN** the system MUST deny access with authorization failure
 - **AND** no user-account state MUST change
