@@ -8,6 +8,9 @@ from django.urls import path
 
 from apps.django_ops.views import (
     admin_home,
+    admin_prompt_activate,
+    admin_prompt_create,
+    admin_prompt_version_detail,
     admin_prompts_home,
     admin_user_activate,
     admin_user_block,
@@ -94,6 +97,21 @@ urlpatterns = [
         name="admin_user_activate",
     ),
     path("admin/prompts/", admin_prompts_home, name="admin_prompts"),
+    path(
+        "admin/prompts/<str:prompt_name>/versions/<int:version>/",
+        admin_prompt_version_detail,
+        name="admin_prompt_version_detail",
+    ),
+    path(
+        "admin/prompts/<str:prompt_name>/activate/",
+        admin_prompt_activate,
+        name="admin_prompt_activate",
+    ),
+    path(
+        "admin/prompts/<str:prompt_name>/create/",
+        admin_prompt_create,
+        name="admin_prompt_create",
+    ),
     path("manifest.webmanifest", manifest_view, name="manifest"),
     path("service-worker.js", service_worker_view, name="service_worker"),
 ]

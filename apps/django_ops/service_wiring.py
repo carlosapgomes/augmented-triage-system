@@ -12,6 +12,9 @@ from pathlib import Path
 
 from django.conf import settings
 
+from apps.django_ops.django_prompt_management import (
+    DjangoPromptManagementService,
+)
 from triage_automation.application.ports.audit_repository_port import AuditRepositoryPort
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
 from triage_automation.application.ports.job_queue_port import JobQueuePort
@@ -240,6 +243,29 @@ def build_django_user_management_service() -> DjangoUserManagementService:
     return DjangoUserManagementService(
         store=store,
         auth_events=auth_event_repo,
+    )
+
+
+def build_django_prompt_management_service() -> DjangoPromptManagementService:
+    """Build the DjangoPromptManagementService with all dependencies wired.
+
+    Returns:
+        A fully configured ``DjangoPromptManagementService`` ready for use.
+    """
+    database_url = _get_database_url()
+    session_factory = create_session_factory(database_url)
+
+    from triage_automation.infrastructure.db.prompt_template_repository import (
+        SqlAlchemyPromptTemplateRepository,
+    )
+
+    prompt_management = SqlAlchemyPromptTemplateRepository(session_factory)
+    auth_event_repo = SqlAlchemyAuthEventRepository(session_factory)
+
+    return DjangoPromptManagementService(
+        prompt_management=prompt_management,
+        auth_events=auth_event_repo,
+        session_factory=session_factory,
     )
 
 

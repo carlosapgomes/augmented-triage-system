@@ -1144,9 +1144,11 @@ def admin_user_activate(request: HttpRequest, user_id: int) -> HttpResponse:
 
 
 @login_required  # type: ignore[untyped-decorator]
-@require_GET  # type: ignore[untyped-decorator]
 def admin_prompts_home(request: HttpRequest) -> HttpResponse:
-    """Admin prompts management placeholder page.
+    """Admin prompt management page — consolidated Django surface.
+
+    GET: renders prompt names, versions, active state, and
+    activation controls for each prompt.
 
     Only accessible to authenticated ``admin`` role users.
     Other roles receive 403 Forbidden.
@@ -1154,14 +1156,222 @@ def admin_prompts_home(request: HttpRequest) -> HttpResponse:
     if request.user.role != "admin":
         return HttpResponse("Access denied: Admin role required.", status=403)
 
+    from apps.django_ops.service_wiring import (
+        build_django_prompt_management_service,
+        run_async,
+    )
+
+    service = build_django_prompt_management_service()
+    items = run_async(service.list_versions())
+    from triage_automation.application.ports.prompt_management_repository_port import (
+        PromptVersionRecord,
+    )
+    assert isinstance(items, list)
+    typed_items: list[PromptVersionRecord] = items
+
+    # Group versions by prompt name.
+    prompts_by_name: dict[str, list[PromptVersionRecord]] = {}
+    for item in typed_items:
+        prompts_by_name.setdefault(item.name, []).append(item)
+
+    # Sort names for deterministic rendering.
+    sorted_names = sorted(prompts_by_name.keys())
+
     return render(
         request,
-        "django_ops/admin_placeholder.html",
+        "django_ops/admin_prompts.html",
         {
-            "page_title": "Gestão de Prompts",
-            "page_description": "A gestão de prompts será implementada no próximo slice.",
+            "prompts_by_name": {name: prompts_by_name[name] for name in sorted_names},
+            "prompt_visible_limit": 8,
+            "activated_name": request.GET.get("activated_name", ""),
+            "activated_version": request.GET.get("activated_version", ""),
+            "created_name": request.GET.get("created_name", ""),
+            "created_version": request.GET.get("created_version", ""),
+            "error_message": request.GET.get("error", ""),
         },
     )
+
+
+@login_required  # type: ignore[untyped-decorator]
+def admin_prompt_version_detail(
+    request: HttpRequest, prompt_name: str, version: int
+) -> HttpResponse:
+    """Render one prompt version with immutable content and create-new-version form.
+
+    Only accessible to authenticated ``admin`` role users.
+    Other roles receive 403 Forbidden.
+    Returns a redirect to the prompt list if version not found.
+    """
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    from urllib.parse import urlencode
+
+    from apps.django_ops.service_wiring import (
+        build_django_prompt_management_service,
+        run_async,
+    )
+
+    service = build_django_prompt_management_service()
+    item = run_async(
+        service.get_version(prompt_name=prompt_name, version=version)
+    )
+    from triage_automation.application.ports.prompt_management_repository_port import (
+        PromptVersionContentRecord,
+    )
+
+    if item is None or not isinstance(item, PromptVersionContentRecord):
+        return HttpResponseRedirect(
+            f"/admin/prompts/?{urlencode({'error': 'Versao de prompt nao encontrada.'})}"
+        )
+
+    return render(
+        request,
+        "django_ops/admin_prompt_version_detail.html",
+        {
+            "prompt_name": item.name,
+            "version": item.version,
+            "is_active": item.is_active,
+            "content": item.content,
+            "error_message": request.GET.get("error", ""),
+        },
+    )
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def admin_prompt_activate(
+    request: HttpRequest, prompt_name: str
+) -> HttpResponse:
+    """Activate a prompt version from the server-rendered admin page.
+
+    Only accessible to authenticated ``admin`` role users.
+    Redirects to prompt list with success/error query params.
+    """
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    from urllib.parse import urlencode
+
+    from apps.django_ops.django_prompt_management import (
+        DjangoPromptVersionNotFoundError,
+    )
+    from apps.django_ops.service_wiring import (
+        build_django_prompt_management_service,
+        run_async,
+    )
+
+    version_str = request.POST.get("version", "").strip()
+    if not version_str or not version_str.isdigit():
+        return HttpResponseRedirect(
+            f"/admin/prompts/?{urlencode({'error': 'Versao invalida.'})}"
+        )
+    version = int(version_str)
+    if version <= 0:
+        return HttpResponseRedirect(
+            f"/admin/prompts/?{urlencode({'error': 'Versao invalida.'})}"
+        )
+
+    service = build_django_prompt_management_service()
+    try:
+        activated = run_async(
+            service.activate_version(
+                prompt_name=prompt_name,
+                version=version,
+                actor_pk=request.user.pk,
+                actor_email=request.user.email,
+            )
+        )
+    except DjangoPromptVersionNotFoundError:
+        return HttpResponseRedirect(
+            f"/admin/prompts/?{urlencode({'error': 'Versao de prompt nao encontrada.'})}"
+        )
+
+    from triage_automation.application.ports.prompt_management_repository_port import (
+        PromptVersionRecord,
+    )
+    assert isinstance(activated, PromptVersionRecord)
+
+    query_string = urlencode(
+        {
+            "activated_name": activated.name,
+            "activated_version": str(activated.version),
+        }
+    )
+    return HttpResponseRedirect(f"/admin/prompts/?{query_string}")
+
+
+@login_required  # type: ignore[untyped-decorator]
+@require_POST  # type: ignore[untyped-decorator]
+def admin_prompt_create(
+    request: HttpRequest, prompt_name: str
+) -> HttpResponse:
+    """Create a new immutable prompt version from HTML form content.
+
+    Only accessible to authenticated ``admin`` role users.
+    Redirects to prompt list with success query params or back to
+    version detail with error on invalid/missing content.
+    """
+    if request.user.role != "admin":
+        return HttpResponse("Access denied: Admin role required.", status=403)
+
+    from urllib.parse import urlencode
+
+    from apps.django_ops.django_prompt_management import (
+        DjangoPromptVersionNotFoundError,
+    )
+    from apps.django_ops.service_wiring import (
+        build_django_prompt_management_service,
+        run_async,
+    )
+
+    source_version_str = request.POST.get("source_version", "").strip()
+    if not source_version_str or not source_version_str.isdigit():
+        return HttpResponseRedirect(
+            f"/admin/prompts/?{urlencode({'error': 'Versao de origem invalida.'})}"
+        )
+    source_version = int(source_version_str)
+    if source_version <= 0:
+        return HttpResponseRedirect(
+            f"/admin/prompts/?{urlencode({'error': 'Versao de origem invalida.'})}"
+        )
+
+    content = request.POST.get("content", "").strip()
+    if not content:
+        return HttpResponseRedirect(
+            f"/admin/prompts/{prompt_name}/versions/{source_version}/"
+            f"?{urlencode({'error': 'Conteudo do prompt nao pode ficar vazio.'})}"
+        )
+
+    service = build_django_prompt_management_service()
+    try:
+        created = run_async(
+            service.create_version(
+                prompt_name=prompt_name,
+                source_version=source_version,
+                content=content,
+                actor_pk=request.user.pk,
+                actor_email=request.user.email,
+            )
+        )
+    except DjangoPromptVersionNotFoundError:
+        return HttpResponseRedirect(
+            f"/admin/prompts/{prompt_name}/versions/{source_version}/"
+            f"?{urlencode({'error': 'Versao de origem nao encontrada.'})}"
+        )
+
+    from triage_automation.application.ports.prompt_management_repository_port import (
+        PromptVersionRecord,
+    )
+    assert isinstance(created, PromptVersionRecord)
+
+    query_string = urlencode(
+        {
+            "created_name": created.name,
+            "created_version": str(created.version),
+        }
+    )
+    return HttpResponseRedirect(f"/admin/prompts/?{query_string}")
 
 
 @require_GET  # type: ignore[untyped-decorator]

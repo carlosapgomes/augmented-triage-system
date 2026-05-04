@@ -16,7 +16,7 @@
 
 - [x] 3.1 Consolidar a superfície de gestão de usuários no Django para `admin`.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/04-admin-user-management-consolidation.md`
-- [ ] 3.2 Consolidar a superfície de gestão de prompts no Django para `admin`.
+- [x] 3.2 Consolidar a superfície de gestão de prompts no Django para `admin`.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/05-admin-prompt-management-consolidation.md`
 
 ## Phase 4 - Verification and cutover handoff
@@ -37,6 +37,8 @@
 - Aplicar TDD estrito: RED -> GREEN -> REFACTOR.
 - Manter `manager` estritamente read-only.
 - Manter `admin` como único papel com mutação de usuários/prompts/sistema.
+- Para superfícies consolidadas neste change, priorizar implementação nativa em Django.
+- Tratar FastAPI/Matrix legados como referência de comportamento, autorização e auditabilidade, sem exigir compatibilidade estrutural interna salvo quando o slice pedir integração explícita.
 - Atualizar o checklist do change e parar após um slice.
 
 ## Mandatory implementation report delivery

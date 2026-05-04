@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gestão de Prompts — ATS Operations</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: #f5f5f5;
+        }
+        .shell-nav {
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-links {
+            list-style: none;
+            display: flex;
+            gap: 1rem;
+            margin: 0;
+            padding: 0;
+        }
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+        }
+        .nav-links a:hover {
+            color: #007bff;
+        }
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .nav-email { color: #666; }
+        .nav-role {
+            background: #e9ecef;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+        .nav-logout-btn {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-success { background: #28a745; color: #fff; }
+        .badge-secondary { background: #6c757d; color: #fff; }
+        .btn {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .btn-primary { background: #007bff; color: #fff; border-color: #007bff; }
+        .btn-outline-secondary { background: #fff; color: #6c757d; border-color: #6c757d; }
+        .btn-sm { font-size: 0.75rem; padding: 0.2rem 0.5rem; }
+        .table-responsive { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.4rem 0.6rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th { font-weight: 600; background: #f8f9fa; }
+        .text-end { text-align: right; }
+        .d-flex { display: flex; }
+        .justify-content-end { justify-content: flex-end; }
+        .justify-content-between { justify-content: space-between; }
+        .align-items-center { align-items: center; }
+        .gap-2 { gap: 0.5rem; }
+        .flex-wrap { flex-wrap: wrap; }
+        .mt-3 { margin-top: 1rem; }
+        .mb-0 { margin-bottom: 0; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .mb-4 { margin-bottom: 1.5rem; }
+        .d-none { display: none; }
+        .d-inline { display: inline; }
+        .h5 { font-size: 1.1rem; }
+        .h6 { font-size: 0.95rem; }
+        .text-secondary { color: #6c757d; }
+        .prompt-versions-wrapper { max-height: 22rem; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    {% include "django_ops/_shell_nav.html" %}
+
+    <div class="card mb-4">
+        <h2 class="h5 mb-2">Gestão de Prompts</h2>
+        <p class="text-secondary mb-0">Selecione a versão ativa por prompt com trilha de auditoria.</p>
+    </div>
+
+    {% if activated_name and activated_version %}
+    <div class="alert alert-success">
+        Prompt <strong>{{ activated_name }}</strong> ativado na versão <strong>{{ activated_version }}</strong>.
+    </div>
+    {% endif %}
+
+    {% if created_name and created_version %}
+    <div class="alert alert-success">
+        Prompt <strong>{{ created_name }}</strong> criado na versão <strong>{{ created_version }}</strong>.
+    </div>
+    {% endif %}
+
+    {% if error_message %}
+    <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
+
+    {% for prompt_name, versions in prompts_by_name.items %}
+    <div class="card mb-4">
+        <h3 class="h6 mb-3">{{ prompt_name }}</h3>
+        {% with card_id=prompt_name|cut:"_" %}
+        <div class="table-responsive prompt-versions-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Versão</th>
+                        <th>Estado</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in versions %}
+                    <tr
+                        data-row-id="{{ prompt_name }}-{{ item.version }}"
+                        data-initial-visibility="{% if forloop.counter <= prompt_visible_limit or item.is_active %}visible{% else %}hidden{% endif %}"
+                        {% if forloop.counter > prompt_visible_limit and not item.is_active %}
+                        class="d-none prompt-extra-row"
+                        data-extra-for="{{ card_id }}"
+                        {% endif %}
+                    >
+                        <td>{{ item.version }}</td>
+                        <td>
+                            {% if item.is_active %}
+                            <span class="badge badge-success">Ativa</span>
+                            {% else %}
+                            <span class="badge badge-secondary">Inativa</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+                                <a href="/admin/prompts/{{ prompt_name }}/versions/{{ item.version }}/"
+                                   class="btn btn-outline-secondary btn-sm">
+                                    Ver conteúdo
+                                </a>
+                                {% if not item.is_active %}
+                                <form method="post"
+                                      action="/admin/prompts/{{ prompt_name }}/activate/"
+                                      class="d-inline mb-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="version" value="{{ item.version }}">
+                                    <button type="submit" class="btn btn-primary btn-sm">Ativar</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% comment %}Count hidden rows for this card{% endcomment %}
+        {% with hidden_count=0 %}
+        {% for item in versions %}
+            {% if forloop.counter > prompt_visible_limit and not item.is_active %}
+                {% with hidden_count=hidden_count|add:1 %}{% endwith %}
+            {% endif %}
+        {% endfor %}
+        {# We can't easily compute hidden_count in Django templates, so we use JS #}
+        {% endwith %}
+        <div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    data-toggle-prompt-rows="{{ card_id }}"
+                    data-toggle-mode="show-all"
+                    data-show-all-for="{{ card_id }}">
+                Mostrar todas
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm d-none"
+                    data-toggle-prompt-rows="{{ card_id }}"
+                    data-toggle-mode="show-less"
+                    data-show-less-for="{{ card_id }}">
+                Mostrar menos
+            </button>
+        </div>
+        {% endwith %}
+    </div>
+    {% endfor %}
+
+    <script>
+        document.addEventListener("click", function (event) {
+            const button = event.target.closest("[data-toggle-prompt-rows]");
+            if (!button) return;
+
+            const target = button.getAttribute("data-toggle-prompt-rows");
+            const mode = button.getAttribute("data-toggle-mode");
+            if (!target || !mode) return;
+
+            const rows = document.querySelectorAll('[data-extra-for="' + target + '"]');
+            if (!rows.length) return;
+
+            const showAll = mode === "show-all";
+            rows.forEach(function (row) {
+                if (showAll) {
+                    row.classList.remove("d-none");
+                } else {
+                    row.classList.add("d-none");
+                }
+            });
+
+            const showAllBtn = document.querySelector('[data-show-all-for="' + target + '"]');
+            const showLessBtn = document.querySelector('[data-show-less-for="' + target + '"]');
+            if (showAllBtn) {
+                if (showAll) showAllBtn.classList.add("d-none");
+                else showAllBtn.classList.remove("d-none");
+            }
+            if (showLessBtn) {
+                if (showAll) showLessBtn.classList.remove("d-none");
+                else showLessBtn.classList.add("d-none");
+            }
+        });
+    </script>
+</body>
+</html>

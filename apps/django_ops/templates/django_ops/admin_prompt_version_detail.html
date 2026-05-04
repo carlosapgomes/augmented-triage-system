@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Conteúdo do Prompt — ATS Operations</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: #f5f5f5;
+        }
+        .shell-nav {
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-links {
+            list-style: none;
+            display: flex;
+            gap: 1rem;
+            margin: 0;
+            padding: 0;
+        }
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+        }
+        .nav-links a:hover { color: #007bff; }
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .nav-email { color: #666; }
+        .nav-role {
+            background: #e9ecef;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+        .nav-logout-btn {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-success { background: #28a745; color: #fff; }
+        .badge-secondary { background: #6c757d; color: #fff; }
+        .btn {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .btn-primary { background: #007bff; color: #fff; border-color: #007bff; }
+        .btn-outline-secondary { background: #fff; color: #6c757d; border-color: #6c757d; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .mb-4 { margin-bottom: 1.5rem; }
+        .d-flex { display: flex; }
+        .flex-column { flex-direction: column; }
+        .justify-content-between { justify-content: space-between; }
+        .align-items-md-start { }
+        .gap-2 { gap: 0.5rem; }
+        .h5 { font-size: 1.1rem; }
+        .h6 { font-size: 0.95rem; }
+        .text-secondary { color: #6c757d; }
+        .bg-light { background: #f8f9fa; }
+        .border { border: 1px solid #ddd; }
+        .rounded { border-radius: 4px; }
+        .p-3 { padding: 1rem; }
+        pre {
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .form-control {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    {% include "django_ops/_shell_nav.html" %}
+
+    <div class="card mb-4">
+        <div class="d-flex flex-column justify-content-between gap-2">
+            <div>
+                <h2 class="h5 mb-1">Conteúdo do Prompt</h2>
+                <p class="mb-0 text-secondary">
+                    <strong>{{ prompt_name }}</strong> v{{ version }}
+                </p>
+            </div>
+            {% if is_active %}
+            <span class="badge badge-success">Ativa</span>
+            {% else %}
+            <span class="badge badge-secondary">Inativa</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if error_message %}
+    <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <h3 class="h6 mb-3">Versão selecionada</h3>
+        <pre class="bg-light border rounded p-3">{{ content }}</pre>
+    </div>
+
+    <div class="card">
+        <h3 class="h6 mb-3">Criar nova versão a partir desta</h3>
+        <form method="post" action="/admin/prompts/{{ prompt_name }}/create/">
+            {% csrf_token %}
+            <input type="hidden" name="source_version" value="{{ version }}">
+            <div class="mb-3">
+                <label class="form-label" for="content">Novo conteúdo</label>
+                <textarea id="content" name="content" class="form-control" rows="14" required>{{ content }}</textarea>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Criar nova versão</button>
+                <a href="/admin/prompts/" class="btn btn-outline-secondary">Voltar</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
