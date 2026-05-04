@@ -4,6 +4,17 @@
 
 This file is the implementation pre-read for every slice. It summarizes the authoritative handoff contract, architecture boundaries, and non-negotiable constraints so execution remains deterministic when context is reset.
 
+## Web Refactor Override (Authoritative For Active Web Changes)
+
+For the active web-refactor changes (`django-web-foundation-and-access-zones`, `web-triage-workflow-migration`, `admin-manager-web-consolidation`, and `same-host-deployment-and-hardening`), the following override is authoritative:
+
+- The target human-facing operational and administrative implementation is the Django app.
+- Legacy FastAPI and Matrix human/admin surfaces are reference-only for business outcomes, authorization intent, and audit expectations.
+- Do **not** force structural compatibility with legacy FastAPI/SQLAlchemy admin adapters when consolidating functionality into Django.
+- Reimplementing backend behavior natively in Django is allowed and preferred for consolidated web surfaces, as long as the slice preserves the approved business rules, role contracts, auditability, and state-machine behavior.
+- Reuse legacy code only when it remains the clearest way to preserve shared business invariants or when the current slice/spec explicitly requires bridging to existing runtime components.
+- If a legacy adapter contract conflicts with the approved Django consolidation direction, follow the Django consolidation direction for the active web-refactor change.
+
 ## Authoritative Sources
 
 - Primary contract: `prompts/first-prompt.md` (embedded `<handoff>` specification).

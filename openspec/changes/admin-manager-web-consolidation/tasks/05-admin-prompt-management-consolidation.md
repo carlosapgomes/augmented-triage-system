@@ -31,10 +31,29 @@ Neste slice, a referência FastAPI/SQLAlchemy anterior deve ser tratada como leg
 
 ## Implementation notes
 
-- Created `DjangoPromptManagementService` in `apps/django_ops/django_prompt_management.py` — Django-native service that uses shared `PromptManagementRepositoryPort` for reads and direct SQLAlchemy session access for writes (bypassing UUID `updated_by_user_id` FK constraint from legacy users table).
-- Audit events written with `user_id=NULL` and Django actor identity in payload, following same pattern as `DjangoUserManagementService`.
+### Initial implementation (v1)
+
+- Created `DjangoPromptManagementService` in `apps/django_ops/django_prompt_management.py`
+  (later corrected — see v2 below).
 - Replaced placeholder view with 4 real views: listing, version detail, activate, create.
 - 18 integration tests passing (TDD), no regressions in Django surface.
+
+### Architecture correction (v2)
+
+- Removed business logic from the adapter layer (`apps/django_ops/`).
+- Created `DjangoPromptStorePort` in `src/triage_automation/application/ports/` — clean protocol
+  for prompt-template persistence operations without exposing storage concerns.
+- Moved `DjangoPromptManagementService` to `src/triage_automation/application/services/` —
+  contains pure business logic (activation CAS, version derivation, audit) with no SQLAlchemy
+  or Django imports.
+- Created `DjangoOrmPromptStoreAdapter` in `apps/django_ops/` — thin adapter implementing
+  `DjangoPromptStorePort` against the shared `prompt_templates` table via SQLAlchemy.
+  The shared runtime dependency is justified because `prompt_templates` is a genuine
+  shared table managed by Alembic migrations.
+- `DjangoPromptActor` DTO used for actor identity (same pattern as `DjangoActor` in
+  `DjangoUserManagementService`).
+- Audit events written with `user_id=NULL` and Django actor identity in payload.
+- Views remain thin — only role checks, parameter parsing, and service delegation.
 
 ## Mandatory report file
 

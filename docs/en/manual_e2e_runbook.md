@@ -6,10 +6,14 @@ This runbook validates the full operational workflow end-to-end in a
 controlled/deterministic local environment, covering both the operational web
 interface (NIR, doctor, scheduler) and the monitoring/audit dashboard.
 
+> **Current web-refactor direction:** validation should prioritize the consolidated Django surface. Steps involving human-facing FastAPI/Matrix surfaces should be treated as legacy reference or cutover support, not as a required compatibility baseline.
+
 Run `docs/en/runtime-smoke.md` first to confirm process startup and callback
 reachability.
 
 ## Prerequisites
+
+> **Note:** the final admin and operational routes in this program should converge on Django. If a section below still mentions a legacy route or historical human-facing flow, treat it as historical reference until the final handoff slice refreshes the runbook completely.
 
 1. Start the runtime processes with the same commands used in
    `docs/en/runtime-smoke.md`:

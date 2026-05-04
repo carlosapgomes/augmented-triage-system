@@ -8,6 +8,8 @@ Documentar e validar a topologia interna vs externa no mesmo host.
 
 O stack consolidado já sobe no host. Agora é preciso definir claramente os caminhos suportados de acesso interno e remoto.
 
+Para este change, a topologia oficial deve ser descrita em torno da superfície humana/admin consolidada no Django. Superfícies FastAPI/Matrix legadas ficam fora do caminho suportado de operação humana final, salvo referência técnica de transição/desativação.
+
 ## Scope boundaries
 
 **Included:** topologia suportada, critérios objetivos de publicação interna/externa, checks operacionais de validação.
@@ -21,8 +23,9 @@ O stack consolidado já sobe no host. Agora é preciso definir claramente os cam
 
 ## Success criteria
 
-- existe topologia oficial clara para acesso interno e remoto;
-- critérios de validação são objetivos.
+- existe topologia oficial clara para acesso interno e remoto da superfície Django consolidada;
+- critérios de validação são objetivos;
+- a documentação não pressupõe convivência operacional com superfícies humanas legadas.
 
 ## Mandatory report file
 

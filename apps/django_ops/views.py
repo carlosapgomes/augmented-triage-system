@@ -1253,12 +1253,13 @@ def admin_prompt_activate(
 
     from urllib.parse import urlencode
 
-    from apps.django_ops.django_prompt_management import (
-        DjangoPromptVersionNotFoundError,
-    )
     from apps.django_ops.service_wiring import (
         build_django_prompt_management_service,
         run_async,
+    )
+    from triage_automation.application.services.django_prompt_management import (
+        DjangoPromptActor,
+        DjangoPromptVersionNotFoundError,
     )
 
     version_str = request.POST.get("version", "").strip()
@@ -1273,13 +1274,13 @@ def admin_prompt_activate(
         )
 
     service = build_django_prompt_management_service()
+    actor = DjangoPromptActor(pk=request.user.pk, email=request.user.email)
     try:
         activated = run_async(
             service.activate_version(
                 prompt_name=prompt_name,
                 version=version,
-                actor_pk=request.user.pk,
-                actor_email=request.user.email,
+                actor=actor,
             )
         )
     except DjangoPromptVersionNotFoundError:
@@ -1317,12 +1318,13 @@ def admin_prompt_create(
 
     from urllib.parse import urlencode
 
-    from apps.django_ops.django_prompt_management import (
-        DjangoPromptVersionNotFoundError,
-    )
     from apps.django_ops.service_wiring import (
         build_django_prompt_management_service,
         run_async,
+    )
+    from triage_automation.application.services.django_prompt_management import (
+        DjangoPromptActor,
+        DjangoPromptVersionNotFoundError,
     )
 
     source_version_str = request.POST.get("source_version", "").strip()
@@ -1344,14 +1346,14 @@ def admin_prompt_create(
         )
 
     service = build_django_prompt_management_service()
+    actor = DjangoPromptActor(pk=request.user.pk, email=request.user.email)
     try:
         created = run_async(
             service.create_version(
                 prompt_name=prompt_name,
                 source_version=source_version,
                 content=content,
-                actor_pk=request.user.pk,
-                actor_email=request.user.email,
+                actor=actor,
             )
         )
     except DjangoPromptVersionNotFoundError:

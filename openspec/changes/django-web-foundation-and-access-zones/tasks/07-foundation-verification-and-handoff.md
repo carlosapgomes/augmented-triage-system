@@ -8,6 +8,8 @@ Fechar o change de fundação com verificação integrada, documentação necess
 
 Todos os slices anteriores da fundação Django já foram implementados. Este slice apenas consolida, valida e prepara a transição para o change seguinte.
 
+O handoff desta fundação deve deixar explícito que a direção dos changes web seguintes é consolidar as superfícies humanas/admin no Django, sem exigir compatibilidade estrutural com as superfícies legadas em FastAPI/Matrix.
+
 ## Scope boundaries
 
 **Included:** testes integrados focados, ajustes finais de documentação, atualização de checklist OpenSpec, handoff para `web-triage-workflow-migration`.
@@ -22,7 +24,8 @@ Todos os slices anteriores da fundação Django já foram implementados. Este sl
 
 - fundação Django validada end-to-end no escopo aprovado;
 - artefatos OpenSpec atualizados;
-- documentação mínima de operação/handoff pronta.
+- documentação mínima de operação/handoff pronta;
+- a direção Django-first dos próximos changes fica explícita.
 
 ## Mandatory report file
 

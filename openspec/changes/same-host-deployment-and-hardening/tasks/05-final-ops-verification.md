@@ -8,6 +8,8 @@ Atualizar runbooks/manuais e verificar o baseline operacional final do stack con
 
 Runtime, deploy, topologia e hardening já foram tratados. Este slice fecha o change com verificação operacional integrada.
 
+O baseline final deve assumir a superfície Django como caminho oficial de operação humana/admin. Referências a FastAPI/Matrix legados devem ficar restritas a cutover, troubleshooting de retirada ou dependências de backend ainda existentes.
+
 ## Scope boundaries
 
 **Included:** runbooks finais, checklists manuais, checklist OpenSpec, verificação integrada do baseline.
@@ -21,7 +23,8 @@ Runtime, deploy, topologia e hardening já foram tratados. Este slice fecha o ch
 ## Success criteria
 
 - baseline operacional final está documentado e verificável;
-- handoff para operação/infra está claro.
+- handoff para operação/infra está claro;
+- a documentação final deixa explícita a aposentadoria das superfícies humanas/admin legadas.
 
 ## Mandatory report file
 

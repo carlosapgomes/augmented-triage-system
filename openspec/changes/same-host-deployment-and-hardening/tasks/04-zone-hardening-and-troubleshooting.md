@@ -8,6 +8,8 @@ Adicionar hardening operacional, checklist de zona por papel e troubleshooting d
 
 A topologia já está definida. Agora é preciso garantir que os caminhos certos estejam permitidos/negados para cada papel e que a operação saiba diagnosticar desvios.
 
+O foco é o caminho operacional final via Django. Troubleshooting de superfícies humanas legadas deve aparecer apenas como apoio à retirada/cutover, não como baseline suportado.
+
 ## Scope boundaries
 
 **Included:** checklist por papel/zona, hardening operacional documentado, troubleshooting inicial, critérios de escalonamento.
@@ -22,8 +24,9 @@ A topologia já está definida. Agora é preciso garantir que os caminhos certos
 ## Success criteria
 
 - `nir`/`scheduler` têm validação explícita de negação fora da intranet;
-- `doctor`/`manager`/`admin` têm validação explícita de acesso remoto aprovado;
-- troubleshooting inicial está claro.
+- `doctor`/`manager`/`admin` têm validação explícita de acesso remoto aprovado à superfície Django consolidada;
+- troubleshooting inicial está claro;
+- a documentação não reintroduz dependência operacional de superfícies humanas legadas.
 
 ## Mandatory report file
 

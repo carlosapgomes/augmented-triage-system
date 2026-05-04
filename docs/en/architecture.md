@@ -4,6 +4,8 @@ Language: [Portugues (BR)](../architecture.md) | **English**
 
 ## Overview
 
+> **Current web-refactor direction:** for the human and administrative surfaces covered by the active web changes, Django is the target implementation. FastAPI and Matrix should be treated as legacy reference points for behavior, audit expectations, and remaining integrations, not as a required structural compatibility baseline.
+
 The system is split into four deployable apps plus PostgreSQL:
 
 - `bot-api`: HTTP ingress for login/auth foundation and runtime support endpoints.
@@ -39,9 +41,9 @@ Rules:
 ## Workflow notes
 
 - The triage lifecycle is state-machine driven (see `PROJECT_CONTEXT.md` for canonical states).
-- Room-2 medical decision path is Matrix structured reply only.
-- Cleanup is triggered by first Room-1 thumbs-up reaction on final reply.
-- Monitoring includes both API and server-rendered dashboard pages in `bot-api`.
+- During the web refactor, the consolidated human operational and administrative interface should move to `django-ops`; references to human-facing FastAPI/Matrix surfaces are legacy guidance for consultation and controlled retirement.
+- Cleanup is triggered by the first Room-1 thumbs-up reaction on the final reply, unless an approved web change explicitly moves that checkpoint to an equivalent web action.
+- The final monitoring and administrative surface in this program should converge on Django.
 - Prompt management remains admin-only on the administrative surface.
 
 ## Persistence model (high level)

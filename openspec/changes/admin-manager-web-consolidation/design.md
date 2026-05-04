@@ -41,20 +41,25 @@ O objetivo não é redesenhar o dashboard ou a governança existente, mas mover 
 - **Escolha:** a consolidação do dashboard/detalhe no Django vem antes da finalização das áreas de usuários/prompts, e só deve começar após o slice `web-triage-workflow-migration/09-web-workflow-audit-visibility.md` estabilizar a timeline web completa.
 - **Racional:** a leitura gerencial tem dependência direta do fluxo operacional já migrado e serve como base visual para `manager` e `admin`.
 
-### Decision 3: Reusar as invariantes já existentes de gestão de usuários e prompts com expansão explícita dos papéis
+### Decision 3: Consolidar gestão de usuários e prompts nativamente no Django preservando invariantes
 
-- **Escolha:** a superfície Django `admin` deve reutilizar as mesmas regras de segurança já definidas para gestão de usuários e prompts, mas a gestão de usuários passa a suportar explicitamente os papéis `nir`, `doctor`, `scheduler`, `manager` e `admin`.
-- **Racional:** evita divergência entre a administração antiga e a nova e fecha a lacuna entre o modelo legado e o modelo operacional final.
+- **Escolha:** a superfície Django `admin` deve preservar as mesmas regras de segurança, autorização e auditabilidade já aprovadas para gestão de usuários e prompts, mas a implementação consolidada pode ser reescrita nativamente em Django em vez de espelhar estruturalmente a superfície legada em FastAPI/SQLAlchemy.
+- **Racional:** o objetivo deste change é migrar a implementação humana/admin para o Django final, não manter compatibilidade interna com adapters legados. A referência legada serve para invariantes e comportamento externo, não para congelar a estrutura técnica.
 - **Conseqüência:** `admin` pode criar usuários `nir`, `doctor`, `scheduler`, `manager` e `admin`, pode alterar o `role` de qualquer usuário, e a migração conceitual de contas legadas segue `reader -> manager` e `admin -> admin`.
 
-### Decision 4: Manter o shell final explicitamente role-aware
+### Decision 4: Tratar FastAPI/Matrix legados como referência de comportamento, não como dependência de consolidação
+
+- **Escolha:** para superfícies humanas e administrativas cobertas por este change, FastAPI e Matrix passam a ser tratados como legado de referência, sem exigência de compatibilidade estrutural durante a consolidação no Django.
+- **Racional:** evita que a migração fique presa a contratos internos do sistema antigo e reduz retrabalho nos slices finais.
+
+### Decision 5: Manter o shell final explicitamente role-aware
 
 - **Escolha:** a navegação consolidada deve expor:
   - para `manager`: dashboard/relatórios apenas;
   - para `admin`: dashboard, usuários, prompts e demais funções administrativas.
 - **Racional:** a clareza visual de permissão é parte do controle operacional.
 
-### Decision 5: Preservar o dashboard como fonte auditável de leitura cruzada do caso
+### Decision 6: Preservar o dashboard como fonte auditável de leitura cruzada do caso
 
 - **Escolha:** o detalhe de caso consolidado no Django continua mostrando timeline, resumo operacional e contexto auditável do workflow.
 - **Racional:** `manager` e `admin` precisam da mesma fonte de verdade operacional, com diferença apenas nas permissões laterais.
