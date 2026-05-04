@@ -72,30 +72,39 @@ uv run mypy src apps
 uv run pytest -q
 ```
 
-## 5. Browser-first login/logout flow
+## 5. Browser-first login/logout flow (Django, port 8001)
+
+> **Cutover note:** human login and session pages are consolidated in Django (`django-ops`, port 8001). FastAPI (`bot-api`, port 8000) only keeps the opaque token endpoint `POST /auth/login` for internal runtime use. This section covers the official human flow.
 
 After migrations and service startup, use the portal directly in a browser.
 
 1. Open root page:
 
-- URL: `http://localhost:8000/`
-- expected for anonymous user: redirect to `/login`
+- URL: `http://localhost:8001/`
+- expected for anonymous user: redirect to `/login/`
 
 1. Login:
 
-- submit `email` + `password` on `GET /login`
-- expected success: redirect to `/dashboard/cases`
+- submit `email` + `password` on `GET /login/`
+- expected success: redirect according to role (e.g., `manager` → `/manager/`)
 - expected invalid credentials: HTML error on login page, no session cookie
 
 1. Authorization by role:
 
-- `reader`: can access dashboard pages, cannot access prompt-admin pages
-- `admin`: can access dashboard pages and prompt-admin pages
+- `manager`: can access dashboard pages (`/manager/`), cannot access prompt/user admin pages
+- `admin`: can access dashboard pages and prompt/user admin pages
+- `nir`, `doctor`, `scheduler`: can access their respective web operational flows
 
 1. Logout:
 
-- submit `POST /logout` (button `Sair` in header)
-- expected result: redirect to `/login` and session cookie cleared
+- submit `POST /logout/` (button `Sair` in header)
+- expected result: redirect to `/login/` and session cookie cleared
+
+### Token-based login (backend)
+
+The `POST /auth/login` endpoint on `bot-api` (port 8000) issues opaque tokens for
+internal runtime consumption. This endpoint is **not the human login path** and
+should not be used by operators in a browser.
 
 ## 6. Run local stack (optional)
 

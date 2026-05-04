@@ -19,11 +19,14 @@ ATS is intended as a support tool for healthcare teams and must always be used u
 
 Backend services for an event-driven triage workflow over Matrix rooms.
 
+> **Final supported surface:** Django (`django-ops`) is the final human and administrative surface for this project. FastAPI and Matrix are backend runtime components. References to legacy human/admin surfaces in this README are kept only for cutover and retirement troubleshooting.
+
 Core services:
 
-- `bot-api` (FastAPI auth/runtime foundation)
+- `bot-api` (FastAPI API — backend runtime, internal endpoints)
 - `bot-matrix` (Matrix event ingestion wiring)
 - `worker` (job execution runtime)
+- `django-ops` (Django web app — official human and administrative surface, port 8001)
 
 This repo is implemented with strict TDD and OpenSpec slice history under `openspec/changes/archive/`.
 
@@ -37,60 +40,85 @@ This repo is implemented with strict TDD and OpenSpec slice history under `opens
 ## Current Scope
 
 - Triage workflow foundation is implemented and covered by automated tests.
-- Admin and monitoring surface is available in `bot-api`:
-  - web session flow (`GET /`, `GET /login`, `POST /login`, `POST /logout`)
-  - login/auth (`/auth/login`)
-  - monitoring API (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+- The human and administrative surface is consolidated in `django-ops` (port 8001):
+  - web session flow (`GET /login/`, `POST /login/`, `POST /logout/`)
   - server-rendered dashboard (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
-  - server-rendered prompt admin (`GET /admin/prompts`, `POST /admin/prompts/{prompt_name}/activate-form`)
-  - admin prompt-management API (`/admin/prompts/*`)
+  - operational web flow (NIR, doctor, scheduler)
+  - prompt and user admin (`/admin/prompts`, `/admin/users`)
+  - monitoring API (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+- `bot-api` (port 8000) remains as backend runtime:
+  - opaque token authentication (`POST /auth/login`)
+  - internal runtime support endpoints
+  - Room-2 widget callback (HMAC signature)
 
 ## Runtime Topology
 
 ```text
 Matrix Rooms ---> bot-matrix ----\
                                   \
-Login/Auth ----------> bot-api ----> PostgreSQL <---- worker
+Web Operators -------> django-ops ----> PostgreSQL <---- worker
+                           |
+Login/Auth (token) -> bot-api (backend)
 ```
+
+### Access paths
+
+| Path | Port | Use |
+| --- | --- | --- |
+| `django-ops` | 8001 | Human/admin surface (all roles) |
+| `bot-api` | 8000 | Backend runtime (token auth, widget callback) |
+| `postgres` | 5432 | Loopback only |
+
+For the complete publication topology (internal vs external, Cloudflare Tunnel, zone access matrix), see `docs/en/publication-topology.md`.
 
 ## Public Surface (Current)
 
+### Human surface — Django (`django-ops`, port 8001)
+
 Web pages and session routes:
 
-- `GET /`
-- `GET /login`
-- `POST /login`
-- `POST /logout`
-- `GET /dashboard/cases`
-- `GET /dashboard/cases/{case_id}`
-- `GET /admin/prompts`
-- `POST /admin/prompts/{prompt_name}/activate-form`
+- `GET /login/`
+- `POST /login/`
+- `POST /logout/`
+- `GET /nir/`, `GET /nir/upload/` (NIR)
+- `GET /doctor/`, `GET /doctor/cases/{id}/decision/` (doctor)
+- `GET /scheduler/`, `GET /scheduler/cases/{id}/confirm/` (scheduler)
+- `GET /manager/` (manager — dashboard and monitoring)
+- `GET /admin/prompts`, `GET /admin/users` (admin)
+- `GET /monitoring/cases`, `GET /monitoring/cases/{case_id}` (audit API)
 
-JSON API routes:
+### Backend surface — FastAPI (`bot-api`, port 8000)
 
-- `POST /auth/login`
-- `GET /monitoring/cases`
-- `GET /monitoring/cases/{case_id}`
-- `GET /admin/prompts/versions`
-- `GET /admin/prompts/{prompt_name}/active`
-- `POST /admin/prompts/{prompt_name}/activate`
+Internal/support routes:
+
+- `POST /auth/login` (opaque token issuance)
+- `POST /widget/room2/submit` (Room-2 HMAC callback)
+- `GET /openapi.json` (internal schema)
 
 ## Web Access and Roles
 
-Browser-first access flow:
+Browser-first access flow (Django, port 8001):
 
-1. Open `/` in a browser.
-1. Anonymous access is redirected to `/login`.
+1. Open `http://127.0.0.1:8001/` in a browser.
+1. Anonymous access is redirected to `/login/`.
 1. Submit email and password in the login form.
-1. On success, the app redirects to `/dashboard/cases`.
-1. Use `Sair` (`POST /logout`) to end the session.
+1. On success, the app redirects according to role:
+   - `nir` → `/nir/`
+   - `doctor` → `/doctor/`
+   - `scheduler` → `/scheduler/`
+   - `manager` → `/manager/`
+   - `admin` → `/manager/`
+1. Use `Sair` (`POST /logout/`) to end the session.
 
 Role matrix:
 
-| Role | Dashboard pages | Prompt admin pages | Prompt admin APIs |
-| --- | --- | --- | --- |
-| `reader` | allowed | forbidden (`403`) | forbidden (`403`) |
-| `admin` | allowed | allowed | allowed |
+| Role | Dashboard | Operational flow | Prompt admin | User admin |
+| --- | --- | --- | --- | --- |
+| `nir` | — | PDF upload, final acknowledgment | — | — |
+| `doctor` | — | web medical decision | — | — |
+| `scheduler` | — | scheduling confirmation | — | — |
+| `manager` | read-only | — | — | — |
+| `admin` | read-only | — | allowed | allowed |
 
 ## Project Docs
 
@@ -98,7 +126,10 @@ Role matrix:
 - Admin operations (bootstrap + password reset): `docs/en/setup.md#8-admin-operations`
 - Ansible operations runbook (initial installation): `docs/en/ansible_ops_runbook.md`
 - Runtime smoke runbook: `docs/en/runtime-smoke.md`
+- Manual E2E runbook: `docs/en/manual_e2e_runbook.md`
 - Architecture: `docs/en/architecture.md`
+- Publication topology: `docs/en/publication-topology.md`
+- Zone hardening checklist: `docs/en/zone-hardening-checklist.md`
 - Decision engine and rulebook: `docs/en/decision-engine-and-rulebook.md`
 - Security: `docs/en/security.md`
 - Internal implementation context: `PROJECT_CONTEXT.md`
@@ -175,6 +206,7 @@ Compose expects `.env` to be present and starts:
 - `bot-api`
 - `bot-matrix`
 - `worker`
+- `django-ops`
 
 ## Deployment Note
 

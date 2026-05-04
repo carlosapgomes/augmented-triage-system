@@ -72,30 +72,39 @@ uv run mypy src apps
 uv run pytest -q
 ```
 
-## 5. Fluxo web de login/logout
+## 5. Fluxo web de login/logout (Django, porta 8001)
+
+> **Nota de cutover:** o login humano e as páginas de sessão estão consolidadas no Django (`django-ops`, porta 8001). FastAPI (`bot-api`, porta 8000) mantém apenas o endpoint de token opaco `POST /auth/login` para uso interno de runtime. Esta seção cobre o fluxo humano oficial.
 
 Depois das migrações e startup dos serviços, use o portal direto no navegador.
 
 1. Abra página raiz:
 
-- URL: `http://localhost:8000/`
-- esperado para usuário anônimo: redirect para `/login`
+- URL: `http://localhost:8001/`
+- esperado para usuário anônimo: redirect para `/login/`
 
 1. Login:
 
-- envie `email` + `password` em `GET /login`
-- sucesso esperado: redirect para `/dashboard/cases`
+- envie `email` + `password` no formulário `GET /login/`
+- sucesso esperado: redirect conforme o papel (ex.: `manager` → `/manager/`)
 - credenciais inválidas: erro HTML na página de login, sem cookie de sessão
 
 1. Autorização por papel:
 
-- `reader`: acessa páginas de dashboard, não acessa páginas admin de prompts
-- `admin`: acessa páginas de dashboard e páginas admin de prompts
+- `manager`: acessa páginas de dashboard (`/manager/`), não acessa páginas admin de prompts/usuários
+- `admin`: acessa páginas de dashboard e páginas admin de prompts/usuários
+- `nir`, `doctor`, `scheduler`: acessam seus respectivos fluxos operacionais web
 
 1. Logout:
 
-- envie `POST /logout` (botão `Sair` no cabeçalho)
-- resultado esperado: redirect para `/login` e cookie de sessão limpo
+- envie `POST /logout/` (botão `Sair` no cabeçalho)
+- resultado esperado: redirect para `/login/` e cookie de sessão limpo
+
+### Login por token (backend)
+
+O endpoint `POST /auth/login` no `bot-api` (porta 8000) emite tokens opacos para
+consumo interno de runtime. Este endpoint **não é a via de login humano** e não
+dever ser usado por operadores no navegador.
 
 ## 6. Subir stack local (opcional)
 

@@ -16,7 +16,7 @@
 
 ## Phase 3 - Final verification
 
-- [ ] 3.1 Atualizar runbooks/manuais e verificar o baseline operacional final.
+- [x] 3.1 Atualizar runbooks/manuais e verificar o baseline operacional final.
   - Slice file: `openspec/changes/same-host-deployment-and-hardening/tasks/05-final-ops-verification.md`
 
 ## Execution rules for every slice

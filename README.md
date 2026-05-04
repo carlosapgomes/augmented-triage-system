@@ -19,11 +19,14 @@ O ATS é uma ferramenta de apoio para equipes de saúde e deve sempre ser utiliz
 
 Serviços de backend para um fluxo de triagem orientado a eventos em salas Matrix.
 
+> **Superfície final suportada:** o Django (`django-ops`) é a superfície humana e administrativa final deste projeto. FastAPI e Matrix são componentes de runtime de backend. As referências a superfícies humanas/admin legadas neste README são mantidas apenas para cutover e troubleshooting de retirada.
+
 Serviços principais:
 
-- `bot-api` (fundação de autenticação e runtime com FastAPI)
+- `bot-api` (API FastAPI — runtime de backend, endpoints internos)
 - `bot-matrix` (integração de ingestão de eventos Matrix)
 - `worker` (runtime de execução de jobs)
+- `django-ops` (web app Django — superfície humana e administrativa oficial, porta 8001)
 
 Este repositório é implementado com TDD estrito e histórico de slices OpenSpec em `openspec/changes/archive/`.
 
@@ -37,68 +40,96 @@ Este repositório é implementado com TDD estrito e histórico de slices OpenSpe
 ## Escopo Atual
 
 - A fundação do fluxo de triagem está implementada e coberta por testes automatizados.
-- A superfície administrativa e de monitoramento está disponível no `bot-api`:
-  - fluxo web de sessão (`GET /`, `GET /login`, `POST /login`, `POST /logout`)
-  - login/auth (`/auth/login`)
-  - API de monitoramento (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+- A superfície humana e administrativa está consolidada no `django-ops` (porta 8001):
+  - fluxo web de sessão (`GET /login/`, `POST /login/`, `POST /logout/`)
   - dashboard server-rendered (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
-  - admin de prompts server-rendered (`GET /admin/prompts`, `POST /admin/prompts/{prompt_name}/activate-form`)
-  - API de administração de prompts (`/admin/prompts/*`)
+  - fluxo operacional web (NIR, médico, agendador)
+  - admin de prompts e usuários (`/admin/prompts`, `/admin/users`)
+  - API de monitoramento (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+- `bot-api` (porta 8000) permanece como runtime de backend:
+  - autenticação por token opaco (`POST /auth/login`)
+  - endpoints internos de suporte de runtime
+  - callback widget da Room-2 (assinatura HMAC)
 
 ## Topologia de Runtime
 
 ```text
 Matrix Rooms ---> bot-matrix ----\
                                   \
-Login/Auth ----------> bot-api ----> PostgreSQL <---- worker
+Operadores Web ------> django-ops ----> PostgreSQL <---- worker
+                          |
+Login/Auth (token) -> bot-api (backend)
 ```
+
+### Caminhos de acesso
+
+| Caminho | Porta | Uso |
+| --- | --- | --- |
+| `django-ops` | 8001 | Superfície humana/admin (todos os papéis) |
+| `bot-api` | 8000 | Backend runtime (token auth, callback widget) |
+| `postgres` | 5432 | Somente loopback |
+
+Para a topologia completa de publicação (interno vs externo, Cloudflare Tunnel, matriz de acesso por zona), veja `docs/publication-topology.md`.
 
 ## Superficie Publica (Atual)
 
+### Superfície humana — Django (`django-ops`, porta 8001)
+
 Páginas web e rotas de sessão:
 
-- `GET /`
-- `GET /login`
-- `POST /login`
-- `POST /logout`
-- `GET /dashboard/cases`
-- `GET /dashboard/cases/{case_id}`
-- `GET /admin/prompts`
-- `POST /admin/prompts/{prompt_name}/activate-form`
+- `GET /login/`
+- `POST /login/`
+- `POST /logout/`
+- `GET /nir/`, `GET /nir/upload/` (NIR)
+- `GET /doctor/`, `GET /doctor/cases/{id}/decision/` (médico)
+- `GET /scheduler/`, `GET /scheduler/cases/{id}/confirm/` (agendador)
+- `GET /manager/` (gestor — dashboard e monitoramento)
+- `GET /admin/prompts`, `GET /admin/users` (admin)
+- `GET /monitoring/cases`, `GET /monitoring/cases/{case_id}` (API de auditoria)
 
-Rotas de API JSON:
+### Superfície de backend — FastAPI (`bot-api`, porta 8000)
 
-- `POST /auth/login`
-- `GET /monitoring/cases`
-- `GET /monitoring/cases/{case_id}`
-- `GET /admin/prompts/versions`
-- `GET /admin/prompts/{prompt_name}/active`
-- `POST /admin/prompts/{prompt_name}/activate`
+Rotas internas/de suporte:
+
+- `POST /auth/login` (emissão de token opaco)
+- `POST /widget/room2/submit` (callback HMAC da Room-2)
+- `GET /openapi.json` (schema interno)
 
 ## Acesso Web e Papéis
 
-Fluxo de acesso pelo navegador:
+Fluxo de acesso pelo navegador (Django, porta 8001):
 
-1. Abra `/` no navegador.
-1. Acesso anônimo é redirecionado para `/login`.
+1. Abra `http://127.0.0.1:8001/` no navegador.
+1. Acesso anônimo é redirecionado para `/login/`.
 1. Envie email e senha no formulário de login.
-1. Em caso de sucesso, o app redireciona para `/dashboard/cases`.
-1. Use `Sair` (`POST /logout`) para encerrar a sessão.
+1. Em caso de sucesso, o app redireciona conforme o papel:
+   - `nir` → `/nir/`
+   - `doctor` → `/doctor/`
+   - `scheduler` → `/scheduler/`
+   - `manager` → `/manager/`
+   - `admin` → `/manager/`
+1. Use `Sair` (`POST /logout/`) para encerrar a sessão.
 
 Matriz de papéis:
 
-| Papel | Paginas de dashboard | Paginas admin de prompt | APIs admin de prompt |
-| --- | --- | --- | --- |
-| `reader` | permitido | proibido (`403`) | proibido (`403`) |
-| `admin` | permitido | permitido | permitido |
+| Papel | Dashboard | Fluxo operacional | Admin prompts | Admin usuários |
+| --- | --- | --- | --- | --- |
+| `nir` | — | upload PDF, fechamento | — | — |
+| `doctor` | — | decisão médica web | — | — |
+| `scheduler` | — | confirmação de agendamento | — | — |
+| `manager` | leitura | — | — | — |
+| `admin` | leitura | — | permitido | permitido |
 
 ## Documentação do Projeto
 
 - Setup: `docs/setup.md`
-- Operações admin (bootstrap + reset de senha): `docs/setup.md#7-admin-operations`
+- Operações admin (bootstrap + reset de senha): `docs/setup.md#8-operacoes-de-admin`
 - Runbook operacional Ansible (instalação inicial): `docs/ansible_ops_runbook.md`
 - Runbook de smoke de runtime: `docs/runtime-smoke.md`
+- Runbook manual E2E: `docs/manual_e2e_runbook.md`
 - Arquitetura: `docs/architecture.md`
+- Topologia de publicação: `docs/publication-topology.md`
+- Checklist de hardening por zona: `docs/zone-hardening-checklist.md`
 - Motor de decisão e rulebook: `docs/decision-engine-and-rulebook.md`
 - Seguranca: `docs/security.md`
 - Contexto interno de implementação: `PROJECT_CONTEXT.md`
@@ -175,6 +206,7 @@ O Compose espera `.env` presente e inicia:
 - `bot-api`
 - `bot-matrix`
 - `worker`
+- `django-ops`
 
 ## Nota de Deploy
 

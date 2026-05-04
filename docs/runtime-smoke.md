@@ -53,6 +53,15 @@ uv run uvicorn apps.django_ops.asgi:application --host 0.0.0.0 --port 8001
 
 O processo `django-ops` é a web app Django que serve o dashboard, login e gestão de prompts.
 
+Para debug local, você pode alternativamente usar o servidor de desenvolvimento do Django:
+
+```bash
+uv run apps/django_ops/manage.py runserver 0.0.0.0:8001
+```
+
+Ambos são equivalentes para smoke local; o `uvicorn` é o comando usado no
+Docker Compose e em ambientes próximos de produção.
+
 Defina `LOG_LEVEL=DEBUG` no `.env` quando precisar de traces estilo heartbeat.
 Em `INFO`, logs mostram startup e atividades relevantes de roteamento/claim de job.
 
