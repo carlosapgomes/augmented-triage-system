@@ -1,13 +1,39 @@
-"""Django-native prompt store adapter backed by the shared prompt_templates table.
+"""Django prompt store adapter backed by the shared prompt_templates table.
 
-Implements ``DjangoPromptStorePort`` against the same database that
-the legacy SQLAlchemy infrastructure manages.  Uses the existing
-``SqlAlchemyPromptTemplateRepository`` internally so that reads
-remain consistent across both the Django and legacy surfaces.
+Implements ``DjangoPromptStorePort`` using the existing shared
+SQLAlchemy infrastructure.
 
-Write methods handle the ``updated_by_user_id`` / UUID issue by
-setting the column to NULL (Django users have integer PKs, not UUIDs).
-The audit payload carries the full actor identity instead.
+**Why SQLAlchemy here (not Django ORM):**
+
+The ``prompt_templates`` table is a genuine *shared runtime component*:
+it is created and versioned by Alembic migrations and is read/written
+by the LLM services, extraction pipeline, and Matrix bot — all of which
+use SQLAlchemy/asyncpg.  A fully Django-native (Django ORM) persistence
+path was evaluated but is blocked by the following systemic issue:
+
+- Django's test runner manages secondary databases independently.
+  Integrating an Alembic-managed schema into Django's test DB lifecycle
+  requires either (a) running Alembic on Django's test DB path before
+  Django opens it, or (b) preventing Django from creating a test DB
+  for the alias and managing the file externally.  Both approaches
+  add fragile coordination between Django's ``DiscoverRunner`` and
+  Alembic's ``command.upgrade()`` that is not justified for this slice.
+
+The SQLAlchemy session factory in ``service_wiring.py`` is already
+shared across all runtime components (audit, cases, jobs, prompts).
+Using it in this adapter is the *smallest clean boundary* that preserves
+the approved business rules without duplicating schema management.
+
+**What IS Django-native in this design:**
+
+- The port (``DjangoPromptStorePort``) lives in the application layer
+  and has no SQLAlchemy or Django imports.
+- The application service (``DjangoPromptManagementService``) enforces
+  business rules and audit semantics with no infrastructure imports.
+- The adapter is thin: it only translates between the port contracts
+  and the shared SQLAlchemy repository.
+- Audit events use the Django actor-identity pattern (``user_id=NULL``,
+  actor info in payload) established by ``DjangoUserManagementService``.
 """
 
 from __future__ import annotations
@@ -31,10 +57,9 @@ class DjangoOrmPromptStoreAdapter(DjangoPromptStorePort):
 
     Wraps the shared ``PromptManagementRepositoryPort`` for reads
     and performs mutations directly via SQLAlchemy sessions so that
-    ``updated_by_user_id`` remains NULL.  The shared infrastructure
-    dependency is justified because the ``prompt_templates`` table
-    is a genuine shared runtime component managed by Alembic
-    migrations, not Django ORM.
+    ``updated_by_user_id`` remains NULL (Django users have integer
+    PKs, not UUIDs).  See module docstring for the rationale behind
+    keeping SQLAlchemy in this adapter.
     """
 
     def __init__(
@@ -68,7 +93,7 @@ class DjangoOrmPromptStoreAdapter(DjangoPromptStorePort):
         """Atomically activate one prompt version, deactivating others.
 
         Uses a SQLAlchemy transaction directly so that
-        ``updated_by_user_id`` is set to NULL (no UUID FK violation).
+        ``updated_by_user_id`` is set to NULL (no UUID FK).
         """
         from datetime import UTC, datetime
 

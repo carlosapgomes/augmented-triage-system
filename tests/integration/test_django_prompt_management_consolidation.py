@@ -6,7 +6,14 @@ TDD tests for slice 3.2 — validates that:
 - Admin can create a new prompt version from the HTML form.
 - Manager receives 403 on prompt-management page and cannot mutate state.
 - Prompt audit events are preserved for admin mutations.
-- The implementation does not depend on legacy FastAPI surface.
+- The implementation uses a clean port/adapter boundary (no direct
+  SQLAlchemy in application layer or views).
+
+Note on test infrastructure: the ``prompt_templates`` table lives in
+a shared Alembic-managed database separate from Django's default SQLite.
+Tests set up a temporary SQLite file with Alembic migrations and configure
+``DATABASE_URL`` so the service wiring connects to it.  The Django test
+client exercises the full HTTP stack through the service layer.
 """
 
 from __future__ import annotations
@@ -167,7 +174,6 @@ class TestAdminCanAccessPromptManagementPage(_PromptManagementTestBase):
         self.client.login(username="admin@example.com", password="testpass123")
 
         # llm1_system v1-v6 already seeded by Alembic migrations.
-        # Insert an additional inactive version.
         with self._sync_connection() as conn:
             self._insert_prompt_template(
                 conn,
@@ -182,7 +188,7 @@ class TestAdminCanAccessPromptManagementPage(_PromptManagementTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/html", response["Content-Type"])
         content = response.content.decode()
-        self.assertIn("Gestão de Prompts", content)
+        self.assertIn("Gest\u00e3o de Prompts", content)
         self.assertIn("llm1_system", content)
 
 
@@ -203,7 +209,6 @@ class TestManagerCannotAccessPromptManagement(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="manager@example.com", password="testpass123")
 
-        # llm2_user v1-v3 seeded. Insert v4 as inactive.
         with self._sync_connection() as conn:
             self._insert_prompt_template(
                 conn,
@@ -252,7 +257,6 @@ class TestAdminActivatesPromptVersion(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="admin@example.com", password="testpass123")
 
-        # llm2_system v1-v3 seeded. Insert v4 as inactive.
         with self._sync_connection() as conn:
             self._insert_prompt_template(
                 conn,
@@ -319,7 +323,6 @@ class TestAdminViewsPromptVersionDetail(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="admin@example.com", password="testpass123")
 
-        # llm1_user v1-v6 seeded. Insert v7 as inactive with custom content.
         with self._sync_connection() as conn:
             self._insert_prompt_template(
                 conn,
@@ -334,10 +337,10 @@ class TestAdminViewsPromptVersionDetail(_PromptManagementTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/html", response["Content-Type"])
         content = response.content.decode()
-        self.assertIn("Conteúdo do Prompt", content)
+        self.assertIn("Conte\u00fado do Prompt", content)
         self.assertIn("llm1_user", content)
         self.assertIn("PROMPT V7 CUSTOM CONTENT", content)
-        self.assertIn("Criar nova versão", content)
+        self.assertIn("Criar nova vers\u00e3o", content)
 
     def test_admin_views_nonexistent_version_redirects_to_list(self) -> None:
         """GET nonexistent version redirects to prompt list with error."""
@@ -357,7 +360,6 @@ class TestAdminViewsPromptVersionDetail(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="manager@example.com", password="testpass123")
 
-        # llm1_user v6 is already seeded and active.
         response = self.client.get("/admin/prompts/llm1_user/versions/6/")
 
         self.assertEqual(response.status_code, 403)
@@ -374,7 +376,6 @@ class TestAdminCreatesPromptVersion(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="admin@example.com", password="testpass123")
 
-        # llm2_user v3 already seeded by Alembic as active.
         response = self.client.post(
             "/admin/prompts/llm2_user/create/",
             {
@@ -401,7 +402,6 @@ class TestAdminCreatesPromptVersion(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="admin@example.com", password="testpass123")
 
-        # llm2_user v3 already seeded by Alembic.
         response = self.client.post(
             "/admin/prompts/llm2_user/create/",
             {"source_version": "3", "content": "   "},
@@ -409,7 +409,6 @@ class TestAdminCreatesPromptVersion(_PromptManagementTestBase):
         )
 
         self.assertEqual(response.status_code, 302)
-        # Should redirect back to version detail with error
         self.assertIn("versions/3", response.url or "")
         self.assertIn("error", (response.url or "").lower())
 
@@ -418,8 +417,6 @@ class TestAdminCreatesPromptVersion(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="manager@example.com", password="testpass123")
 
-        # llm2_user v3 already seeded.
-        # Capture existing versions count before attempted mutation.
         with self._sync_connection() as conn:
             pre_versions = self._get_prompt_versions(conn, prompt_name="llm2_user")
         pre_count = len(pre_versions)
@@ -448,7 +445,6 @@ class TestPromptActivationAuditPreserved(_PromptManagementTestBase):
         self._set_env_database_url()
         self.client.login(username="admin@example.com", password="testpass123")
 
-        # llm1_user v1-v6 seeded (v6 active). Insert v7 as inactive.
         with self._sync_connection() as conn:
             self._insert_prompt_template(
                 conn,
@@ -573,12 +569,10 @@ class TestPromptPageShellNavigationCoherent(_PromptManagementTestBase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        # Active version row should be visible
         self.assertRegex(
             content,
             r'data-row-id="custom_prompt_long-2"[\s\S]*?data-initial-visibility="visible"',
         )
-        # Older version beyond limit should be hidden
         self.assertRegex(
             content,
             r'data-row-id="custom_prompt_long-4"[\s\S]*?data-initial-visibility="hidden"',

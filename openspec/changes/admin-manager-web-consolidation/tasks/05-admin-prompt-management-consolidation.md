@@ -48,12 +48,32 @@ Neste slice, a referência FastAPI/SQLAlchemy anterior deve ser tratada como leg
   or Django imports.
 - Created `DjangoOrmPromptStoreAdapter` in `apps/django_ops/` — thin adapter implementing
   `DjangoPromptStorePort` against the shared `prompt_templates` table via SQLAlchemy.
-  The shared runtime dependency is justified because `prompt_templates` is a genuine
-  shared table managed by Alembic migrations.
 - `DjangoPromptActor` DTO used for actor identity (same pattern as `DjangoActor` in
   `DjangoUserManagementService`).
 - Audit events written with `user_id=NULL` and Django actor identity in payload.
 - Views remain thin — only role checks, parameter parsing, and service delegation.
+
+### Persistence investigation (v3)
+
+Investigated replacing SQLAlchemy writes in the adapter with Django-native persistence
+(Django ORM model with `managed=False` + shared database router).  This path is blocked
+by a systemic issue:
+
+- The `prompt_templates` table is managed by Alembic on a database separate from Django's
+  default SQLite.  Django's test runner creates and manages test databases independently,
+  and integrating Alembic-managed schemas into Django's test DB lifecycle requires fragile
+  coordination (`DiscoverRunner` vs `command.upgrade()`) not justified for this slice.
+
+The SQLAlchemy session factory is already shared across all runtime components (audit,
+cases, jobs, prompts).  Using it in this adapter is the smallest clean boundary that
+preserves the approved business rules without duplicating schema management.
+
+What IS Django-native in this final design:
+- The port lives in the application layer with no framework imports.
+- The application service enforces business rules and audit semantics with no infrastructure imports.
+- The adapter is thin — it only translates between port contracts and the shared repository.
+- Audit events use the Django actor-identity pattern (user_id=NULL, actor info in payload)
+  established by `DjangoUserManagementService`.
 
 ## Mandatory report file
 
