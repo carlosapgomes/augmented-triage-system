@@ -14,7 +14,8 @@ Idioma: **Português (BR)** | [English](en/security.md)
 - Auth de callback webhook: validação de assinatura HMAC.
 - Fundação de login: emissão de token opaco com hash persistido.
 - Armazenamento de senha: apenas hash bcrypt (sem plaintext).
-- Modelo de papéis: `admin` e `reader` explícitos.
+- Modelo de papéis consolidado (Django): `nir`, `doctor`, `scheduler`,
+  `manager` e `admin` (operacional) com papel legado `reader` mantido.
 
 ## Checklist de segurança para repositório público
 
