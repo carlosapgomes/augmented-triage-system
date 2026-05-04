@@ -147,6 +147,12 @@ def test_publication_topology_defines_topology_decisions() -> None:
     assert "Single-host como baseline" in doc
 
 
+def test_publication_topology_references_hardening_checklist() -> None:
+    doc = _read("docs/publication-topology.md")
+
+    assert "zone-hardening-checklist.md" in doc
+
+
 def test_publication_topology_defines_conscious_limitations() -> None:
     doc = _read("docs/publication-topology.md")
 
@@ -220,6 +226,12 @@ def test_publication_topology_english_defines_topology_decisions() -> None:
     assert "## Topology Decisions" in doc
     assert "single-host" in doc
     assert "Cloudflare Tunnel as the only remote path" in doc
+
+
+def test_publication_topology_english_references_hardening_checklist() -> None:
+    doc = _read("docs/en/publication-topology.md")
+
+    assert "zone-hardening-checklist.md" in doc
 
 
 def test_publication_topology_english_defines_conscious_limitations() -> None:

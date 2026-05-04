@@ -43,3 +43,6 @@ Until a dedicated security policy file is added, report issues privately to repo
 The official publication topology, separation of internal and external paths,
 and role/zone access matrix are documented in
 `docs/en/publication-topology.md`.
+
+The zone and role hardening checklist and access failure troubleshooting
+are at `docs/en/zone-hardening-checklist.md`.

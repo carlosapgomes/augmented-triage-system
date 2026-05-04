@@ -34,6 +34,7 @@ Operational recommendation:
 - use HTTPS on the public domain.
 - do not expose the loopback port directly without a controlled publishing layer.
 - consult the official publication topology at `docs/en/publication-topology.md`.
+- consult the zone hardening checklist at `docs/en/zone-hardening-checklist.md`.
 
 ## Mobile Dashboard Installation (PWA)
 
@@ -243,6 +244,9 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/rollback.yml \
 - services return to the stable version defined for rollback.
 - playbook post-rollback validation runs `Validate all runtime services are running after rollback`.
 - playbook completes without failures.
+
+For zone and role access failure troubleshooting, see the hardening
+checklist: `docs/en/zone-hardening-checklist.md`.
 
 ## First-Level Troubleshooting
 

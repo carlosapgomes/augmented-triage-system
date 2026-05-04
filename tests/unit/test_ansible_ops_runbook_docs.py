@@ -80,6 +80,7 @@ def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_portuguese() -> N
 def test_ansible_ops_runbook_documents_first_level_troubleshooting_in_portuguese() -> None:
     runbook = _read("docs/ansible_ops_runbook.md")
 
+    assert "zone-hardening-checklist.md" in runbook
     assert "## Troubleshooting de primeiro nível" in runbook
     assert "Required runtime variable" in runbook
     assert "Explicit runtime image tag is required." in runbook
@@ -157,6 +158,7 @@ def test_ansible_ops_runbook_documents_room4_scheduler_cron_in_english() -> None
 def test_ansible_ops_runbook_documents_first_level_troubleshooting_in_english() -> None:
     runbook = _read("docs/en/ansible_ops_runbook.md")
 
+    assert "zone-hardening-checklist.md" in runbook
     assert "## First-Level Troubleshooting" in runbook
     assert "Required runtime variable" in runbook
     assert "Explicit runtime image tag is required." in runbook

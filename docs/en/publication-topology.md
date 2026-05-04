@@ -181,9 +181,12 @@ curl -s -o /dev/null -w "%{http_code}" http://<fqdn>/login/ --connect-timeout 10
 - Detailed publication failure troubleshooting is documented in the
   operational runbook (`docs/en/ansible_ops_runbook.md`), not in this
   topology document.
+- The zone and role hardening checklist is at
+  `docs/en/zone-hardening-checklist.md`.
 
 ## References
 
+- Zone hardening checklist: `docs/en/zone-hardening-checklist.md`
 - Operational runbook: `docs/en/ansible_ops_runbook.md`
 - Manual E2E runbook: `docs/en/manual_e2e_runbook.md`
 - Setup guide: `docs/en/setup.md`
