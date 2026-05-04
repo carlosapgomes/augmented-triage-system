@@ -7,6 +7,11 @@ local controlado/determinístico, cobrindo tanto a interface web operacional
 (NIR, médico, agendador) quanto o dashboard de monitoramento e auditoria.
 
 > **Superfície final suportada:** a validação agora é exclusivamente Django-first. FastAPI e Matrix são componentes de backend — suas superfícies humanas/administrativas foram retiradas. Passos abaixo que ainda mencionam FastAPI/Matrix estão marcados como referência legada e não são necessários para validação operacional.
+>
+> **Topologia de publicação:** a topologia oficial de publicação (caminhos
+> interno e externo, matriz de acesso por papel/zona) está documentada em
+> `docs/publication-topology.md`. A validação E2E abaixo assume acesso
+> local (interno) na porta 8001.
 
 Execute `docs/runtime-smoke.md` antes para confirmar startup dos processos e
 alcance de callback.

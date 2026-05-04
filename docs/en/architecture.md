@@ -87,3 +87,9 @@ uses the shared SQLAlchemy infrastructure for prompt persistence.
 - `jobs`: queue records with retries/scheduling
 - `prompt_templates`: versioned prompts with single active version per prompt name
 - `users` and `auth_tokens`: auth and access-control foundation
+
+## Publication notes
+
+The official publication topology — internal and external paths, role/zone
+access matrix, and validation criteria — is documented in
+`docs/en/publication-topology.md`.

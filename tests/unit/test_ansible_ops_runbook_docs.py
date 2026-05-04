@@ -28,6 +28,9 @@ def test_ansible_ops_runbook_documents_initial_installation_in_portuguese() -> N
     assert "ats_runtime_image_tag=v1.0.0" in runbook
     assert "DATABASE_URL" in runbook
     assert "MATRIX_ACCESS_TOKEN" in runbook
+    assert "django-ops" in runbook
+    assert "127.0.0.1:8001" in runbook
+    assert "127.0.0.1:8000" not in runbook
 
 
 def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_portuguese() -> None:
@@ -103,6 +106,8 @@ def test_ansible_ops_runbook_documents_initial_installation_in_english() -> None
     assert "ats_runtime_image_tag=v1.0.0" in runbook
     assert "DATABASE_URL" in runbook
     assert "MATRIX_ACCESS_TOKEN" in runbook
+    assert "django-ops" in runbook
+    assert "127.0.0.1:8001" in runbook
 
 
 def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_english() -> None:

@@ -21,18 +21,19 @@ Supported baseline in this delivery:
 
 ## Dashboard Access Through a Domain
 
-For real dashboard usage, the local `bot-api` endpoint (`http://127.0.0.1:8000`)
-must be published through a hospital domain.
+For real dashboard usage, the local `django-ops` endpoint
+(`http://127.0.0.1:8001`) must be published through a hospital domain.
 
 Supported options in this phase:
 
-- reverse proxy (for example, Nginx/Caddy) forwarding to `127.0.0.1:8000`.
-- Cloudflare Tunnel targeting `http://127.0.0.1:8000`.
+- reverse proxy (for example, Nginx/Caddy) forwarding to `127.0.0.1:8001`.
+- Cloudflare Tunnel targeting `http://127.0.0.1:8001`.
 
 Operational recommendation:
 
 - use HTTPS on the public domain.
 - do not expose the loopback port directly without a controlled publishing layer.
+- consult the official publication topology at `docs/en/publication-topology.md`.
 
 ## Mobile Dashboard Installation (PWA)
 

@@ -87,3 +87,9 @@ utiliza a infraestrutura SQLAlchemy compartilhada para persistência de prompts.
 - `jobs`: registros de fila com retry/scheduling
 - `prompt_templates`: prompts versionados com uma versão ativa por nome
 - `users` e `auth_tokens`: fundação de auth e controle de acesso
+
+## Notas de publicação
+
+A topologia oficial de publicação — caminhos interno e externo, matriz de
+acesso por papel/zona e critérios de validação — está documentada em
+`docs/publication-topology.md`.

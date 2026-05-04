@@ -37,3 +37,9 @@ Antes de criar ou publicar um remoto:
 ## Reporte de incidentes de segurança
 
 Até existir uma policy dedicada de segurança, reporte problemas de forma privada para mantenedores do repositório e evite abrir issues públicas com detalhes de exploração.
+
+## Publicação e superfície de rede
+
+A topologia oficial de publicação, separação de caminhos interno e externo, e
+matriz de acesso por papel/zona estão documentadas em
+`docs/publication-topology.md`.

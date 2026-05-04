@@ -37,3 +37,9 @@ Before creating or publishing a remote:
 ## Reporting security issues
 
 Until a dedicated security policy file is added, report issues privately to repository maintainers and avoid opening public issue threads with exploit details.
+
+## Publication and network surface
+
+The official publication topology, separation of internal and external paths,
+and role/zone access matrix are documented in
+`docs/en/publication-topology.md`.

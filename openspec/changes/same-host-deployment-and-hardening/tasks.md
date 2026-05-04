@@ -9,7 +9,7 @@
 
 ## Phase 2 - Publication topology and zone hardening
 
-- [ ] 2.1 Documentar e validar a topologia interna vs externa no mesmo host.
+- [x] 2.1 Documentar e validar a topologia interna vs externa no mesmo host.
   - Slice file: `openspec/changes/same-host-deployment-and-hardening/tasks/03-publication-topology.md`
 - [ ] 2.2 Adicionar hardening operacional, checklist de zona por papel e troubleshooting.
   - Slice file: `openspec/changes/same-host-deployment-and-hardening/tasks/04-zone-hardening-and-troubleshooting.md`
