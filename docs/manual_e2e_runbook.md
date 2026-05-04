@@ -6,7 +6,7 @@ Este runbook valida ponta a ponta o fluxo operacional completo em ambiente
 local controlado/determinístico, cobrindo tanto a interface web operacional
 (NIR, médico, agendador) quanto o dashboard de monitoramento e auditoria.
 
-> **Direção atual do refactor web:** a validação deve priorizar a superfície consolidada em Django. Passos envolvendo superfícies humanas em FastAPI/Matrix devem ser tratados como referência legada ou apoio de cutover, não como baseline obrigatório de compatibilidade.
+> **Superfície final suportada:** a validação agora é exclusivamente Django-first. FastAPI e Matrix são componentes de backend — suas superfícies humanas/administrativas foram retiradas. Passos abaixo que ainda mencionam FastAPI/Matrix estão marcados como referência legada e não são necessários para validação operacional.
 
 Execute `docs/runtime-smoke.md` antes para confirmar startup dos processos e
 alcance de callback.
@@ -44,7 +44,7 @@ uv run apps/django_ops/manage.py create_user admin@teste.com senha123 admin
 
 ## Checagens de login web e menu por papel
 
-> **Nota:** as rotas e superfícies administrativas definitivas deste programa devem convergir para o Django. Se algum passo abaixo mencionar fluxo legado ou rota antiga, trate-o como referência histórica até a atualização final do runbook no slice de handoff.
+> **Nota de cutover:** todas as superfícies humanas e administrativas estão consolidadas no Django (porta 8001). FastAPI (`bot-api`) e Matrix (`bot-matrix`) operam exclusivamente como runtime de backend. As seções abaixo que mencionam `bot-api` (FastAPI) ou interações Matrix para decisão médica/scheduling são referência histórica legada. **A validação operacional completa é atingida exclusivamente pelo fluxo web Django.**
 
 1. Acesso anônimo no navegador:
 

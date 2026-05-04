@@ -21,7 +21,7 @@
 
 ## Phase 4 - Verification and cutover handoff
 
-- [ ] 4.1 Atualizar auditoria, runbook manual, testes de autorização e handoff de cutover da superfície antiga.
+- [x] 4.1 Atualizar auditoria, runbook manual, testes de autorização e handoff de cutover da superfície antiga.
   - Slice file: `openspec/changes/admin-manager-web-consolidation/tasks/06-verification-and-legacy-handoff.md`
 
 ## Execution rules for every slice

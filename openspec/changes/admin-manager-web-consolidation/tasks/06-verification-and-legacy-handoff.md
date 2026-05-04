@@ -10,6 +10,8 @@ Dashboard, shell e áreas administrativas já foram consolidados. Este slice fec
 
 A partir deste handoff, as superfícies humanas/admin em FastAPI e Matrix devem ser tratadas explicitamente como legado a ser retirado, não como baseline de convivência.
 
+Também deve ficar explícito no handoff final que a superfície suportada é Django-first. Se algum componente de backend compartilhado ainda permanecer por baixo da superfície Django consolidada (por exemplo, persistência de prompts em tabela compartilhada gerida por Alembic/SQLAlchemy), isso deve ser documentado como exceção arquitetural deliberada e limitada ao backend compartilhado — não como dependência da superfície administrativa legada.
+
 ## Scope boundaries
 
 **Included:** documentação/manual E2E, testes finais de autorização, checklist OpenSpec, notas de handoff legado e instruções explícitas de hard cutover para a superfície Django consolidada.
@@ -24,7 +26,9 @@ A partir deste handoff, as superfícies humanas/admin em FastAPI e Matrix devem 
 
 - matriz `manager` vs `admin` está documentada e verificada;
 - existe handoff claro para desativação da superfície antiga;
-- a documentação final deixa explícito que não há requisito de compatibilidade legada após o cutover.
+- a documentação final deixa explícito que não há requisito de compatibilidade legada após o cutover;
+- o handoff final identifica claramente o que já está totalmente consolidado no Django e quais componentes compartilhados de backend ainda permanecem, quando aplicável;
+- qualquer exceção arquitetural remanescente fica registrada como exceção consciente de backend compartilhado, não como reintrodução da superfície legada.
 
 ## Mandatory report file
 
@@ -41,6 +45,7 @@ Implement only this slice.
 Do not add new product features.
 Focus on verification, documentation sync, and explicit legacy retirement handoff.
 Document the Django surface as the final supported human/admin interface for this scope.
+If any shared backend component remains under the Django surface (for example, Alembic/SQLAlchemy-managed prompt persistence), document it explicitly as a bounded backend exception and make clear that it does not reopen legacy FastAPI/Matrix surface compatibility.
 Run gates, update checklist, commit, push, and stop.
 Report SNP before/after.
 Write the full implementation report to `/tmp/admin-manager-web-consolidation-06-verification-and-legacy-handoff-report.md`.

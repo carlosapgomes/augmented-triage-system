@@ -4,7 +4,7 @@ Language: [Portugues (BR)](../architecture.md) | **English**
 
 ## Overview
 
-> **Current web-refactor direction:** for the human and administrative surfaces covered by the active web changes, Django is the target implementation. FastAPI and Matrix should be treated as legacy reference points for behavior, audit expectations, and remaining integrations, not as a required structural compatibility baseline.
+> **Final supported surface:** Django (`django-ops`) is the final supported human and administrative surface for this program. FastAPI and Matrix are backend runtime components — **their human and administrative surfaces have been retired and must not be treated as a compatibility baseline.** References to those surfaces in the code and artifacts of this repository are exclusively legacy/back-end.
 
 The system is split into four deployable apps plus PostgreSQL:
 
@@ -38,13 +38,46 @@ Rules:
 - Bot API runtime assembly: `apps/bot_api/main.py`
 - Django web app (dashboard, login, management): `apps/django_ops/`
 
+## Final human and administrative surface
+
+- **Django (`django-ops`) is the only supported human and administrative surface.**
+  All human interactions (NIR, doctor, scheduler, manager, admin) are consolidated
+  exclusively in the Django app on port 8001.
+- FastAPI (`bot-api`) and Matrix (`bot-matrix`) are **backend runtime components**
+  and no longer expose human/administrative surfaces. Their HTML routes, user
+  management endpoints, and prompt management surfaces have been retired.
+- **There is no legacy compatibility requirement** with the old FastAPI or Matrix
+  human/admin surfaces after cutover.
+
+### Consolidated roles
+
+- `manager`: read-only only (operational dashboard, case detail, auditable timeline).
+- `admin`: the only role with mutation powers over users, prompts, and system.
+
+### Conscious architectural exception: `prompt_templates` table
+
+The `prompt_templates` table is a **shared backend component** managed by
+Alembic/SQLAlchemy. It is read and written by LLM services, the extraction
+pipeline, and the Matrix bot — all of which use SQLAlchemy/asyncpg. The
+`DjangoOrmPromptStoreAdapter` (`apps/django_ops/django_prompt_store_adapter.py`)
+uses the shared SQLAlchemy infrastructure for prompt persistence.
+
+**This exception is exclusively backend:**
+
+- It is a shared runtime detail between backend components.
+- **It does not reintroduce a dependency on the legacy FastAPI/Matrix admin surface.**
+- The prompt administrative surface is 100% Django (views, templates,
+  session-based authorization).
+- The domain contract (`DjangoPromptStorePort`, `DjangoPromptManagementService`)
+  remains infrastructure-independent.
+
 ## Workflow notes
 
 - The triage lifecycle is state-machine driven (see `PROJECT_CONTEXT.md` for canonical states).
-- During the web refactor, the consolidated human operational and administrative interface should move to `django-ops`; references to human-facing FastAPI/Matrix surfaces are legacy guidance for consultation and controlled retirement.
 - Cleanup is triggered by the first Room-1 thumbs-up reaction on the final reply, unless an approved web change explicitly moves that checkpoint to an equivalent web action.
-- The final monitoring and administrative surface in this program should converge on Django.
-- Prompt management remains admin-only on the administrative surface.
+- The canonical human closure checkpoint is now the `NIR_FINAL_ACKNOWLEDGMENT` web action (NIR confirms receipt via Django), replacing the Room-1 Matrix thumbs-up reaction as the human trigger.
+- The final monitoring and administrative surface in this program converges on Django.
+- Prompt management remains admin-only on the Django administrative surface.
 
 ## Persistence model (high level)
 

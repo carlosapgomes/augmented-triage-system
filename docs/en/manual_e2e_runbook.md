@@ -6,14 +6,14 @@ This runbook validates the full operational workflow end-to-end in a
 controlled/deterministic local environment, covering both the operational web
 interface (NIR, doctor, scheduler) and the monitoring/audit dashboard.
 
-> **Current web-refactor direction:** validation should prioritize the consolidated Django surface. Steps involving human-facing FastAPI/Matrix surfaces should be treated as legacy reference or cutover support, not as a required compatibility baseline.
+> **Final supported surface:** validation is now exclusively Django-first. FastAPI and Matrix are backend components — their human/administrative surfaces have been retired. Steps below that still mention FastAPI/Matrix are marked as legacy reference and are not required for operational validation.
 
 Run `docs/en/runtime-smoke.md` first to confirm process startup and callback
 reachability.
 
 ## Prerequisites
 
-> **Note:** the final admin and operational routes in this program should converge on Django. If a section below still mentions a legacy route or historical human-facing flow, treat it as historical reference until the final handoff slice refreshes the runbook completely.
+> **Cutover note:** all human and administrative surfaces are consolidated in Django (port 8001). FastAPI (`bot-api`) and Matrix (`bot-matrix`) operate exclusively as backend runtime. Sections below that mention `bot-api` (FastAPI) or Matrix interactions for medical decision/scheduling are historical legacy reference. **Complete operational validation is achieved exclusively through the Django web flow.**
 
 1. Start the runtime processes with the same commands used in
    `docs/en/runtime-smoke.md`:

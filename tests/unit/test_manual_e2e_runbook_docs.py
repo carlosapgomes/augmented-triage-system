@@ -66,7 +66,7 @@ def test_manual_e2e_runbook_defines_widget_negative_auth_checks() -> None:
 
     assert "## Checagens negativas de auth do widget" in runbook
     assert "without Authorization" in runbook
-    assert "reader role token" in runbook
+    assert "manager role token" in runbook
     assert "401" in runbook
     assert "403" in runbook
     assert "state/job mutation" in runbook
@@ -120,7 +120,7 @@ def test_manual_e2e_runbook_defines_prompt_authorization_flow_checks() -> None:
     assert "/admin/prompts/versions" in runbook
     assert "/admin/prompts/{prompt_name}/active" in runbook
     assert "/admin/prompts/{prompt_name}/activate" in runbook
-    assert "reader token" in runbook
+    assert "manager token" in runbook
     assert "admin token" in runbook
     assert "403" in runbook
     assert "200" in runbook
@@ -135,7 +135,7 @@ def test_manual_e2e_runbook_defines_user_management_authorization_and_audit_chec
     assert "/admin/users/{user_id}/block" in runbook
     assert "/admin/users/{user_id}/activate" in runbook
     assert "/admin/users/{user_id}/remove" in runbook
-    assert "reader token" in runbook
+    assert "manager token" in runbook
     assert "403" in runbook
     assert "auth_events" in runbook
     assert "payload->>'target_user_id'" in runbook
@@ -173,7 +173,7 @@ def test_manual_e2e_runbook_english_mirror_defines_user_management_checks() -> N
     assert "/admin/users/{user_id}/block" in runbook
     assert "/admin/users/{user_id}/activate" in runbook
     assert "/admin/users/{user_id}/remove" in runbook
-    assert "reader token" in runbook
+    assert "manager token" in runbook
     assert "403" in runbook
     assert "auth_events" in runbook
     assert "payload->>'target_user_id'" in runbook
