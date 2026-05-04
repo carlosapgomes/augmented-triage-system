@@ -42,10 +42,9 @@ Este repositório é implementado com TDD estrito e histórico de slices OpenSpe
 - A fundação do fluxo de triagem está implementada e coberta por testes automatizados.
 - A superfície humana e administrativa está consolidada no `django-ops` (porta 8001):
   - fluxo web de sessão (`GET /login/`, `POST /login/`, `POST /logout/`)
-  - dashboard server-rendered (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
+  - dashboard e detalhe de caso (`/manager/`, `/manager/cases/<uuid>/`)
   - fluxo operacional web (NIR, médico, agendador)
-  - admin de prompts e usuários (`/admin/prompts`, `/admin/users`)
-  - API de monitoramento (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+  - admin de prompts (`/admin/prompts/`) e usuários (`/admin/users/`)
 - `bot-api` (porta 8000) permanece como runtime de backend:
   - autenticação por token opaco (`POST /auth/login`)
   - endpoints internos de suporte de runtime
@@ -83,9 +82,8 @@ Páginas web e rotas de sessão:
 - `GET /nir/`, `GET /nir/upload/` (NIR)
 - `GET /doctor/`, `GET /doctor/cases/{id}/decision/` (médico)
 - `GET /scheduler/`, `GET /scheduler/cases/{id}/confirm/` (agendador)
-- `GET /manager/` (gestor — dashboard e monitoramento)
-- `GET /admin/prompts`, `GET /admin/users` (admin)
-- `GET /monitoring/cases`, `GET /monitoring/cases/{case_id}` (API de auditoria)
+- `GET /manager/`, `GET /manager/cases/{id}/` (gestor — dashboard e detalhe de caso)
+- `GET /admin/`, `GET /admin/prompts/`, `GET /admin/users/` (admin)
 
 ### Superfície de backend — FastAPI (`bot-api`, porta 8000)
 
@@ -107,7 +105,7 @@ Fluxo de acesso pelo navegador (Django, porta 8001):
    - `doctor` → `/doctor/`
    - `scheduler` → `/scheduler/`
    - `manager` → `/manager/`
-   - `admin` → `/manager/`
+   - `admin` → `/admin/`
 1. Use `Sair` (`POST /logout/`) para encerrar a sessão.
 
 Matriz de papéis:

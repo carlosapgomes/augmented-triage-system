@@ -42,10 +42,9 @@ This repo is implemented with strict TDD and OpenSpec slice history under `opens
 - Triage workflow foundation is implemented and covered by automated tests.
 - The human and administrative surface is consolidated in `django-ops` (port 8001):
   - web session flow (`GET /login/`, `POST /login/`, `POST /logout/`)
-  - server-rendered dashboard (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
+  - dashboard and case detail (`/manager/`, `/manager/cases/<uuid>/`)
   - operational web flow (NIR, doctor, scheduler)
-  - prompt and user admin (`/admin/prompts`, `/admin/users`)
-  - monitoring API (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+  - prompt admin (`/admin/prompts/`) and user admin (`/admin/users/`)
 - `bot-api` (port 8000) remains as backend runtime:
   - opaque token authentication (`POST /auth/login`)
   - internal runtime support endpoints
@@ -83,9 +82,8 @@ Web pages and session routes:
 - `GET /nir/`, `GET /nir/upload/` (NIR)
 - `GET /doctor/`, `GET /doctor/cases/{id}/decision/` (doctor)
 - `GET /scheduler/`, `GET /scheduler/cases/{id}/confirm/` (scheduler)
-- `GET /manager/` (manager — dashboard and monitoring)
-- `GET /admin/prompts`, `GET /admin/users` (admin)
-- `GET /monitoring/cases`, `GET /monitoring/cases/{case_id}` (audit API)
+- `GET /manager/`, `GET /manager/cases/{id}/` (manager — dashboard and case detail)
+- `GET /admin/`, `GET /admin/prompts/`, `GET /admin/users/` (admin)
 
 ### Backend surface — FastAPI (`bot-api`, port 8000)
 
@@ -107,7 +105,7 @@ Browser-first access flow (Django, port 8001):
    - `doctor` → `/doctor/`
    - `scheduler` → `/scheduler/`
    - `manager` → `/manager/`
-   - `admin` → `/manager/`
+   - `admin` → `/admin/`
 1. Use `Sair` (`POST /logout/`) to end the session.
 
 Role matrix:
